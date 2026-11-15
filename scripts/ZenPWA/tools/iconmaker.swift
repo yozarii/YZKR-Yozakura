@@ -13,6 +13,7 @@ import Foundation
  *             transparency sits on a white tile (Chrome's behaviour)
  *   fill      artwork fills the shape (maskable / full-bleed icons)
  *   logo      artwork on a white tile, trimmed and centred
+ *   dark      artwork on a near-black tile (dark variant of logo)
  *   monogram  flat accent tile with one letter (no usable icon)
  */
 
@@ -133,6 +134,7 @@ if image == nil { mode = "monogram" }
 // Older callers passed "full" / "tile".
 if mode == "full" { mode = "fill" }
 if mode == "tile" { mode = "logo" }
+let darkTile = NSColor(srgbRed: 0.078, green: 0.078, blue: 0.078, alpha: 1)   // #141414
 if mode == "auto" { mode = (rep.map(isOpaqueSquare) ?? false) ? "fill" : "logo" }
 
 let bitmap = NSBitmapImageRep(
@@ -161,7 +163,7 @@ shadow.shadowColor = NSColor(white: 0, alpha: 0.28)
 shadow.shadowBlurRadius = 24
 shadow.shadowOffset = NSSize(width: 0, height: -10)
 shadow.set()
-(mode == "monogram" ? accent : NSColor.white).setFill()
+(mode == "monogram" ? accent : mode == "dark" ? darkTile : NSColor.white).setFill()
 mask.fill()
 NSGraphicsContext.restoreGraphicsState()
 
@@ -179,7 +181,7 @@ case "fill":
             from: .zero, operation: .sourceOver, fraction: 1
         )
     }
-case "logo":
+case "logo", "dark":
     if let image {
         let bounds = rep.map { contentBounds($0, image.size) } ?? NSRect(origin: .zero, size: image.size)
         // Logo fits a 60% box, but never more than 8x its pixel size (keeps tiny favicons crisp).
@@ -207,7 +209,7 @@ default: // monogram
 NSGraphicsContext.restoreGraphicsState()
 
 // Hairline so a white tile still has an edge on a light Dock.
-NSColor(white: 0, alpha: 0.07).setStroke()
+(mode == "dark" ? NSColor(white: 1, alpha: 0.08) : NSColor(white: 0, alpha: 0.07)).setStroke()
 let edge = squircle(shape.insetBy(dx: 0.75, dy: 0.75))
 edge.lineWidth = 1.5
 edge.stroke()
