@@ -34,21 +34,26 @@
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --chrome: linear-gradient(180deg, var(--chrome-hi) 0%, var(--chrome-mid) 58%, var(--chrome-lo) 76%, var(--chrome-mid) 100%);
   --spring: cubic-bezier(.3, 1.5, .5, 1);
-  /* Zen compact mode, measured from the user's Zen window. */
-  --frame: 9px;
-  --card-radius: 8px;
+  /* Zen is the source of truth (app/zen-config.js): these are Zen's own
+     variables with Zen's macOS defaults, overwritten at launch from the
+     user's Zen profile and then by any Zen mods (#zen-vars, #zen-mods). */
+  --zen-element-separation: 8px;
+  --zen-border-radius: 11px;
+  --zen-native-inner-radius: 9.1px;
+  --zen-toolbar-height: 42px;
+  --zen-main-browser-background: rgba(0, 0, 0, 0.4);
+  --zen-main-browser-background-toolbar: var(--zen-main-browser-background);
+  --toolbar-text-color: rgba(255, 255, 255, 0.8);
+  --zen-toolbar-scheme: dark;
+  --zen-hidden-toolbar-transition: 0.15s ease-in-out;
+  --toolbarbutton-border-radius: 6px;
+  --zen-toolbar-element-bg: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.06));
+  --zen-toolbar-element-bg-hover: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
+  --zen-primary-color: var(--sakura);
+  --zen-ui: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Site tint. main.js resolveTint() picks the site's highlight colour
-     (override → manifest → meta → brand → favicon) and zenTone() turns it
-     into a frame colour in the tone of Zen's workspace colour. Without a
-     tint the frame is the Zen colour itself. */
-  --tint: var(--line);
-  --zen-frame: #6f5b69;
-  --zen-ink: #f6eff3;
-  --zen-ink-muted: #f6eff3b3;
-  --zen-hover: #ffffff1f;
-  --zen-field: #ffffff17;
-  --zen-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --frame: var(--zen-element-separation);
+  --card-radius: var(--zen-native-inner-radius);
 }
 
 /* YZKR tokens (Hiru / day) */
@@ -80,7 +85,8 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--zen-frame);
+  /* Translucent over the native window blur, like Zen on macOS. */
+  background: var(--zen-main-browser-background);
   color: var(--ink);
   font-family: var(--mono);
   -webkit-font-smoothing: antialiased;
@@ -102,8 +108,17 @@ button:focus-visible, .search:focus-visible { outline: 2px solid var(--focus); o
   background: var(--surface);
   box-shadow: 0 0 0 1px #0000002e, 0 2px 10px #00000026;
   -webkit-app-region: no-drag;
-  transition: inset .3s ease, border-radius .3s ease;
+  transition: top var(--zen-hidden-toolbar-transition);
 }
+
+/* Zen's compact top bar takes the place of the top gap while it is shown. */
+body.bar-open:not(.fullscreen) #page,
+body.bar-open:not(.fullscreen) #splash,
+body.bar-open:not(.fullscreen) #error { top: var(--zen-toolbar-height); }
+
+/* zen.view.grey-out-inactive-windows */
+/* (colour only: a filter here would sit above the DRM video) */
+html body.zen-grey-inactive.blurred { background: color-mix(in srgb, var(--zen-main-browser-background) 45%, rgb(128 128 128 / 0.35)); }
 
 #webview-host, #webview-host webview {
   position: absolute;
@@ -164,33 +179,30 @@ body.fullscreen #grip { display: none; }
   left: 0;
   right: 0;
   z-index: 30;
-  height: 40px;
+  height: var(--zen-toolbar-height);
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 8px 0 0;
-  background: var(--zen-frame);
-  border-radius: 0 0 var(--card-radius) var(--card-radius);
-  box-shadow: 0 4px 16px #00000047, 0 1px 0 #0000001f;
-  color: var(--zen-ink);
+  padding: 0 var(--frame) 0 0;
+  /* The bar sits on the frame itself, as in Zen; no card of its own. */
+  background: transparent;
+  color: var(--toolbar-text-color);
+  color-scheme: var(--zen-toolbar-scheme);
   font: 400 13px/16px var(--zen-ui);
   -webkit-app-region: drag;
 
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-100%);
-  transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .2s ease, visibility 0s .25s;
+  transition: opacity var(--zen-hidden-toolbar-transition), visibility 0s .15s;
 }
 
 #toolbar.visible {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
-  transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .2s ease;
+  transition: opacity var(--zen-hidden-toolbar-transition);
 }
 
 body.html-fullscreen #toolbar { display: none; }
-body.fullscreen #toolbar { border-radius: 0; }
 body.fullscreen .lights { width: 8px; }
 
 /* Room for the native traffic lights. */
@@ -204,20 +216,20 @@ body.fullscreen .lights { width: 8px; }
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--toolbarbutton-border-radius);
   background: transparent;
-  color: var(--zen-ink);
+  color: inherit;
   transition: background-color .15s ease, opacity .15s ease;
 }
 .zbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .zbtn circle { fill: currentColor; stroke: none; }
 .zbtn:disabled { opacity: .4; }
 @media (hover: hover) and (pointer: fine) {
-  .zbtn:not(:disabled):hover { background: var(--zen-hover); }
-  .search:hover { background: color-mix(in srgb, var(--zen-field), #ffffff 6%); }
+  .zbtn:not(:disabled):hover { background: var(--zen-toolbar-element-bg-hover); }
+  .search:hover { background: var(--zen-toolbar-element-bg-hover); }
 }
-.zbtn:not(:disabled):active { background: color-mix(in srgb, var(--zen-hover), #ffffff 8%); }
-#toolbar button:focus-visible, #toolbar .search:focus-visible { outline: 2px solid var(--zen-ink); outline-offset: 1px; }
+.zbtn:not(:disabled):active { background: var(--zen-toolbar-element-bg-hover); }
+#toolbar button:focus-visible, #toolbar .search:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
 
 /* Address: Zen's URL bar */
 .search {
@@ -229,8 +241,8 @@ body.fullscreen .lights { width: 8px; }
   gap: 8px;
   margin: 0 6px;
   padding: 0 10px 0 8px;
-  border-radius: 8px;
-  background: var(--zen-field);
+  border-radius: calc(var(--zen-border-radius) - 2px);
+  background: var(--zen-toolbar-element-bg);
   -webkit-app-region: no-drag;
   overflow: hidden;
   transition: background-color .15s ease, box-shadow .15s ease;
@@ -245,14 +257,14 @@ body.fullscreen .lights { width: 8px; }
   place-items: center;
   font-size: 12px;
   font-weight: 600;
-  color: var(--zen-ink-muted);
+  opacity: .7;
 }
 .glyph img { width: 16px; height: 16px; border-radius: 3px; object-fit: contain; }
 
 .title, .host { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* Zen's URL bar shows the address, not the page title. */
 .title { display: none; }
-.host { flex: 0 1 auto; color: var(--zen-ink); }
+.host { flex: 0 1 auto; color: inherit; }
 
 .url {
   display: none;

@@ -11,7 +11,7 @@ const allowedEvents = new Set([
   'widevine',
   'toast',
   'window-state',
-  'tint',
+  'zen',
 ]);
 
 function on(channel, callback) {

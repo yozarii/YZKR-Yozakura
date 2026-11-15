@@ -2,7 +2,7 @@
 
 const {
   app, BrowserWindow, Menu, ipcMain, shell, session, nativeImage, net,
-  screen, clipboard, dialog, components, desktopCapturer,
+  screen, clipboard, dialog, components, desktopCapturer, nativeTheme,
 } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -297,30 +297,51 @@ function resolveTint() {
 }
 
 /*
- * Zen compact mode paints the window frame in the workspace colour, a dusty
- * low-saturation tone (the user's Zen frame is #6f5b69). Each PWA keeps that
- * tone but takes its hue from the site, so Netflix is a dusty red and GitHub
- * a dusty green. No tint at all → the Zen frame colour itself.
+ * Zen is the source of truth for the look (app/zen-config.js): layout prefs,
+ * the active space's colour, mods and userChrome.css are read from the Zen
+ * profile at launch and again whenever Zen rewrites them. The site's colour
+ * only changes the hue of the space colour.
  */
-const ZEN_FRAME = '#6f5b69';
+const zenConfig = require('./zen-config');
 
-function zenTone(hex) {
-  if (!HEX.test(String(hex || ''))) return ZEN_FRAME;
-  const n = parseInt(hex.slice(1), 16);
-  const { h, s } = rgbToHsl((n >> 16) & 255, (n >> 8) & 255, n & 255);
-  return hslToHex(h, Math.min(0.28, Math.max(0.1, s * 0.3)), 0.4);
-}
+state.zen = zenConfig.load();
 
 function setTint(tint) {
   state.accent = tint.color;
   state.accentSource = tint.source;
-  state.frame = zenTone(tint.color);
+  state.frame = zenConfig.frameFor(state.zen, tint.color, nativeTheme.shouldUseDarkColors);
+}
+
+function zenPayload() {
+  return {
+    tint: { color: state.accent, source: state.accentSource },
+    frame: state.frame,
+    layout: state.zen.layout,
+    mods: state.zen.mods,
+    space: state.zen.space ? state.zen.space.name : null,
+    profile: state.zen.profile ? path.basename(state.zen.profile) : null,
+  };
+}
+
+function trafficLights() {
+  const { toolbarHeight } = state.zen.layout;
+  return { x: 14, y: Math.round((toolbarHeight - 14) / 2) };
 }
 
 function applyTint(tint) {
   setTint(tint);
-  if (state.window && !state.window.isDestroyed()) state.window.setBackgroundColor(state.frame);
-  sendToShell('tint', { color: tint.color, source: tint.source, frame: state.frame });
+  sendToShell('zen', zenPayload());
+}
+
+function reloadZen() {
+  const next = zenConfig.load();
+  const before = JSON.stringify([state.zen.layout, state.zen.space, state.zen.mods, state.zen.prefs['zen.view.window.scheme']]);
+  const after = JSON.stringify([next.layout, next.space, next.mods, next.prefs['zen.view.window.scheme']]);
+  if (before === after) return;
+  state.zen = next;
+  applyTint({ color: state.accent, source: state.accentSource });
+  const win = state.window;
+  if (win && !win.isDestroyed() && typeof win.setWindowButtonPosition === 'function') win.setWindowButtonPosition(trafficLights());
 }
 
 async function sampleFaviconTint() {
@@ -466,9 +487,6 @@ function broadcastWindowState() {
   sendToShell('window-state', windowState());
 }
 
-// Centred in the 40px compact bar (lights are 14px tall).
-const TRAFFIC_LIGHTS = { x: 14, y: 13 };
-
 function createWindow() {
   const bounds = readBounds();
   const win = new BrowserWindow({
@@ -480,7 +498,10 @@ function createWindow() {
     minHeight: 280,
     frame: false,
     transparent: false,
-    backgroundColor: state.frame || ZEN_FRAME,
+    // Zen on macOS paints the space colour translucent over the native blur.
+    vibrancy: 'under-window',
+    visualEffectState: 'followWindow',
+    backgroundColor: '#00000000',
     roundedCorners: true,
     hasShadow: true,
     acceptFirstMouse: true,
@@ -500,7 +521,7 @@ function createWindow() {
   });
   state.window = win;
   // Like Zen compact mode: the real traffic lights only appear with the top bar.
-  if (typeof win.setWindowButtonPosition === 'function') win.setWindowButtonPosition(TRAFFIC_LIGHTS);
+  if (typeof win.setWindowButtonPosition === 'function') win.setWindowButtonPosition(trafficLights());
   if (typeof win.setWindowButtonVisibility === 'function') win.setWindowButtonVisibility(false);
 
   win.loadFile(path.join(__dirname, 'shell', 'index.html'));
@@ -821,6 +842,7 @@ app.on('web-contents-created', (_event, contents) => {
               "const bar = document.getElementById('toolbar');" +
               "if (bar) {" +
               "bar.classList.add('visible');" +
+              "document.body.classList.add('bar-open');" +
               "bar.setAttribute('aria-hidden','false');" +
               "}" +
               "document.body.classList.remove('booting');" +
@@ -901,8 +923,8 @@ ipcMain.handle('site:init', async (event) => {
       drm: site.drm,
       accent: state.accent,
       accentSource: state.accentSource,
-      frame: state.frame,
     },
+    zen: zenPayload(),
     widevine: state.widevine,
     icon: state.iconDataUrl,
     window: windowState(),
@@ -1095,6 +1117,8 @@ if (!lock) {
     createWindow();
     buildMenu();
     if (!state.accent) setTimeout(() => { sampleFaviconTint().catch(() => {}); }, 1500);
+    zenConfig.watch(state.zen, reloadZen);
+    nativeTheme.on('updated', () => applyTint({ color: state.accent, source: state.accentSource }));
     if (settings.alwaysOnTop && state.window) state.window.setAlwaysOnTop(true);
     prepareWidevine();
     if (flags.selftest) {

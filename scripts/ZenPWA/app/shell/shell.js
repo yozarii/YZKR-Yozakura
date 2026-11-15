@@ -81,18 +81,49 @@ function applyScheme(scheme) {
   document.documentElement.dataset.scheme = scheme;
 }
 
-// Window tint: main.js turns the site's highlight colour into a Zen-toned
-// frame colour; the frame and the compact bar are painted in it.
-function applyTint(tint) {
-  const hex = (value) => (/^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : null);
+/*
+ * Zen config (main.js → app/zen-config.js). Zen's variables go into a
+ * stylesheet rather than inline styles so the user's Zen mods, injected
+ * after it, can still override them, exactly as they would in Zen.
+ */
+let zenPinned = false;   // zen.view.compact.hide-toolbar = false → bar always shown
+let zenHideDelay = 420;  // zen.view.compact.toolbar-hide-after-hover.duration
+
+function styleSlot(id) {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('style');
+    el.id = id;
+    document.head.appendChild(el);
+  }
+  return el;
+}
+
+function applyZen(zenState) {
+  if (!zenState) return;
+  const { layout = {}, frame = {}, tint = {}, mods = {} } = zenState;
+  const px = (n, fallback) => `${Number.isFinite(Number(n)) ? Number(n) : fallback}px`;
+  const vars = {
+    '--zen-element-separation': px(layout.separation, 8),
+    '--zen-border-radius': px(layout.borderRadius, 11),
+    '--zen-native-inner-radius': px(layout.innerRadius, 9.1),
+    '--zen-toolbar-height': px(layout.toolbarHeight, 42),
+    '--zen-main-browser-background': frame.css || 'rgba(0, 0, 0, 0.4)',
+    '--zen-main-browser-background-toolbar': frame.css || 'rgba(0, 0, 0, 0.4)',
+    '--toolbar-text-color': frame.ink || 'rgba(255, 255, 255, 0.8)',
+    '--zen-toolbar-scheme': frame.inkScheme || 'dark',
+  };
+  if (/^#[0-9a-f]{6}$/i.test(String(tint.color || ''))) vars['--zen-primary-color'] = tint.color;
+  styleSlot('zen-vars').textContent = `:root {\n${Object.entries(vars).map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}`;
+  styleSlot('zen-mods').textContent = String(mods.css || '');
+
   const root = document.documentElement;
-  const color = hex(tint && tint.color);
-  const frame = hex(tint && tint.frame);
-  if (color) root.style.setProperty('--tint', color);
-  else root.style.removeProperty('--tint');
-  if (frame) root.style.setProperty('--zen-frame', frame);
-  else root.style.removeProperty('--zen-frame');
-  root.dataset.tint = tint && tint.source ? tint.source : 'zen';
+  root.setAttribute('zen-compact-mode', 'true');
+  root.dataset.tint = tint.source || 'zen';
+  document.body.classList.toggle('zen-grey-inactive', Boolean(layout.greyInactive));
+  zenHideDelay = Math.max(200, Number(layout.hideDelay) || 420);
+  zenPinned = layout.hideToolbar === false;
+  if (zenPinned) reveal();
 }
 
 /* ------------------------------------------------------------------ *
@@ -108,16 +139,19 @@ function reveal() {
   if (!els.toolbar.classList.contains('visible')) zen.setButtons(!isWindowFullscreen);
   els.toolbar.classList.add('visible');
   els.toolbar.setAttribute('aria-hidden', 'false');
+  // Zen's compact top bar grows from the element gap and pushes the page down.
+  document.body.classList.add('bar-open');
 }
 
 function hide() {
-  if (editing || menuOpen) return;
+  if (editing || menuOpen || zenPinned) return;
   els.toolbar.classList.remove('visible');
   els.toolbar.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('bar-open');
   zen.setButtons(false);
 }
 
-function scheduleHide(delay = 420) {
+function scheduleHide(delay = zenHideDelay) {
   clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
     if (!nearTop && !hovering && !editing && !menuOpen) hide();
@@ -497,7 +531,7 @@ async function boot() {
   }
 
   applyScheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  applyTint({ color: cfg.site.accent, source: cfg.site.accentSource, frame: cfg.site.frame });
+  applyZen(cfg.zen);
 
   updateAddress(cfg.site.url, cfg.site.name);
   els.hostLabel.textContent = cfg.site.host;
@@ -539,7 +573,7 @@ function waitForWidevineReady() {
 
 /* Toolbar behaviour */
 els.toolbar.addEventListener('mouseenter', () => { hovering = true; reveal(); });
-els.toolbar.addEventListener('mouseleave', () => { hovering = false; scheduleHide(320); });
+els.toolbar.addEventListener('mouseleave', () => { hovering = false; scheduleHide(); });
 
 document.addEventListener('pointerenter', () => {});
 document.addEventListener('mousemove', (event) => {
@@ -627,7 +661,7 @@ zen.on('fullscreen', (on) => {
   if (on) hide();
 });
 zen.on('cmd', handleCommand);
-zen.on('tint', applyTint);
+zen.on('zen', applyZen);
 zen.on('toast', (payload) => toast(payload && payload.message, payload && payload.kind));
 zen.on('widevine', (widevine) => {
   if (widevine.state === 'ready') {
