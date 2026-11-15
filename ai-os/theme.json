@@ -1,0 +1,30 @@
+{
+  "name": "YZKR Obsidian",
+  "mode": "dark",
+  "colors": {
+    "bg": "#0b0b10",
+    "bgElevated": "#12121a",
+    "surface": "#171722",
+    "surfaceHover": "#1f1f2e",
+    "border": "#262636",
+    "text": "#e6e6ee",
+    "textMuted": "#8b8b99",
+    "accent": "#a78bfa",
+    "accentStrong": "#8b5cf6",
+    "success": "#7ce7ac",
+    "warning": "#f5c451",
+    "danger": "#f87171",
+    "info": "#7dd3fc"
+  },
+  "graph": {
+    "memory": "#a78bfa",
+    "filesystem": "#7dd3fc",
+    "chat": "#7ce7ac"
+  },
+  "typography": {
+    "ui": "-apple-system, 'SF Pro Text', system-ui, sans-serif",
+    "mono": "'SF Mono', 'JetBrains Mono', Menlo, monospace"
+  },
+  "radius": { "sm": 6, "md": 10, "lg": 14 },
+  "shortcuts": { "palette": "Cmd+K", "graph": "Cmd+E", "terminal": "Cmd+T" }
+}

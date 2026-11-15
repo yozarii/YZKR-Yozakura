@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" data-scheme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>Zen PWA</title>
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body class="booting">
+
+  <main id="page">
+    <div id="webview-host"></div>
+    <div id="error" hidden>
+      <div class="error-card">
+        <span class="tag">● failed</span>
+        <h2 id="error-title">this page didn't load</h2>
+        <p id="error-detail">could not reach the server. try again.</p>
+        <div class="error-actions">
+          <button id="error-retry" class="btn">try again</button>
+          <button id="error-zen" class="btn ghost">open in zen</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="grip" aria-hidden="true"><span id="progress"></span></div>
+
+  <header id="toolbar" aria-hidden="true" aria-label="toolbar">
+    <div class="dots">
+      <button class="dot close" data-action="close" title="close" aria-label="close window"></button>
+      <button class="dot min" data-action="minimize" title="minimise" aria-label="minimise"></button>
+      <button class="dot max" data-action="zoom" title="zoom" aria-label="zoom"></button>
+    </div>
+    <button class="chip" data-action="back" id="btn-back" title="back (⌘[)" aria-label="back" disabled>←</button>
+    <button class="chip" data-action="forward" id="btn-forward" title="forward (⌘])" aria-label="forward" disabled>→</button>
+    <div id="address" class="search" role="button" tabindex="0" title="find or go to… (⌘L)">
+      <span class="glyph"><img id="favicon" alt="" hidden /><span id="monogram">&gt;</span></span>
+      <span id="title" class="title">loading…</span>
+      <span id="host" class="host"></span>
+      <input id="url" class="url" spellcheck="false" autocomplete="off" placeholder="find or go to…" aria-label="address" />
+    </div>
+    <button class="chip" data-action="reload" id="btn-reload" title="reload (⌘R)" aria-label="reload">↻</button>
+    <button class="chip" data-action="menu" id="btn-menu" title="more" aria-label="more">···</button>
+  </header>
+
+  <div id="splash">
+    <div class="splash-icon" id="splash-icon"><span>Z</span></div>
+    <div class="splash-name" id="splash-name">Zen PWA</div>
+    <div class="splash-status">&gt; <span id="splash-status-text">starting</span><span class="cursor"></span></div>
+  </div>
+
+  <div id="toast" hidden role="status"></div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

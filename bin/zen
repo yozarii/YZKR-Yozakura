@@ -1,0 +1,17 @@
+#!/bin/bash
+if [ "$1" == "--pwa" ]; then
+  shift
+  exec "$HOME/YZKR/bin/zen-pwa" "$@"
+fi
+
+REAL_ZEN="/Applications/Zen Browser.app/Contents/MacOS/zen"
+if [ ! -x "$REAL_ZEN" ]; then
+  REAL_ZEN="/Applications/Zen.app/Contents/MacOS/zen"
+fi
+
+if [ -x "$REAL_ZEN" ]; then
+  exec "$REAL_ZEN" "$@"
+else
+  echo "Error: Zen Browser binary not found in /Applications."
+  exit 1
+fi

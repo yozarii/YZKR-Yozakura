@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+NODE="$(command -v node 2>/dev/null || true)"
+if [ -z "$NODE" ]; then
+  for candidate in /opt/homebrew/bin/node /usr/local/bin/node /usr/bin/node; do
+    if [ -x "$candidate" ]; then
+      NODE="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$NODE" ]; then
+  echo "zen-pwa: Node.js 20 or newer is required." >&2
+  echo "Install it with:  brew install node" >&2
+  exit 1
+fi
+
+exec "$NODE" "$HOME/YZKR/scripts/ZenPWA/tools/cli.js" "$@"

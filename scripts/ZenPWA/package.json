@@ -1,0 +1,15 @@
+{
+  "name": "zen-pwa",
+  "version": "5.0.0",
+  "private": true,
+  "description": "Zen-style site-specific browser apps with Widevine support",
+  "author": "yozari",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "github:castlabs/electron-releases#v45.2.1+wvcus"
+  },
+  "scripts": {
+    "start": "electron app",
+    "postinstall": "node scripts/fix-electron-symlinks.js"
+  }
+}
