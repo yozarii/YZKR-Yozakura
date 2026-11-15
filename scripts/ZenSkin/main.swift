@@ -29,6 +29,7 @@ struct SkinConfig {
     var titleBar: CGFloat = 32       // title bar height on macOS 26+ (no toolbar)
     var windowRadius: CGFloat = 16
     var topExtra: CGFloat = 4        // top rim edge sits this much higher than the others
+    var bottomLift: CGFloat = 3      // bottom rim edge sits this much higher
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
     var hideDelay: TimeInterval = 1.0
@@ -52,6 +53,7 @@ struct SkinConfig {
             if let v = layout["borderRadius"] as? Double { config.lensRadius = CGFloat(v) }
             if let v = layout["lensRadius"] as? Double { config.lensRadius = CGFloat(v) }
             if let v = layout["topExtra"] as? Double { config.topExtra = CGFloat(v) }
+            if let v = layout["bottomLift"] as? Double { config.bottomLift = CGFloat(v) }
             if let v = layout["cardRadius"] as? Double { config.cardRadius = CGFloat(v) }
         }
         if let hex = json["defaultFrame"] as? String, let c = color(hex) { config.defaultFrame = c }
@@ -129,6 +131,9 @@ struct LensGeometry: Equatable {
         card = content
         var l = content.insetBy(dx: -sep, dy: -sep)
         l.size.height += max(0, min(config.topExtra, bar - sep))   // only the top edge moves up
+        let lift = max(0, min(config.bottomLift, sep))                 // only the bottom edge moves up
+        l.origin.y += lift
+        l.size.height -= lift
         lens = l
         lensRadius = config.lensRadius
         cardRadius = config.cardRadius ?? max(4, config.lensRadius - sep * 0.6)
@@ -347,7 +352,7 @@ final class SkinWindow: NSPanel {
         let frame = target.insetBy(dx: -LensGeometry.margin, dy: -LensGeometry.margin)
         if !self.frame.equalTo(frame) { setFrame(frame, display: false) }
         let size = frame.size
-        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensRadius)|\(config.topExtra)|\(config.cardRadius ?? -1)"
+        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensRadius)|\(config.topExtra)|\(config.bottomLift)|\(config.cardRadius ?? -1)"
         noActions {
             if key != geometryKey {
                 geometryKey = key
