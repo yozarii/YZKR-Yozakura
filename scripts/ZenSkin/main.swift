@@ -28,7 +28,7 @@ struct SkinConfig {
     var innerRadius: CGFloat = 9.1
     var titleBar: CGFloat = 32       // title bar height on macOS 26+ (no toolbar)
     var windowRadius: CGFloat = 16
-    var lensLift: CGFloat = 11       // lens top edge rises this far into the hidden title bar
+    var lensLift: CGFloat = 12       // lens top edge rises this far into the hidden title bar
     var sideOut: CGFloat = 4         // lens reaches this far past the window's left/right edges
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
@@ -123,19 +123,17 @@ struct LensGeometry: Equatable {
         window = bounds.insetBy(dx: m, dy: m)
         // The lens top rises `lensLift` into the hidden title bar (kept within
         // the Zen gap, so none of Safari's bar shows inside the page card).
-        // Above the Zen gap the rim's top edge grows instead, so the page card
-        // never starts above Safari's real page (no title bar shows in it).
+        // The whole lens (rim at even thickness) rises `lensLift` into the
+        // hidden title bar; beyond the Zen gap the page card starts a few
+        // points inside Safari's bar.
         let lift = max(0, min(config.lensLift, config.titleBar))
         let bar = max(0, min(config.titleBar - lift, window.height))
         content = CGRect(x: window.minX, y: window.minY, width: window.width, height: window.height - bar)
-        let pageTop = window.maxY - config.titleBar
         // The lens sits a little wider than the window, so the rim keeps the
         // full Zen gap without eating into the page.
         let out = max(0, min(config.sideOut, config.separation))
         lens = content.insetBy(dx: -out, dy: 0)
-        var c = lens.insetBy(dx: config.separation, dy: config.separation)
-        if c.maxY > pageTop { c.size.height -= c.maxY - pageTop }
-        card = c
+        card = lens.insetBy(dx: config.separation, dy: config.separation)
         lensRadius = config.lensRadius
         cardRadius = config.cardRadius ?? max(4, config.lensRadius - config.separation * 0.6)
     }
