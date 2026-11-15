@@ -29,7 +29,7 @@ struct SkinConfig {
     var titleBar: CGFloat = 32       // title bar height on macOS 26+ (no toolbar)
     var windowRadius: CGFloat = 16
     var topExtra: CGFloat = 4        // top rim edge sits this much higher than the others
-    var bottomLift: CGFloat = 3      // bottom rim edge sits this much higher
+    var bottomLift: CGFloat = 8      // bottom rim edge sits this much higher
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
     var hideDelay: TimeInterval = 1.0
