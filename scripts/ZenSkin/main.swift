@@ -28,7 +28,7 @@ struct SkinConfig {
     var innerRadius: CGFloat = 9.1
     var titleBar: CGFloat = 28       // Safari web-app title bar (no nav controls)
     var windowRadius: CGFloat = 16
-    var lensLift: CGFloat = 6        // lens top edge rises this far into the hidden title bar
+    var lensLift: CGFloat = 8        // lens top edge rises this far into the hidden title bar
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
     var hideDelay: TimeInterval = 1.0
