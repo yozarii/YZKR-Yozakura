@@ -731,7 +731,7 @@ function ensureEvs() {
   }
 }
 
-function commandSign(flags, args) {
+async function commandSign(flags, args) {
   if (!fs.existsSync(RUNTIME)) fail('Install the runtime first: run build.sh');
   ensureEvs();
 
@@ -758,13 +758,16 @@ function commandSign(flags, args) {
     fail('EVS reported success but no signature was written.');
   }
 
-  const apps = listBundles().filter((app) => !app.legacy);
+  // castLabs: on macOS the VMP signature must be in place BEFORE code
+  // signing. So rather than copying it into already-signed apps, rebuild
+  // each app from the freshly signed runtime (clone → sign outer bundle).
+  // Profiles (logins) live outside the bundles and are kept.
+  const apps = listBundles().filter((app) => !app.legacy && app.site && app.site.url);
   let synced = 0;
   for (const app of apps) {
-    const target = frameworkSignature(app.path);
-    if (!fs.existsSync(path.dirname(target))) continue;
-    fs.copyFileSync(path.join(RUNTIME, VMP_SIG), target);
-    synced += 1;
+    say(dim(`  rebuilding ${app.name} on the signed runtime…`));
+    const result = await buildApp(app.site, { ...flags, replace: true }, app.name);
+    if (result.vmp) synced += 1;
   }
 
   say('');
