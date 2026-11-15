@@ -29,7 +29,7 @@ struct SkinConfig {
     var titleBar: CGFloat = 32       // title bar height on macOS 26+ (no toolbar)
     var windowRadius: CGFloat = 16
     var topExtra: CGFloat = 4        // top rim edge sits this much higher than the others
-    var bottomLift: CGFloat = 8      // bottom rim edge sits this much higher
+    var bottomLift: CGFloat = 8      // whole bottom rim slides up this much, overlapping the page bottom
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
     var hideDelay: TimeInterval = 1.0
@@ -128,10 +128,16 @@ struct LensGeometry: Equatable {
         let sep = config.separation
         let bar = max(0, min(config.titleBar, window.height))
         content = CGRect(x: window.minX, y: window.minY, width: window.width, height: window.height - bar)
-        card = content
+        var c = content
+        let cardLift = max(0, min(config.bottomLift, content.height / 4))
+        c.origin.y += cardLift
+        c.size.height -= cardLift
+        card = c
         var l = content.insetBy(dx: -sep, dy: -sep)
         l.size.height += max(0, min(config.topExtra, bar - sep))   // only the top edge moves up
-        let lift = max(0, min(config.bottomLift, sep))                 // only the bottom edge moves up
+        // The bottom rim keeps its thickness and slides up over the page's
+        // bottom edge a little, which tidies the window's own corners.
+        let lift = max(0, min(config.bottomLift, content.height / 4))
         l.origin.y += lift
         l.size.height -= lift
         lens = l
