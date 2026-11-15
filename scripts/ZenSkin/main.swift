@@ -262,6 +262,7 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
     /// A single screenshot doesn't put macOS into "being recorded" mode the
     /// way a running stream does.
     var still: CGImage?
+    var stillTaken = Date.distantPast
     private var stillRequested = Date.distantPast
     /// Refreshes the still at most every 3 s (only while the stream is off).
     func takeStill(excluding pids: Set<pid_t>) {
@@ -283,7 +284,7 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
             SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg) { image, _ in
                 DispatchQueue.main.async {
                     self.frame = display.frame
-                    if self.stream == nil, let image { self.still = image }
+                    if self.stream == nil, let image { self.still = image; self.stillTaken = Date() }
                 }
             }
         }
@@ -745,7 +746,10 @@ final class Skinner: NSObject {
                     // Live stream off: keep the title bar in step with stills.
                     backdrop.takeStill(excluding: pids.union([ProcessInfo.processInfo.processIdentifier]))
                     if let still = backdrop.still {
-                        skin.show(surface: still, displayFrame: backdrop.frame, live: false)
+                        // A fresh still (≤ 5 s) can cover the whole soft margin, hiding
+                        // the window's outline and shadow; a stale one only the bar.
+                        let fresh = Date().timeIntervalSince(backdrop.stillTaken) < 5
+                        skin.show(surface: still, displayFrame: backdrop.frame, live: fresh)
                     } else if let surface = backdrop.surface {
                         skin.show(surface: surface, displayFrame: backdrop.frame, live: false)
                     }
