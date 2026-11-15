@@ -26,9 +26,9 @@ import ScreenCaptureKit
 struct SkinConfig {
     var separation: CGFloat = 8
     var innerRadius: CGFloat = 9.1
-    var titleBar: CGFloat = 28       // Safari web-app title bar (no nav controls)
+    var titleBar: CGFloat = 32       // title bar height on macOS 26+ (no toolbar)
     var windowRadius: CGFloat = 16
-    var lensLift: CGFloat = 8        // lens top edge rises this far into the hidden title bar
+    var lensLift: CGFloat = 11       // lens top edge rises this far into the hidden title bar
     var sideOut: CGFloat = 4         // lens reaches this far past the window's left/right edges
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
@@ -123,14 +123,19 @@ struct LensGeometry: Equatable {
         window = bounds.insetBy(dx: m, dy: m)
         // The lens top rises `lensLift` into the hidden title bar (kept within
         // the Zen gap, so none of Safari's bar shows inside the page card).
-        let lift = max(0, min(config.lensLift, config.separation))
+        // Above the Zen gap the rim's top edge grows instead, so the page card
+        // never starts above Safari's real page (no title bar shows in it).
+        let lift = max(0, min(config.lensLift, config.titleBar))
         let bar = max(0, min(config.titleBar - lift, window.height))
         content = CGRect(x: window.minX, y: window.minY, width: window.width, height: window.height - bar)
+        let pageTop = window.maxY - config.titleBar
         // The lens sits a little wider than the window, so the rim keeps the
         // full Zen gap without eating into the page.
         let out = max(0, min(config.sideOut, config.separation))
         lens = content.insetBy(dx: -out, dy: 0)
-        card = lens.insetBy(dx: config.separation, dy: config.separation)
+        var c = lens.insetBy(dx: config.separation, dy: config.separation)
+        if c.maxY > pageTop { c.size.height -= c.maxY - pageTop }
+        card = c
         lensRadius = config.lensRadius
         cardRadius = config.cardRadius ?? max(4, config.lensRadius - config.separation * 0.6)
     }
@@ -140,178 +145,110 @@ struct LensGeometry: Equatable {
     var cardPath: CGPath { CGPath(roundedRect: card, cornerWidth: cardRadius, cornerHeight: cardRadius, transform: nil) }
 }
 
-// MARK: - Rim (drawn on top)
 
-/// The lens itself: one thin Zen rim around the page, with a soft shadow.
-/// Without screen access it also paints the title-bar strip as a fallback.
-final class RimView: NSView {
-    var config = SkinConfig()
-    var frameColor = NSColor.gray
-    var fallbackStrip: NSColor?     // used only when there is no live backdrop
-    var hasBackdrop = false
-    var bandOpacity: CGFloat = 1
+// MARK: - Feather (9-slice)
 
-    override var isFlipped: Bool { false }
-
-    override func draw(_ dirtyRect: NSRect) {
-        NSColor.clear.setFill()
-        bounds.fill()
-        let g = LensGeometry(size: bounds.size, config: config)
-
-        if !hasBackdrop, bandOpacity > 0.001 {
-            (fallbackStrip ?? frameColor).withAlphaComponent(bandOpacity).setFill()
-            g.strip.fill()
-        }
-
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor(white: 0, alpha: 0.32)
-        shadow.shadowBlurRadius = 22
-        shadow.shadowOffset = NSSize(width: 0, height: -6)
-        shadow.set()
-        let rim = NSBezierPath(cgPath: g.lensPath)
-        rim.append(NSBezierPath(cgPath: g.cardPath).reversed)
-        frameColor.setFill()
-        rim.fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        // Hairline on the rim's outer edge, like Zen's window outline.
-        NSColor(white: 1, alpha: 0.10).setStroke()
-        let edge = NSBezierPath(cgPath: CGPath(roundedRect: g.lens.insetBy(dx: 0.5, dy: 0.5),
-                                               cornerWidth: g.lensRadius, cornerHeight: g.lensRadius, transform: nil))
-        edge.lineWidth = 1
-        edge.stroke()
-    }
-}
-
-// MARK: - Backdrop mask
-
-/// Alpha mask for the backdrop layer: opaque around the window (hiding
-/// Safari's title bar, its square corners and its native shadow), feathered
-/// out toward the overlay's edge, clear inside the lens, and the title-bar
-/// strip scaled by the hover fade.
-enum BackdropMask {
-    private static var featherCache: (size: CGSize, inner: CGRect, image: CGImage)?
-
-    private static func feather(size: CGSize, inner: CGRect) -> CGImage? {
-        if let c = featherCache, c.size == size, c.inner == inner { return c.image }
-        let w = max(1, Int(size.width)), h = max(1, Int(size.height))
-        let fade = LensGeometry.margin * 0.75
-        var alpha = [UInt8](repeating: 0, count: w * h)
-        for row in 0..<h {
-            let y = CGFloat(h - 1 - row) + 0.5
-            let dy = max(inner.minY - y, y - inner.maxY, 0)
-            for x in 0..<w {
-                let px = CGFloat(x) + 0.5
-                let dx = max(inner.minX - px, px - inner.maxX, 0)
+/// A small alpha image that is opaque in the middle and fades out over
+/// `fade` points to every side. Used as a stretchable (9-slice) mask, so the
+/// backdrop's soft edge costs nothing when the window is resized.
+enum Feather {
+    static let fade: CGFloat = LensGeometry.margin - 12
+    static let image: CGImage? = {
+        let f = Int(fade)
+        let size = f * 2 + 2
+        var alpha = [UInt8](repeating: 0, count: size * size * 4)
+        for y in 0..<size {
+            for x in 0..<size {
+                let dx = max(CGFloat(f) - CGFloat(x) - 0.5, CGFloat(x) + 0.5 - CGFloat(f + 2), 0)
+                let dy = max(CGFloat(f) - CGFloat(y) - 0.5, CGFloat(y) + 0.5 - CGFloat(f + 2), 0)
                 let d = (dx * dx + dy * dy).squareRoot()
                 let a = max(0, min(1, 1 - d / fade))
-                alpha[row * w + x] = UInt8(a * a * (3 - 2 * a) * 255) // smoothstep
+                let v = UInt8(a * a * (3 - 2 * a) * 255)
+                let i = (y * size + x) * 4
+                alpha[i] = v; alpha[i + 1] = v; alpha[i + 2] = v; alpha[i + 3] = v   // premultiplied white
             }
         }
-        guard let provider = CGDataProvider(data: Data(alpha) as CFData),
-              let image = CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: w,
-                                  space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0),
-                                  provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent) else { return nil }
-        featherCache = (size, inner, image)
-        return image
-    }
-
-    static func make(_ g: LensGeometry, bandOpacity: CGFloat) -> CGImage? {
-        let w = max(1, Int(g.bounds.width)), h = max(1, Int(g.bounds.height))
-        guard let base = feather(size: g.bounds.size, inner: g.window.insetBy(dx: -12, dy: -12)),
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w,
-                                  space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return nil }
-        ctx.draw(base, in: g.bounds)
-        ctx.setBlendMode(.copy)
-        ctx.setFillColor(gray: bandOpacity, alpha: 1)
-        ctx.fill(g.strip)
-        ctx.setFillColor(gray: 0, alpha: 1)
-        ctx.addPath(g.lensPath)
-        ctx.fillPath()
-        guard let gray = ctx.makeImage() else { return nil }
-        // CALayer masks read alpha, so turn the grey mask into an alpha image.
-        guard let actx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                   space: CGColorSpaceCreateDeviceRGB(),
-                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        actx.clip(to: g.bounds, mask: gray)
-        actx.setFillColor(red: 1, green: 1, blue: 1, alpha: 1)
-        actx.fill(g.bounds)
-        return actx.makeImage()
+        guard let provider = CGDataProvider(data: Data(alpha) as CFData) else { return nil }
+        return CGImage(width: size, height: size, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: size * 4,
+                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+    }()
+    static var center: CGRect {
+        let size = fade * 2 + 2
+        return CGRect(x: fade / size, y: fade / size, width: 2 / size, height: 2 / size)
     }
 }
 
-// MARK: - Live backdrop
+// MARK: - Live backdrop (one stream per display)
 
-/// Streams what is behind a window (that app and ZenSkin excluded) into a
-/// layer, so the overlay can show the desktop where Safari's title bar,
-/// corners and shadow are. Moving wallpapers stay in step. The web app's own
-/// window is never captured. Needs Screen Recording.
+/// Streams a whole display, with every skinned web app and ZenSkin itself
+/// excluded, into IOSurfaces. Each lens shows its own slice of the frame via
+/// `contentsRect`, so moving or resizing a window never restarts capture and
+/// the backdrop stays live (moving wallpapers included). Web-app windows,
+/// and so their video, are never captured. Needs Screen Recording.
 @available(macOS 14.0, *)
-final class BackdropStream: NSObject, SCStreamOutput, SCStreamDelegate {
+final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
+    let displayID: CGDirectDisplayID
+    private(set) var frame: CGRect = .zero          // display, global top-left coordinates
     private var stream: SCStream?
-    private var display: SCDisplay?
-    private var rect: CGRect = .zero
+    private var excludedPids: Set<pid_t> = []
     private var starting = false
     private let queue = DispatchQueue(label: "zenskin.backdrop")
-    weak var layer: CALayer?
-    var onFirstFrame: (() -> Void)?
+    var surface: IOSurface?
+    var onFrame: ((IOSurface) -> Void)?
 
-    static func scale(for display: SCDisplay) -> CGFloat {
-        NSScreen.screens.first(where: {
-            ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == display.displayID
-        })?.backingScaleFactor ?? 2
-    }
+    init(displayID: CGDirectDisplayID) { self.displayID = displayID }
 
-    private func configuration(_ rect: CGRect, _ display: SCDisplay) -> SCStreamConfiguration {
-        let cfg = SCStreamConfiguration()
-        let scale = BackdropStream.scale(for: display)
-        cfg.sourceRect = rect.offsetBy(dx: -display.frame.minX, dy: -display.frame.minY)
-        cfg.width = max(2, Int(rect.width * scale))
-        cfg.height = max(2, Int(rect.height * scale))
-        cfg.minimumFrameInterval = CMTime(value: 1, timescale: 60)   // 60 fps
-        cfg.pixelFormat = kCVPixelFormatType_32BGRA
-        cfg.queueDepth = 4
-        cfg.showsCursor = false
-        cfg.colorSpaceName = CGColorSpace.sRGB
-        return cfg
-    }
-
-    /// `rect` is in global top-left (CoreGraphics) coordinates.
-    func follow(rect: CGRect, excluding pids: Set<pid_t>) {
-        guard CGPreflightScreenCaptureAccess() else { return }
-        if let stream, let display, display.frame.contains(CGPoint(x: rect.midX, y: rect.midY)) {
-            if rect != self.rect {
-                self.rect = rect
-                stream.updateConfiguration(configuration(rect, display)) { _ in }
-            }
-            return
+    private var logged = false
+    func ensure(excluding pids: Set<pid_t>) {
+        if !logged, ProcessInfo.processInfo.environment["ZENSKIN_DEBUG"] != nil {
+            logged = true
+            NSLog("backdrop ensure: access=%d starting=%d stream=%d", CGPreflightScreenCaptureAccess() ? 1 : 0, starting ? 1 : 0, stream == nil ? 0 : 1)
         }
-        guard !starting else { return }
+        guard CGPreflightScreenCaptureAccess(), !starting else { return }
+        if stream != nil, pids == excludedPids { return }
         starting = true
-        self.rect = rect
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { [weak self] content, _ in
             guard let self else { return }
-            defer { self.starting = false }
-            guard let content,
-                  let display = content.displays.first(where: { $0.frame.contains(CGPoint(x: rect.midX, y: rect.midY)) }) else { return }
-            let excluded = content.applications.filter { pids.contains($0.processID) }
-            let filter = SCContentFilter(display: display, excludingApplications: excluded, exceptingWindows: [])
-            let stream = SCStream(filter: filter, configuration: self.configuration(self.rect, display), delegate: self)
-            do {
-                try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: self.queue)
-            } catch { return }
-            self.stop()
-            self.stream = stream
-            self.display = display
-            stream.startCapture { _ in }
+            DispatchQueue.main.async {
+                defer { self.starting = false }
+                guard let content, let display = content.displays.first(where: { $0.displayID == self.displayID }) else {
+                    NSLog("backdrop: display %u not found (%d displays)", self.displayID, content?.displays.count ?? -1)
+                    return
+                }
+                let excluded = content.applications.filter { pids.contains($0.processID) }
+                let filter = SCContentFilter(display: display, excludingApplications: excluded, exceptingWindows: [])
+                self.frame = display.frame
+                self.excludedPids = pids
+                if let stream = self.stream {
+                    stream.updateContentFilter(filter) { _ in }
+                    return
+                }
+                let scale = NSScreen.screens.first(where: {
+                    ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == self.displayID
+                })?.backingScaleFactor ?? 2
+                let cfg = SCStreamConfiguration()
+                cfg.width = Int(display.frame.width * scale)
+                cfg.height = Int(display.frame.height * scale)
+                cfg.minimumFrameInterval = CMTime(value: 1, timescale: 60)   // 60 fps
+                cfg.pixelFormat = kCVPixelFormatType_32BGRA
+                cfg.queueDepth = 5
+                cfg.showsCursor = false
+                cfg.colorSpaceName = CGColorSpace.sRGB
+                let stream = SCStream(filter: filter, configuration: cfg, delegate: self)
+                guard (try? stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: self.queue)) != nil else { return }
+                self.stream = stream
+                stream.startCapture { error in
+                    if ProcessInfo.processInfo.environment["ZENSKIN_DEBUG"] != nil { NSLog("backdrop stream start: %@", String(describing: error)) }
+                }
+            }
         }
     }
 
     func stop() {
         stream?.stopCapture { _ in }
         stream = nil
-        display = nil
+        surface = nil
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
@@ -320,70 +257,82 @@ final class BackdropStream: NSObject, SCStreamOutput, SCStreamDelegate {
               let raw = attachments.first?[.status] as? Int, SCFrameStatus(rawValue: raw) == .complete,
               let pixels = CMSampleBufferGetImageBuffer(sampleBuffer),
               let surface = CVPixelBufferGetIOSurface(pixels)?.takeUnretainedValue() else { return }
+        let io = unsafeBitCast(surface, to: IOSurface.self)
         DispatchQueue.main.async { [weak self] in
-            guard let self, let layer = self.layer else { return }
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            layer.contents = surface
-            CATransaction.commit()
-            if let first = self.onFirstFrame { self.onFirstFrame = nil; first() }
+            guard let self else { return }
+            if self.surface == nil, ProcessInfo.processInfo.environment["ZENSKIN_DEBUG"] != nil { NSLog("backdrop first frame %dx%d", IOSurfaceGetWidth(surface), IOSurfaceGetHeight(surface)) }
+            self.surface = io
+            self.onFrame?(io)
         }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
+        NSLog("backdrop stream stopped: %@", String(describing: error))
         DispatchQueue.main.async { [weak self] in
-            if self?.stream === stream { self?.stream = nil; self?.display = nil }
+            if self?.stream === stream { self?.stream = nil }
         }
     }
 }
 
-// MARK: - Overlay window
+// MARK: - Overlay window (all Core Animation, nothing redrawn per frame)
 
 final class SkinWindow: NSPanel {
-    let backdropLayer = CALayer()
-    let maskLayer = CALayer()
-    let rim = RimView()
+    let backdropHolder = CALayer()     // masked: everything except lens and title strip
+    let holeMask = CAShapeLayer()
+    let backdrop = CALayer()           // slice of the display stream, feathered
+    let featherMask = CALayer()
+    let strip = CALayer()              // backdrop over Safari's title bar (hover fades it)
+    let fallbackStrip = CALayer()      // when there is no screen access
+    let rim = CAShapeLayer()           // the Zen rim
+    let edge = CAShapeLayer()          // hairline on the rim's outer edge
+
     var targetID: CGWindowID = 0
+    var displayID: CGDirectDisplayID = 0
     var revealUntil: Date = .distantPast
     var bandOpacity: CGFloat = 1
     var config = SkinConfig()
-    private var maskKey = ""
-    private var anyStream: AnyObject?
+    var hasBackdrop = false
+    private var geometryKey = ""
 
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
-        ignoresMouseEvents = true
+        ignoresMouseEvents = true          // every click reaches Safari
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         level = .normal
         collectionBehavior = [.fullScreenAuxiliary, .ignoresCycle, .transient]
+        animationBehavior = .none
 
         let root = NSView()
         root.wantsLayer = true
-        root.layer?.backgroundColor = .clear
-        backdropLayer.contentsGravity = .resize
-        backdropLayer.mask = maskLayer
-        backdropLayer.isHidden = true
-        root.layer?.addSublayer(backdropLayer)
-        rim.frame = root.bounds
-        rim.autoresizingMask = [.width, .height]
-        root.addSubview(rim)
-        contentView = root
+        let layer = root.layer!
+        layer.backgroundColor = .clear
 
-        if #available(macOS 14.0, *) {
-            let stream = BackdropStream()
-            stream.layer = backdropLayer
-            stream.onFirstFrame = { [weak self] in
-                guard let self else { return }
-                self.backdropLayer.isHidden = false
-                self.rim.hasBackdrop = true
-                self.rim.needsDisplay = true
-            }
-            anyStream = stream
-        }
+        holeMask.fillRule = .evenOdd
+        backdropHolder.mask = holeMask
+        featherMask.contents = Feather.image
+        featherMask.contentsCenter = Feather.center
+        backdrop.mask = featherMask
+        backdrop.contentsGravity = .resize
+        strip.contentsGravity = .resize
+        backdropHolder.addSublayer(backdrop)
+        backdropHolder.isHidden = true
+        strip.isHidden = true
+
+        rim.fillRule = .evenOdd
+        rim.shadowColor = NSColor.black.cgColor
+        rim.shadowOpacity = 0.32
+        rim.shadowRadius = 11
+        rim.shadowOffset = CGSize(width: 0, height: -6)
+        edge.fillColor = nil
+        edge.strokeColor = NSColor(white: 1, alpha: 0.10).cgColor
+        edge.lineWidth = 1
+
+        for l in [backdropHolder, strip, fallbackStrip, rim, edge] as [CALayer] { layer.addSublayer(l) }
+        contentView = root
     }
 
     override var canBecomeKey: Bool { false }
@@ -391,46 +340,81 @@ final class SkinWindow: NSPanel {
     // Never pushed below the menu bar: it must sit exactly over the window.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 
-    func layout(target: NSRect, pid: pid_t) {
-        let frame = target.insetBy(dx: -LensGeometry.margin, dy: -LensGeometry.margin)
-        if !self.frame.equalTo(frame) { setFrame(frame, display: true) }
+    func noActions(_ body: () -> Void) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        backdropLayer.frame = contentView?.bounds ?? .zero
-        maskLayer.frame = backdropLayer.bounds
+        body()
         CATransaction.commit()
-        updateMask()
+    }
 
-        if #available(macOS 14.0, *), let stream = anyStream as? BackdropStream {
-            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
-            let rect = CGRect(x: frame.minX, y: primaryHeight - frame.maxY, width: frame.width, height: frame.height)
-            stream.follow(rect: rect, excluding: [pid, ProcessInfo.processInfo.processIdentifier])
+    /// Lays the lens out over `target` (Cocoa coordinates).
+    func place(over target: NSRect, frameColor: NSColor, fallback: NSColor?) {
+        let frame = target.insetBy(dx: -LensGeometry.margin, dy: -LensGeometry.margin)
+        if !self.frame.equalTo(frame) { setFrame(frame, display: false) }
+        let size = frame.size
+        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensLift)|\(config.lensRadius)|\(config.sideOut)|\(config.cardRadius ?? -1)"
+        noActions {
+            if key != geometryKey {
+                geometryKey = key
+                let g = LensGeometry(size: size, config: config)
+                let holes = CGMutablePath()
+                holes.addRect(g.bounds)
+                holes.addPath(g.lensPath)
+                holes.addRect(g.strip)
+                holeMask.path = holes
+                for l in [backdropHolder, holeMask, backdrop, featherMask] as [CALayer] { l.frame = g.bounds }
+                strip.frame = g.strip
+                fallbackStrip.frame = g.strip
+                let rimPath = CGMutablePath()
+                rimPath.addPath(g.lensPath)
+                rimPath.addPath(g.cardPath)
+                rim.path = rimPath
+                rim.shadowPath = g.lensPath
+                edge.path = CGPath(roundedRect: g.lens.insetBy(dx: 0.5, dy: 0.5), cornerWidth: g.lensRadius, cornerHeight: g.lensRadius, transform: nil)
+            }
+            rim.fillColor = frameColor.cgColor
+            fallbackStrip.backgroundColor = (fallback ?? frameColor).cgColor
+            strip.opacity = Float(bandOpacity)
+            fallbackStrip.opacity = hasBackdrop ? 0 : Float(bandOpacity)
         }
     }
 
-    func updateMask() {
-        let size = contentView?.bounds.size ?? .zero
-        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensLift)|\(config.lensRadius)|\(config.sideOut)|\(config.cardRadius ?? -1)|\(Int(bandOpacity * 100))"
-        guard key != maskKey, size.width > 1 else { return }
-        maskKey = key
-        let g = LensGeometry(size: size, config: config)
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        maskLayer.contents = BackdropMask.make(g, bandOpacity: bandOpacity)
-        CATransaction.commit()
+    /// Points both backdrop layers at this window's slice of the display frame.
+    func show(surface: IOSurface, displayFrame: CGRect) {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        let f = frame
+        // Overlay in global top-left coordinates, then in the display's unit space.
+        let top = CGRect(x: f.minX, y: primaryHeight - f.maxY, width: f.width, height: f.height)
+        func unit(_ r: CGRect) -> CGRect {
+            // contentsRect's unit space starts at the bottom-left on macOS.
+            CGRect(x: (r.minX - displayFrame.minX) / displayFrame.width,
+                   y: 1 - (r.maxY - displayFrame.minY) / displayFrame.height,
+                   width: r.width / displayFrame.width,
+                   height: r.height / displayFrame.height)
+        }
+        let g = LensGeometry(size: f.size, config: config)
+        // Strip in global top-left coordinates.
+        let s = CGRect(x: f.minX + g.strip.minX, y: primaryHeight - (f.minY + g.strip.maxY), width: g.strip.width, height: g.strip.height)
+        noActions {
+            backdrop.contents = surface
+            backdrop.contentsRect = unit(top)
+            strip.contents = surface
+            strip.contentsRect = unit(s)
+            if !hasBackdrop {
+                hasBackdrop = true
+                backdropHolder.isHidden = false
+                strip.isHidden = false
+                fallbackStrip.opacity = 0
+            }
+        }
     }
 
-    func stopBackdrop() {
-        if #available(macOS 14.0, *), let stream = anyStream as? BackdropStream { stream.stop() }
-        backdropLayer.isHidden = true
-        rim.hasBackdrop = false
-        if #available(macOS 14.0, *), let stream = anyStream as? BackdropStream {
-            stream.onFirstFrame = { [weak self] in
-                guard let self else { return }
-                self.backdropLayer.isHidden = false
-                self.rim.hasBackdrop = true
-                self.rim.needsDisplay = true
-            }
+    func dropBackdrop() {
+        noActions {
+            hasBackdrop = false
+            backdropHolder.isHidden = true
+            strip.isHidden = true
+            fallbackStrip.opacity = Float(bandOpacity)
         }
     }
 }
@@ -446,8 +430,12 @@ struct TargetWindow {
 final class Skinner: NSObject {
     var config = SkinConfig.load()
     var skins: [CGWindowID: SkinWindow] = [:]
-    var timer: Timer?
+    var known: [CGWindowID: pid_t] = [:]
+    var lastScan: Date = .distantPast
+    var displayLink: AnyObject?
+    var fallbackTimer: Timer?
     var configWatcher: DispatchSourceFileSystemObject?
+    var backdrops: [CGDirectDisplayID: AnyObject] = [:]
     let prefix = ProcessInfo.processInfo.environment["ZENSKIN_TARGET"] ?? "com.apple.Safari.WebApp"
 
     func start() {
@@ -463,16 +451,39 @@ final class Skinner: NSObject {
     }
 
     @objc func appsChanged() {
+        lastScan = .distantPast
         if targets().isEmpty {
-            timer?.invalidate()
-            timer = nil
-            skins.values.forEach { $0.stopBackdrop(); $0.orderOut(nil) }
+            stopTicking()
+            skins.values.forEach { $0.orderOut(nil) }
             skins.removeAll()
-        } else if timer == nil {
-            // 60 Hz only while a web app is running.
-            timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
-            RunLoop.main.add(timer!, forMode: .common)
+            known.removeAll()
+            if #available(macOS 14.0, *) { backdrops.values.forEach { ($0 as? DisplayBackdrop)?.stop() } }
+            backdrops.removeAll()
+        } else {
+            startTicking()
         }
+    }
+
+    // Tick in step with the display (120 Hz on ProMotion), so the lens
+    // follows a dragged or resized window without trailing behind.
+    func startTicking() {
+        guard displayLink == nil, fallbackTimer == nil else { return }
+        if #available(macOS 14.0, *), let screen = NSScreen.main {
+            let link = screen.displayLink(target: self, selector: #selector(tick))
+            link.add(to: .main, forMode: .common)
+            displayLink = link
+        } else {
+            let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.tick() }
+            RunLoop.main.add(timer, forMode: .common)
+            fallbackTimer = timer
+        }
+    }
+
+    func stopTicking() {
+        if #available(macOS 14.0, *) { (displayLink as? CADisplayLink)?.invalidate() }
+        displayLink = nil
+        fallbackTimer?.invalidate()
+        fallbackTimer = nil
     }
 
     func watchConfig() {
@@ -482,7 +493,6 @@ final class Skinner: NSObject {
         source.setEventHandler { [weak self] in
             guard let self else { return }
             self.config = SkinConfig.load()
-            self.skins.values.forEach { $0.rim.needsDisplay = true }
             if source.data.contains(.rename) || source.data.contains(.delete) {
                 source.cancel()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.watchConfig() }
@@ -493,32 +503,63 @@ final class Skinner: NSObject {
         configWatcher = source
     }
 
-    func windows(of pids: Set<pid_t>) -> [TargetWindow] {
-        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return [] }
+    /// Full window scan (finds new windows) a few times a second; between
+    /// scans only the known windows are queried, which is much cheaper.
+    func currentWindows(pids: Set<pid_t>) -> [TargetWindow] {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        var infos: [[String: Any]] = []
+        if Date().timeIntervalSince(lastScan) > 0.25 || known.isEmpty {
+            lastScan = Date()
+            infos = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
+        } else {
+            // This API wants the raw window IDs stored as pointer values.
+            var ptrs: [UnsafeRawPointer?] = known.keys.map { UnsafeRawPointer(bitPattern: UInt($0)) }
+            let ids = CFArrayCreate(nil, &ptrs, ptrs.count, nil)
+            infos = (CGWindowListCreateDescriptionFromArray(ids) as? [[String: Any]]) ?? []
+            if infos.isEmpty {
+                lastScan = Date()
+                infos = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
+            }
+        }
         var out: [TargetWindow] = []
-        for info in list {
+        for info in infos {
             guard let pid = info[kCGWindowOwnerPID as String] as? pid_t, pids.contains(pid),
                   (info[kCGWindowLayer as String] as? Int) == 0,
+                  (info[kCGWindowIsOnscreen as String] as? Bool) ?? true,
                   let id = info[kCGWindowNumber as String] as? CGWindowID,
                   let b = info[kCGWindowBounds as String] as? [String: CGFloat],
                   let x = b["X"], let y = b["Y"], let w = b["Width"], let h = b["Height"],
                   w > 200, h > 120 else { continue }   // skips Stage Manager thumbnails
             out.append(TargetWindow(id: id, pid: pid, frame: NSRect(x: x, y: primaryHeight - y - h, width: w, height: h)))
         }
+        known = Dictionary(out.map { ($0.id, $0.pid) }, uniquingKeysWith: { a, _ in a })
         return out
+    }
+
+    func displayID(for frame: NSRect) -> CGDirectDisplayID {
+        let mid = CGPoint(x: frame.midX, y: frame.midY)
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(mid) }) ?? NSScreen.main
+        return (screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? CGMainDisplayID()
     }
 
     func isFullscreen(_ frame: NSRect) -> Bool {
         NSScreen.screens.contains { $0.frame.equalTo(frame) }
     }
 
-    func tick() {
+    var ticks = 0
+    @objc func tick() {
+        ticks += 1
+        if ProcessInfo.processInfo.environment["ZENSKIN_DEBUG"] != nil, ticks % 120 == 1 {
+            NSLog("tick %d skins %d", ticks, skins.count)
+        }
         let apps = targets()
+        guard !apps.isEmpty else { return }
         let byPid = Dictionary(apps.map { ($0.processIdentifier, $0) }, uniquingKeysWith: { a, _ in a })
-        let found = windows(of: Set(byPid.keys))
+        let pids = Set(byPid.keys)
+        let found = currentWindows(pids: pids)
         let mouse = NSEvent.mouseLocation
         var live = Set<CGWindowID>()
+        var usedDisplays = Set<CGDirectDisplayID>()
 
         for target in found {
             guard let app = byPid[target.pid] else { continue }
@@ -531,47 +572,58 @@ final class Skinner: NSObject {
             }()
 
             if isFullscreen(target.frame) {
-                if skin.isVisible { skin.stopBackdrop(); skin.orderOut(nil) }
+                if skin.isVisible { skin.orderOut(nil) }
                 continue
             }
 
             var appConfig = config
             appConfig.titleBar = config.titleBar(for: app)
-            if skin.config.titleBar != appConfig.titleBar || skin.config.separation != appConfig.separation {
-                skin.rim.needsDisplay = true
-            }
             skin.config = appConfig
-            skin.rim.config = appConfig
-            skin.rim.fallbackStrip = config.stripColor(for: app)
-            let colour = config.frame(for: app)
-            if skin.rim.frameColor != colour {
-                skin.rim.frameColor = colour
-                skin.rim.needsDisplay = true
-            }
 
             // Zen compact: hovering the (hidden) title bar reveals the real one.
             let topZone = NSRect(x: target.frame.minX, y: target.frame.maxY - appConfig.titleBar - 4,
                                  width: target.frame.width, height: appConfig.titleBar + 10)
             if topZone.contains(mouse) { skin.revealUntil = Date().addingTimeInterval(config.hideDelay) }
             let goal: CGFloat = Date() < skin.revealUntil ? 0 : 1
-            var next = skin.bandOpacity + (goal - skin.bandOpacity) * 0.3
+            var next = skin.bandOpacity + (goal - skin.bandOpacity) * 0.25
             if abs(next - goal) < 0.02 { next = goal }
-            if next != skin.bandOpacity {
-                skin.bandOpacity = next
-                skin.rim.bandOpacity = next
-                if !skin.rim.hasBackdrop { skin.rim.needsDisplay = true }
-            }
+            skin.bandOpacity = next
 
-            skin.layout(target: target.frame, pid: target.pid)
-
-            // Sit directly above this window, below whatever is above it.
+            skin.place(over: target.frame, frameColor: config.frame(for: app), fallback: config.stripColor(for: app))
             skin.order(.above, relativeTo: Int(target.id))
+
+            let did = displayID(for: target.frame)
+            skin.displayID = did
+            usedDisplays.insert(did)
+            if #available(macOS 14.0, *) {
+                let backdrop = (backdrops[did] as? DisplayBackdrop) ?? {
+                    let b = DisplayBackdrop(displayID: did)
+                    b.onFrame = { [weak self] surface in self?.deliver(surface, display: did) }
+                    backdrops[did] = b
+                    return b
+                }()
+                backdrop.ensure(excluding: pids.union([ProcessInfo.processInfo.processIdentifier]))
+                if let surface = backdrop.surface { skin.show(surface: surface, displayFrame: backdrop.frame) }
+            }
         }
 
         for (id, skin) in skins where !live.contains(id) {
-            skin.stopBackdrop()
             skin.orderOut(nil)
             skins.removeValue(forKey: id)
+        }
+        if #available(macOS 14.0, *) {
+            for (did, b) in backdrops where !usedDisplays.contains(did) {
+                (b as? DisplayBackdrop)?.stop()
+                backdrops.removeValue(forKey: did)
+            }
+        }
+    }
+
+    @available(macOS 14.0, *)
+    func deliver(_ surface: IOSurface, display: CGDirectDisplayID) {
+        guard let b = backdrops[display] as? DisplayBackdrop else { return }
+        for skin in skins.values where skin.displayID == display && skin.isVisible {
+            skin.show(surface: surface, displayFrame: b.frame)
         }
     }
 }
