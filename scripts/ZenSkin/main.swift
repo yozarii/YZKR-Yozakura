@@ -263,9 +263,10 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
     /// way a running stream does.
     var still: CGImage?
     private var stillRequested = Date.distantPast
+    /// Refreshes the still at most every 3 s (only while the stream is off).
     func takeStill(excluding pids: Set<pid_t>) {
-        guard CGPreflightScreenCaptureAccess(), still == nil, surface == nil,
-              Date().timeIntervalSince(stillRequested) > 5 else { return }
+        guard CGPreflightScreenCaptureAccess(), stream == nil,
+              Date().timeIntervalSince(stillRequested) > 3 else { return }
         stillRequested = Date()
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { [weak self] content, _ in
             guard let self, let content,
@@ -282,7 +283,7 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
             SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg) { image, _ in
                 DispatchQueue.main.async {
                     self.frame = display.frame
-                    if self.surface == nil, let image { self.still = image }
+                    if self.stream == nil, let image { self.still = image }
                 }
             }
         }
@@ -740,12 +741,16 @@ final class Skinner: NSObject {
                     return b
                 }()
                 if !playing { backdrop.ensure(excluding: pids.union([ProcessInfo.processInfo.processIdentifier])) }
-                if let surface = backdrop.surface {
-                    skin.show(surface: surface, displayFrame: backdrop.frame, live: backdrop.isRunning)
-                } else if let still = backdrop.still {
-                    skin.show(surface: still, displayFrame: backdrop.frame, live: false)
-                } else if playing {
+                if playing {
+                    // Live stream off: keep the title bar in step with stills.
                     backdrop.takeStill(excluding: pids.union([ProcessInfo.processInfo.processIdentifier]))
+                    if let still = backdrop.still {
+                        skin.show(surface: still, displayFrame: backdrop.frame, live: false)
+                    } else if let surface = backdrop.surface {
+                        skin.show(surface: surface, displayFrame: backdrop.frame, live: false)
+                    }
+                } else if let surface = backdrop.surface {
+                    skin.show(surface: surface, displayFrame: backdrop.frame, live: backdrop.isRunning)
                 }
             }
         }
