@@ -142,7 +142,7 @@ struct LensGeometry: Equatable {
         l.size.height -= lift
         lens = l
         lensRadius = config.lensRadius
-        cardRadius = config.cardRadius ?? max(4, config.lensRadius - sep * 0.6)
+        cardRadius = config.cardRadius ?? max(4, config.lensRadius - sep * 0.75)
     }
 
     // Safari's title bar above the lens's top rim (shows what is behind).
@@ -346,6 +346,19 @@ final class SkinWindow: NSPanel {
     // Never pushed below the menu bar: it must sit exactly over the window.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 
+    /// Layers created by hand default to 1x; draw everything at the screen's
+    /// real scale so the rim and its edges stay sharp on Retina.
+    private var appliedScale: CGFloat = 0
+    func syncScale() {
+        let scale = screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        guard scale != appliedScale else { return }
+        appliedScale = scale
+        for l in [backdropHolder, holeMask, backdrop, featherMask, strip, fallbackStrip, rim, edge] as [CALayer] {
+            l.contentsScale = scale
+            l.rasterizationScale = scale
+        }
+    }
+
     func noActions(_ body: () -> Void) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -357,6 +370,7 @@ final class SkinWindow: NSPanel {
     func place(over target: NSRect, frameColor: NSColor, fallback: NSColor?) {
         let frame = target.insetBy(dx: -LensGeometry.margin, dy: -LensGeometry.margin)
         if !self.frame.equalTo(frame) { setFrame(frame, display: false) }
+        syncScale()
         let size = frame.size
         let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensRadius)|\(config.topExtra)|\(config.bottomLift)|\(config.cardRadius ?? -1)"
         noActions {
