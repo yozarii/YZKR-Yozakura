@@ -330,9 +330,10 @@ final class SkinWindow: NSPanel {
 
         rim.fillRule = .evenOdd
         rim.shadowColor = NSColor.black.cgColor
-        rim.shadowOpacity = 0.32
-        rim.shadowRadius = 11
-        rim.shadowOffset = CGSize(width: 0, height: -6)
+        // Even all round (a downward shadow left the top corners looking flat).
+        rim.shadowOpacity = 0.30
+        rim.shadowRadius = 12
+        rim.shadowOffset = CGSize(width: 0, height: -1.5)
         edge.fillColor = nil
         edge.strokeColor = NSColor(white: 1, alpha: 0.10).cgColor
         edge.lineWidth = 1
