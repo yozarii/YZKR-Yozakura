@@ -289,6 +289,9 @@ final class SkinWindow: NSPanel {
     let featherMask = CALayer()
     let strip = CALayer()              // backdrop over Safari's title bar (hover fades it)
     let fallbackStrip = CALayer()      // when there is no screen access
+    let shadowHost = CALayer()         // lens shadow, masked so it never falls on the page
+    let shadowMask = CAShapeLayer()
+    let shadowShape = CAShapeLayer()
     let rim = CAShapeLayer()           // the Zen rim
     let edge = CAShapeLayer()          // hairline on the rim's outer edge
 
@@ -329,16 +332,22 @@ final class SkinWindow: NSPanel {
         strip.isHidden = true
 
         rim.fillRule = .evenOdd
-        rim.shadowColor = NSColor.black.cgColor
-        // Even all round (a downward shadow left the top corners looking flat).
-        rim.shadowOpacity = 0.30
-        rim.shadowRadius = 12
-        rim.shadowOffset = CGSize(width: 0, height: -1.5)
+        // The shadow lives on its own layer, masked to everything outside the
+        // page: a shadow on the rim itself (shaped like the whole lens) showed
+        // through the page and darkened it. Even all round, so the top
+        // corners don't look flat.
+        shadowShape.shadowColor = NSColor.black.cgColor
+        shadowShape.shadowOpacity = 0.30
+        shadowShape.shadowRadius = 12
+        shadowShape.shadowOffset = CGSize(width: 0, height: -1.5)
+        shadowMask.fillRule = .evenOdd
+        shadowHost.mask = shadowMask
+        shadowHost.addSublayer(shadowShape)
         edge.fillColor = nil
         edge.strokeColor = NSColor(white: 1, alpha: 0.10).cgColor
         edge.lineWidth = 1
 
-        for l in [backdropHolder, strip, fallbackStrip, rim, edge] as [CALayer] { layer.addSublayer(l) }
+        for l in [backdropHolder, strip, fallbackStrip, shadowHost, rim, edge] as [CALayer] { layer.addSublayer(l) }
         contentView = root
     }
 
@@ -354,7 +363,7 @@ final class SkinWindow: NSPanel {
         let scale = screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         guard scale != appliedScale else { return }
         appliedScale = scale
-        for l in [backdropHolder, holeMask, backdrop, featherMask, strip, fallbackStrip, rim, edge] as [CALayer] {
+        for l in [backdropHolder, holeMask, backdrop, featherMask, strip, fallbackStrip, shadowHost, shadowMask, shadowShape, rim, edge] as [CALayer] {
             l.contentsScale = scale
             l.rasterizationScale = scale
         }
@@ -390,10 +399,17 @@ final class SkinWindow: NSPanel {
                 rimPath.addPath(g.lensPath)
                 rimPath.addPath(g.cardPath)
                 rim.path = rimPath
-                rim.shadowPath = g.lensPath
+                for l in [shadowHost, shadowMask, shadowShape] as [CALayer] { l.frame = g.bounds }
+                shadowShape.path = g.lensPath
+                shadowShape.shadowPath = g.lensPath
+                let outsidePage = CGMutablePath()
+                outsidePage.addRect(g.bounds)
+                outsidePage.addPath(g.cardPath)
+                shadowMask.path = outsidePage
                 edge.path = CGPath(roundedRect: g.lens.insetBy(dx: 0.5, dy: 0.5), cornerWidth: g.lensRadius, cornerHeight: g.lensRadius, transform: nil)
             }
             rim.fillColor = frameColor.cgColor
+            shadowShape.fillColor = frameColor.cgColor
             fallbackStrip.backgroundColor = (fallback ?? frameColor).cgColor
             strip.opacity = Float(bandOpacity)
             fallbackStrip.opacity = hasBackdrop ? 0 : Float(bandOpacity)
