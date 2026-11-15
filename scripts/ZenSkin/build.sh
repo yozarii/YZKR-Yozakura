@@ -18,5 +18,13 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>13.0</string>
 </dict></plist>
 PLIST
-codesign --force --sign - "$app" >/dev/null
+# Sign with the local "YZKR ZenSkin Signing" identity when it exists, so macOS
+# keeps ZenSkin's Screen Recording permission across rebuilds (ad-hoc
+# signatures change with every build). Falls back to ad-hoc.
+identity="YZKR ZenSkin Signing"
+if security find-certificate -c "$identity" >/dev/null 2>&1; then
+  codesign --force --sign "$identity" "$app" >/dev/null
+else
+  codesign --force --sign - "$app" >/dev/null
+fi
 echo "$app"
