@@ -92,6 +92,7 @@ function main() {
       ink: frame.inkScheme || 'dark',
       // Hand-tuned per app (Safari's bar is taller with navigation controls on).
       ...(Number.isFinite(kept.titleBar) ? { titleBar: kept.titleBar } : {}),
+      ...(kept.titleBarColor ? { titleBarColor: kept.titleBarColor } : {}),
     };
   }
 

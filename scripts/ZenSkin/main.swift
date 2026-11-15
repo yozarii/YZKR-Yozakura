@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ScreenCaptureKit
 
 /*
  * ZenSkin — reskins Safari web apps (Safari → File → Add to Dock) with the
@@ -31,6 +32,7 @@ struct SkinConfig {
     var defaultFrame = NSColor(srgbRed: 0.44, green: 0.36, blue: 0.41, alpha: 1)
     var frames: [String: NSColor] = [:]   // by app name and by bundle id
     var titleBars: [String: CGFloat] = [:] // per-app title-bar height override
+    var stripColors: [String: NSColor] = [:] // fallback title-bar colour (no screen access)
 
     static let path = (NSHomeDirectory() as NSString).appendingPathComponent(".config/zen-pwa/skin.json")
 
@@ -51,6 +53,10 @@ struct SkinConfig {
                 guard let entry = value as? [String: Any], let hex = entry["frame"] as? String, let c = color(hex) else { continue }
                 config.frames[name] = c
                 if let id = entry["bundleId"] as? String { config.frames[id] = c }
+                if let hex = entry["titleBarColor"] as? String, let sc = color(hex) {
+                    config.stripColors[name] = sc
+                    if let id = entry["bundleId"] as? String { config.stripColors[id] = sc }
+                }
                 if let t = entry["titleBar"] as? Double {
                     config.titleBars[name] = CGFloat(t)
                     if let id = entry["bundleId"] as? String { config.titleBars[id] = CGFloat(t) }
@@ -64,6 +70,12 @@ struct SkinConfig {
         if let id = app.bundleIdentifier, let t = titleBars[id] { return t }
         if let name = app.localizedName, let t = titleBars[name] { return t }
         return titleBar
+    }
+
+    func stripColor(for app: NSRunningApplication) -> NSColor? {
+        if let id = app.bundleIdentifier, let c = stripColors[id] { return c }
+        if let name = app.localizedName, let c = stripColors[name] { return c }
+        return nil
     }
 
     func frame(for app: NSRunningApplication) -> NSColor {
@@ -85,36 +97,81 @@ func color(_ hex: String) -> NSColor? {
 final class SkinView: NSView {
     var config = SkinConfig()
     var frameColor = NSColor.gray
+    var stripColor: NSColor?          // Safari's title-bar colour (sampled), so it reads as page
     var bandOpacity: CGFloat = 1 { didSet { needsDisplay = true } }
 
     override var isFlipped: Bool { false }
 
+    /*
+     * Zen compact: one thin rim (the Zen gap) on all four sides around a
+     * rounded page card. Safari's title bar falls inside the card's top; it
+     * is painted in Safari's own title-bar colour (which Safari takes from
+     * the page), so the card looks like page all the way up. Hovering the
+     * top edge fades that strip out and the real title bar shows through.
+     */
     override func draw(_ dirtyRect: NSRect) {
         NSColor.clear.setFill()
         bounds.fill()
 
         let sep = config.separation
-        let band = config.titleBar + sep
         let outer = NSBezierPath(roundedRect: bounds, xRadius: config.windowRadius, yRadius: config.windowRadius)
-        // The page card: inset by the Zen gap, below the title-bar band.
-        let card = NSRect(x: sep, y: sep, width: bounds.width - sep * 2, height: bounds.height - band - sep)
+        let card = bounds.insetBy(dx: sep, dy: sep)
         let cardPath = NSBezierPath(roundedRect: card, xRadius: config.innerRadius, yRadius: config.innerRadius)
 
         NSGraphicsContext.saveGraphicsState()
         outer.addClip()
 
-        // Frame around the card (sides, bottom and the strip under the band).
-        let rim = NSBezierPath(rect: NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height - band))
+        let rim = NSBezierPath(rect: bounds)
         rim.append(cardPath.reversed)
         frameColor.setFill()
         rim.fill()
 
-        // Title-bar band; fades out while the pointer is at the top edge.
         if bandOpacity > 0.001 {
-            frameColor.withAlphaComponent(bandOpacity).setFill()
-            NSRect(x: 0, y: bounds.height - band, width: bounds.width, height: band).fill()
+            NSGraphicsContext.saveGraphicsState()
+            cardPath.addClip()
+            (stripColor ?? frameColor).withAlphaComponent(bandOpacity).setFill()
+            NSRect(x: 0, y: bounds.height - config.titleBar, width: bounds.width, height: config.titleBar).fill()
+            NSGraphicsContext.restoreGraphicsState()
         }
         NSGraphicsContext.restoreGraphicsState()
+    }
+}
+
+/*
+ * Samples Safari's title-bar colour: one tiny screenshot of a patch on the
+ * right of the bar (clear of the title and traffic lights), averaged, every
+ * two seconds. Only the bar is captured, never the page or video. Needs the
+ * Screen Recording permission; without it the configured colour is used.
+ */
+enum TitleBarSampler {
+    static func sample(windowID: CGWindowID, width: CGFloat, titleBar: CGFloat, completion: @escaping (NSColor?) -> Void) {
+        guard #available(macOS 14.0, *), CGPreflightScreenCaptureAccess() else { completion(nil); return }
+        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { content, _ in
+            guard let window = content?.windows.first(where: { $0.windowID == windowID }) else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            let filter = SCContentFilter(desktopIndependentWindow: window)
+            let cfg = SCStreamConfiguration()
+            let h = max(4, titleBar - 12)
+            cfg.sourceRect = CGRect(x: max(0, width - 140), y: (titleBar - h) / 2, width: 80, height: h)
+            cfg.width = 8
+            cfg.height = 2
+            cfg.showsCursor = false
+            SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg) { image, _ in
+                var result: NSColor?
+                if let image, let rep = Optional(NSBitmapImageRep(cgImage: image)) {
+                    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, n: CGFloat = 0
+                    for y in 0..<rep.pixelsHigh { for x in 0..<rep.pixelsWide {
+                        if let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) {
+                            r += c.redComponent; g += c.greenComponent; b += c.blueComponent; n += 1
+                        }
+                    } }
+                    if n > 0 { result = NSColor(srgbRed: r / n, green: g / n, blue: b / n, alpha: 1) }
+                }
+                DispatchQueue.main.async { completion(result) }
+            }
+        }
     }
 }
 
@@ -122,6 +179,7 @@ final class SkinWindow: NSPanel {
     let view = SkinView()
     var targetID: CGWindowID = 0
     var revealUntil: Date = .distantPast
+    var nextSample: Date = .distantPast
 
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -243,6 +301,15 @@ final class Skinner: NSObject {
             var appConfig = config
             appConfig.titleBar = config.titleBar(for: app)
             skin.view.config = appConfig
+            if skin.view.stripColor == nil, let fallback = config.stripColor(for: app) { skin.view.stripColor = fallback }
+            if Date() >= skin.nextSample {
+                skin.nextSample = Date().addingTimeInterval(2)
+                TitleBarSampler.sample(windowID: target.id, width: target.frame.width, titleBar: appConfig.titleBar) { [weak skin] c in
+                    guard let skin, let c else { return }
+                    skin.view.stripColor = c
+                    skin.view.needsDisplay = true
+                }
+            }
             let colour = config.frame(for: app)
             if skin.view.frameColor != colour {
                 skin.view.frameColor = colour
@@ -253,7 +320,7 @@ final class Skinner: NSObject {
             }
 
             // Zen compact: the top edge reveals the (native) title bar.
-            let band = appConfig.titleBar + config.separation
+            let band = appConfig.titleBar
             let topZone = NSRect(x: target.frame.minX, y: target.frame.maxY - band - 4, width: target.frame.width, height: band + 14)
             if topZone.contains(mouse) { skin.revealUntil = Date().addingTimeInterval(config.hideDelay) }
             let target01: CGFloat = Date() < skin.revealUntil ? 0 : 1
@@ -275,6 +342,10 @@ final class Skinner: NSObject {
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // no Dock icon, no menu bar
+// Ask once for Screen Recording (title-bar colour sampling); ZENSKIN_NO_PROMPT=1 skips it.
+if ProcessInfo.processInfo.environment["ZENSKIN_NO_PROMPT"] == nil, !CGPreflightScreenCaptureAccess() {
+    _ = CGRequestScreenCaptureAccess()
+}
 let skinner = Skinner()
 skinner.start()
 app.run()
