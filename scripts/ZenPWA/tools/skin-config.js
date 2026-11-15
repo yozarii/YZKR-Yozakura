@@ -116,7 +116,7 @@ function main() {
       innerRadius: config.layout.innerRadius,
       borderRadius: config.layout.borderRadius,
       // Hand-tuned lens values survive regeneration.
-      ...(['lensRadius', 'cardRadius', 'topExtra', 'bottomLift'].reduce((o, k) => (Number.isFinite((previous.layout || {})[k]) ? { ...o, [k]: previous.layout[k] } : o), {})),
+      ...(['lensRadius', 'cardRadius', 'topExtra', 'bottomLift', 'topDrop'].reduce((o, k) => (Number.isFinite((previous.layout || {})[k]) ? { ...o, [k]: previous.layout[k] } : o), {})),
       hideDelay: config.layout.hideDelay,
       hideToolbar: config.layout.hideToolbar,
     },

@@ -29,6 +29,7 @@ struct SkinConfig {
     var titleBar: CGFloat = 32       // title bar height on macOS 26+ (no toolbar)
     var windowRadius: CGFloat = 16
     var topExtra: CGFloat = 0        // top rim edge sits this much higher than the others
+    var topDrop: CGFloat = 5         // whole top rim slides down this much, overlapping the page top
     var bottomLift: CGFloat = 11     // whole bottom rim slides up this much, overlapping the page bottom
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
@@ -54,6 +55,7 @@ struct SkinConfig {
             if let v = layout["lensRadius"] as? Double { config.lensRadius = CGFloat(v) }
             if let v = layout["topExtra"] as? Double { config.topExtra = CGFloat(v) }
             if let v = layout["bottomLift"] as? Double { config.bottomLift = CGFloat(v) }
+            if let v = layout["topDrop"] as? Double { config.topDrop = CGFloat(v) }
             if let v = layout["cardRadius"] as? Double { config.cardRadius = CGFloat(v) }
         }
         if let hex = json["defaultFrame"] as? String, let c = color(hex) { config.defaultFrame = c }
@@ -131,7 +133,7 @@ struct LensGeometry: Equatable {
         var c = content
         let cardLift = max(0, min(config.bottomLift, content.height / 4))
         c.origin.y += cardLift
-        c.size.height -= cardLift
+        c.size.height -= cardLift + max(0, min(config.topDrop, content.height / 4))
         card = c
         var l = content.insetBy(dx: -sep, dy: -sep)
         l.size.height += max(0, min(config.topExtra, bar - sep))   // only the top edge moves up
@@ -140,6 +142,8 @@ struct LensGeometry: Equatable {
         let lift = max(0, min(config.bottomLift, content.height / 4))
         l.origin.y += lift
         l.size.height -= lift
+        let drop = max(0, min(config.topDrop, content.height / 4))   // top rim keeps its thickness
+        l.size.height -= drop
         lens = l
         lensRadius = config.lensRadius
         cardRadius = config.cardRadius ?? max(4, config.lensRadius - sep * 0.75)
@@ -382,7 +386,7 @@ final class SkinWindow: NSPanel {
         if !self.frame.equalTo(frame) { setFrame(frame, display: false) }
         syncScale()
         let size = frame.size
-        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensRadius)|\(config.topExtra)|\(config.bottomLift)|\(config.cardRadius ?? -1)"
+        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensRadius)|\(config.topExtra)|\(config.bottomLift)|\(config.topDrop)|\(config.cardRadius ?? -1)"
         noActions {
             if key != geometryKey {
                 geometryKey = key
