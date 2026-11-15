@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('zen', {
   init: () => ipcRenderer.invoke('site:init'),
   windowAction: (action, value) => ipcRenderer.invoke('win:action', action, value),
   setTitle: (title) => ipcRenderer.send('win:title', String(title || '')),
-  setGround: (color) => ipcRenderer.send('win:ground', String(color || '')),
+  setButtons: (visible) => ipcRenderer.send('win:buttons', Boolean(visible)),
   faviconAccent: (urls) => ipcRenderer.invoke('accent:favicon', urls),
   copy: (text) => ipcRenderer.invoke('clipboard:write', String(text || '')),
   openInZen: (url) => ipcRenderer.invoke('open:zen', String(url || '')),

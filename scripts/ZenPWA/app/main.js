@@ -106,6 +106,7 @@ const state = {
   iconDataUrl: null,
   accent: null, // window tint; see resolveTint()
   accentSource: null,
+  frame: null, // Zen-toned frame colour derived from the tint
 };
 
 const boundsFile = path.join(userDataDir, 'window.json');
@@ -295,10 +296,31 @@ function resolveTint() {
   return { color: null, source: 'yzkr' };
 }
 
-function applyTint(tint) {
+/*
+ * Zen compact mode paints the window frame in the workspace colour, a dusty
+ * low-saturation tone (the user's Zen frame is #6f5b69). Each PWA keeps that
+ * tone but takes its hue from the site, so Netflix is a dusty red and GitHub
+ * a dusty green. No tint at all → the Zen frame colour itself.
+ */
+const ZEN_FRAME = '#6f5b69';
+
+function zenTone(hex) {
+  if (!HEX.test(String(hex || ''))) return ZEN_FRAME;
+  const n = parseInt(hex.slice(1), 16);
+  const { h, s } = rgbToHsl((n >> 16) & 255, (n >> 8) & 255, n & 255);
+  return hslToHex(h, Math.min(0.28, Math.max(0.1, s * 0.3)), 0.4);
+}
+
+function setTint(tint) {
   state.accent = tint.color;
   state.accentSource = tint.source;
-  sendToShell('tint', { color: tint.color, source: tint.source });
+  state.frame = zenTone(tint.color);
+}
+
+function applyTint(tint) {
+  setTint(tint);
+  if (state.window && !state.window.isDestroyed()) state.window.setBackgroundColor(state.frame);
+  sendToShell('tint', { color: tint.color, source: tint.source, frame: state.frame });
 }
 
 async function sampleFaviconTint() {
@@ -444,6 +466,9 @@ function broadcastWindowState() {
   sendToShell('window-state', windowState());
 }
 
+// Centred in the 40px compact bar (lights are 14px tall).
+const TRAFFIC_LIGHTS = { x: 14, y: 13 };
+
 function createWindow() {
   const bounds = readBounds();
   const win = new BrowserWindow({
@@ -455,7 +480,7 @@ function createWindow() {
     minHeight: 280,
     frame: false,
     transparent: false,
-    backgroundColor: '#120b1c',
+    backgroundColor: state.frame || ZEN_FRAME,
     roundedCorners: true,
     hasShadow: true,
     acceptFirstMouse: true,
@@ -474,6 +499,8 @@ function createWindow() {
     },
   });
   state.window = win;
+  // Like Zen compact mode: the real traffic lights only appear with the top bar.
+  if (typeof win.setWindowButtonPosition === 'function') win.setWindowButtonPosition(TRAFFIC_LIGHTS);
   if (typeof win.setWindowButtonVisibility === 'function') win.setWindowButtonVisibility(false);
 
   win.loadFile(path.join(__dirname, 'shell', 'index.html'));
@@ -874,6 +901,7 @@ ipcMain.handle('site:init', async (event) => {
       drm: site.drm,
       accent: state.accent,
       accentSource: state.accentSource,
+      frame: state.frame,
     },
     widevine: state.widevine,
     icon: state.iconDataUrl,
@@ -1024,11 +1052,12 @@ ipcMain.on('win:title', (event, title) => {
   if (state.window) state.window.setTitle(clean);
 });
 
-// The YZKR ground behind the page card (not the tint): keeps resizes flash-free.
-ipcMain.on('win:ground', (event, color) => {
+// Native traffic lights follow the compact bar in and out.
+ipcMain.on('win:buttons', (event, visible) => {
   if (!isShellSender(event)) return;
-  if (!HEX.test(String(color || ''))) return;
-  if (state.window) state.window.setBackgroundColor(color);
+  const win = state.window;
+  if (!win || win.isDestroyed() || typeof win.setWindowButtonVisibility !== 'function') return;
+  win.setWindowButtonVisibility(Boolean(visible) && !win.isFullScreen());
 });
 
 ipcMain.on('toast', (event, payload) => {
@@ -1062,9 +1091,7 @@ if (!lock) {
       applicationVersion: '1.0',
       credits: `Zen PWA · ${site.host}`,
     });
-    const tint = resolveTint();
-    state.accent = tint.color;
-    state.accentSource = tint.source;
+    setTint(resolveTint());
     createWindow();
     buildMenu();
     if (!state.accent) setTimeout(() => { sampleFaviconTint().catch(() => {}); }, 1500);

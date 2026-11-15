@@ -75,25 +75,24 @@ function parseColor(value) {
   return { r: data[0], g: data[1], b: data[2], a: data[3] / 255 };
 }
 
-// The window behind the page card is YZKR ground; keep the native
-// background in step so resizes never flash the wrong colour.
-const GROUND = { dark: '#120b1c', light: '#fff4f9' };
-
 function applyScheme(scheme) {
   if (scheme === appliedScheme) return;
   appliedScheme = scheme;
   document.documentElement.dataset.scheme = scheme;
-  zen.setGround(GROUND[scheme]);
 }
 
-// Window tint: the site's highlight colour on the rim and the top bar.
-// Without one the rim stays on the YZKR `line` token.
+// Window tint: main.js turns the site's highlight colour into a Zen-toned
+// frame colour; the frame and the compact bar are painted in it.
 function applyTint(tint) {
-  const color = tint && /^#[0-9a-f]{6}$/i.test(String(tint.color || '')) ? tint.color : null;
+  const hex = (value) => (/^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : null);
   const root = document.documentElement;
+  const color = hex(tint && tint.color);
+  const frame = hex(tint && tint.frame);
   if (color) root.style.setProperty('--tint', color);
   else root.style.removeProperty('--tint');
-  root.dataset.tint = tint && tint.source ? tint.source : 'yzkr';
+  if (frame) root.style.setProperty('--zen-frame', frame);
+  else root.style.removeProperty('--zen-frame');
+  root.dataset.tint = tint && tint.source ? tint.source : 'zen';
 }
 
 /* ------------------------------------------------------------------ *
@@ -106,6 +105,7 @@ let hideTimer = null;
 
 function reveal() {
   clearTimeout(hideTimer);
+  if (!els.toolbar.classList.contains('visible')) zen.setButtons(!isWindowFullscreen);
   els.toolbar.classList.add('visible');
   els.toolbar.setAttribute('aria-hidden', 'false');
 }
@@ -114,6 +114,7 @@ function hide() {
   if (editing || menuOpen) return;
   els.toolbar.classList.remove('visible');
   els.toolbar.setAttribute('aria-hidden', 'true');
+  zen.setButtons(false);
 }
 
 function scheduleHide(delay = 420) {
@@ -189,10 +190,10 @@ function updateAddress(url, title) {
   pageHost = parsed ? parsed.host.replace(/^www\./, '') : (config ? config.site.host : '');
   const siteHost = config ? config.site.host : '';
   const auth = isAuthHost(pageHost);
-  const foreign = Boolean(pageHost) && pageHost !== siteHost;
 
-  // The host is only worth showing when it differs from the app's own site.
-  const hostText = foreign ? pageHost : '';
+  // Like Zen's URL bar: the address without scheme or www, not the title.
+  const path = parsed ? `${parsed.pathname}${parsed.search}`.replace(/\/$/, '') : '';
+  const hostText = parsed ? `${pageHost}${path}` : siteHost;
   els.hostLabel.textContent = hostText;
   els.hostLabel.hidden = !hostText;
 
@@ -496,7 +497,7 @@ async function boot() {
   }
 
   applyScheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  applyTint({ color: cfg.site.accent, source: cfg.site.accentSource });
+  applyTint({ color: cfg.site.accent, source: cfg.site.accentSource, frame: cfg.site.frame });
 
   updateAddress(cfg.site.url, cfg.site.name);
   els.hostLabel.textContent = cfg.site.host;

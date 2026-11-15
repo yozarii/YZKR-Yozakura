@@ -34,16 +34,21 @@
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --chrome: linear-gradient(180deg, var(--chrome-hi) 0%, var(--chrome-mid) 58%, var(--chrome-lo) 76%, var(--chrome-mid) 100%);
   --spring: cubic-bezier(.3, 1.5, .5, 1);
-  --frame: 8px;
-  --card-radius: 14px;
+  /* Zen compact mode, measured from the user's Zen window. */
+  --frame: 9px;
+  --card-radius: 8px;
 
-  /* Site tint: the one place a site's own colour enters the chrome. It is
-     set at launch from site.json / ~/.config/zen-pwa/accents.json (see
-     main.js resolveTint). Without one, the rim stays on YZKR line. */
+  /* Site tint. main.js resolveTint() picks the site's highlight colour
+     (override → manifest → meta → brand → favicon) and zenTone() turns it
+     into a frame colour in the tone of Zen's workspace colour. Without a
+     tint the frame is the Zen colour itself. */
   --tint: var(--line);
-  --tint-rim: var(--tint);
-  --tint-wash: color-mix(in srgb, var(--tint) 14%, var(--surface));
-  --window-radius: 12px;
+  --zen-frame: #6f5b69;
+  --zen-ink: #f6eff3;
+  --zen-ink-muted: #f6eff3b3;
+  --zen-hover: #ffffff1f;
+  --zen-field: #ffffff17;
+  --zen-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
 }
 
 /* YZKR tokens (Hiru / day) */
@@ -75,7 +80,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--ground);
+  background: var(--zen-frame);
   color: var(--ink);
   font-family: var(--mono);
   -webkit-font-smoothing: antialiased;
@@ -95,25 +100,10 @@ button:focus-visible, .search:focus-visible { outline: 2px solid var(--focus); o
   overflow: hidden;
   border-radius: var(--card-radius);
   background: var(--surface);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tint) 35%, var(--line-soft));
+  box-shadow: 0 0 0 1px #0000002e, 0 2px 10px #00000026;
   -webkit-app-region: no-drag;
   transition: inset .3s ease, border-radius .3s ease;
 }
-
-/* ---------- Window rim: the site's tint around the whole window ---------- */
-
-#rim {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  border-radius: var(--window-radius);
-  box-shadow: inset 0 0 0 2px var(--tint-rim);
-  pointer-events: none;
-  -webkit-app-region: no-drag;
-  transition: opacity .25s ease, box-shadow .25s ease;
-}
-body.blurred #rim { opacity: .45; }
-body.fullscreen #rim { display: none; }
 
 #webview-host, #webview-host webview {
   position: absolute;
@@ -126,6 +116,9 @@ body.fullscreen #rim { display: none; }
 
 body.fullscreen { --frame: 0px; --card-radius: 0px; }
 body.fullscreen #page { box-shadow: none; }
+
+/* Zen shows no handle in compact mode; the grip only carries the loading line. */
+#grip { display: none; }
 
 /* ---------- Top grip: a faint hint, and the loading line ---------- */
 
@@ -158,135 +151,108 @@ body.fullscreen #page { box-shadow: none; }
 body.blurred #grip { opacity: .2; }
 body.fullscreen #grip { display: none; }
 
-/* ---------- Toolbar: Zen's hidden reveal, Safari's compact bar ----------
- * Hidden until the pointer reaches the top edge (Zen). When it drops in it is
- * a full-width compact bar over the top of the page card with the address
- * centred and the site's colour washed through the glass, like Safari's
- * tinted tab bar.
- * --------------------------------------------------------------------- */
+/* ---------- Zen compact bar ----------
+ * Hidden until the pointer reaches the top edge, then it drops in over the
+ * top of the page in the frame colour: native traffic lights on the left,
+ * flat icon buttons, and the address field filling the rest, the same as
+ * Zen's top toolbar in compact mode.
+ * ----------------------------------------------------------------------- */
 
 #toolbar {
   position: absolute;
-  top: var(--frame);
-  left: var(--frame);
-  right: var(--frame);
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 30;
-  height: 48px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 480px) minmax(0, 1fr);
+  height: 40px;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 16px;
-  border-radius: var(--card-radius) var(--card-radius) 20px 20px;
-  background: color-mix(in srgb, var(--tint-wash) 80%, transparent);
-  backdrop-filter: blur(22px) saturate(160%);
-  box-shadow:
-    var(--shadow-glass),
-    inset 0 -1.5px 0 color-mix(in srgb, var(--tint) 60%, transparent),
-    0 0 0 1.5px var(--glass-line);
+  gap: 2px;
+  padding: 0 8px 0 0;
+  background: var(--zen-frame);
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+  box-shadow: 0 4px 16px #00000047, 0 1px 0 #0000001f;
+  color: var(--zen-ink);
+  font: 400 13px/16px var(--zen-ui);
   -webkit-app-region: drag;
 
   opacity: 0;
   visibility: hidden;
-  transform: translateY(calc(-100% - var(--frame) - 12px));
-  transition: transform .45s var(--spring), opacity .25s ease, visibility 0s .45s;
+  transform: translateY(-100%);
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .2s ease, visibility 0s .25s;
 }
 
 #toolbar.visible {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-  transition: transform .45s var(--spring), opacity .25s ease;
-}
-
-.bar-side { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.bar-trail { justify-content: flex-end; }
-
-body.fullscreen #toolbar { border-radius: 0 0 20px 20px; }
-
-@media (prefers-reduced-motion: reduce) {
-  #toolbar, #toolbar.visible, #rim { transition: none; }
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), opacity .2s ease;
 }
 
 body.html-fullscreen #toolbar { display: none; }
+body.fullscreen #toolbar { border-radius: 0; }
+body.fullscreen .lights { width: 8px; }
 
-/* Window dots: close sakura, minimise chrome, zoom matcha */
-.dots { display: flex; gap: 8px; margin-right: 6px; }
-.dot {
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 -2px 3px rgba(40,10,60,.2), 0 0 0 1.5px var(--ring);
-}
-.dot.close { background: var(--sakura); --ring: var(--sakura-ink); }
-.dot.min   { background: var(--chrome-mid); --ring: var(--line); }
-.dot.max   { background: var(--matcha); --ring: var(--matcha-ink); }
-body.blurred .dot { background: var(--line-soft); --ring: var(--line); }
+/* Room for the native traffic lights. */
+.lights { flex: none; width: 78px; height: 100%; }
 
-/* Chrome utility buttons */
-.chip {
-  flex: none;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--chrome);
-  color: var(--on-chrome);
-  font-size: 15px;
-  font-weight: 800;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.4), inset 0 -3px 5px rgba(40,10,60,.2), 0 0 0 1.5px var(--line);
-  transition: transform .25s var(--spring), box-shadow .25s ease, opacity .2s ease;
-}
-.chip:hover { transform: translateY(-2px); box-shadow: inset 0 1px 1px rgba(255,255,255,.4), inset 0 -3px 5px rgba(40,10,60,.2), 0 0 0 1.5px var(--line), var(--shadow-pop); }
-.chip:active { transform: translateY(1px) scale(.97); }
-.chip:disabled { opacity: .45; transform: none; box-shadow: inset 0 1px 1px rgba(255,255,255,.4), 0 0 0 1.5px var(--line); }
-
-/* Address: the YZKR Search pill */
-.search {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 14px 0 3px;
-  margin: 0 2px;
-  border-radius: 999px;
-  background: var(--surface-raised);
-  box-shadow: inset 0 3px 6px rgba(20,6,30,.28), 0 0 0 1.5px var(--line);
-  -webkit-app-region: no-drag;
-  overflow: hidden;
-  transition: box-shadow .3s ease;
-}
-.search.editing { box-shadow: inset 0 3px 6px rgba(20,6,30,.28), 0 0 0 2px var(--focus), var(--shadow-pop); }
-
-.glyph {
+.zbtn {
   flex: none;
   width: 30px;
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: var(--chrome);
-  color: var(--on-chrome);
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.4), inset 0 -3px 5px rgba(40,10,60,.2);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--zen-ink);
+  transition: background-color .15s ease, opacity .15s ease;
 }
-.glyph img { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; }
+.zbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.zbtn circle { fill: currentColor; stroke: none; }
+.zbtn:disabled { opacity: .4; }
+@media (hover: hover) and (pointer: fine) {
+  .zbtn:not(:disabled):hover { background: var(--zen-hover); }
+  .search:hover { background: color-mix(in srgb, var(--zen-field), #ffffff 6%); }
+}
+.zbtn:not(:disabled):active { background: color-mix(in srgb, var(--zen-hover), #ffffff 8%); }
+#toolbar button:focus-visible, #toolbar .search:focus-visible { outline: 2px solid var(--zen-ink); outline-offset: 1px; }
+
+/* Address: Zen's URL bar */
+.search {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px;
+  padding: 0 10px 0 8px;
+  border-radius: 8px;
+  background: var(--zen-field);
+  -webkit-app-region: no-drag;
+  overflow: hidden;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+.search.editing { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px #ffffff2e, 0 6px 20px #00000040; }
+
+.glyph {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--zen-ink-muted);
+}
+.glyph img { width: 16px; height: 16px; border-radius: 3px; object-fit: contain; }
 
 .title, .host { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.title { flex: 0 1 auto; font-size: 13px; font-weight: 500; }
-.host { flex: 0 1 auto; font-size: 13px; color: var(--ink-muted); }
-.host:not(:empty)::before { content: "·"; margin-right: 8px; }
-.search .glyph { margin-right: auto; }
-.search .host { margin-right: auto; }
+/* Zen's URL bar shows the address, not the page title. */
+.title { display: none; }
+.host { flex: 0 1 auto; color: var(--zen-ink); }
 
 .url {
   display: none;
@@ -298,18 +264,25 @@ body.blurred .dot { background: var(--line-soft); --ring: var(--line); }
   outline: 0;
   background: transparent;
   color: var(--ink);
-  font: 500 13px/22px var(--mono);
+  font: 400 13px/16px var(--zen-ui);
   user-select: text;
 }
 .url::placeholder { color: var(--ink-muted); }
 .search.editing .title, .search.editing .host { display: none; }
 .search.editing .url { display: block; }
+.search.editing .glyph { color: var(--ink-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  #toolbar, #toolbar.visible { transition: none; }
+}
 
 /* ---------- Splash ---------- */
 
 #splash {
   position: absolute;
-  inset: 0;
+  inset: var(--frame);
+  border-radius: var(--card-radius);
+  overflow: hidden;
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -317,7 +290,7 @@ body.blurred .dot { background: var(--line-soft); --ring: var(--line); }
   justify-content: center;
   gap: 10px;
   padding-bottom: 6vh;
-  background: var(--ground);
+  background: var(--surface);
   transition: opacity .34s ease, visibility .34s ease;
 }
 #splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -356,11 +329,12 @@ body.blurred .dot { background: var(--line-soft); --ring: var(--line); }
 
 #error {
   position: absolute;
-  inset: 0;
+  inset: var(--frame);
+  border-radius: var(--card-radius);
   z-index: 35;
   display: grid;
   place-items: center;
-  background: var(--ground);
+  background: var(--surface);
 }
 #error[hidden] { display: none; }
 
