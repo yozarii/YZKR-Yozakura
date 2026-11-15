@@ -1,0 +1,21 @@
+#!/bin/bash
+# zen-skin — Zen look for Safari web apps (overlay; Safari keeps DRM/logins).
+#   zen-skin start    refresh colours from Zen, build if needed, start the agent
+#   zen-skin stop     stop the agent
+#   zen-skin config   refresh ~/.config/zen-pwa/skin.json only
+set -euo pipefail
+root="$HOME/YZKR/scripts"
+app="$root/ZenSkin/build/ZenSkin.app"
+node="$(command -v node || echo /opt/homebrew/bin/node)"
+case "${1:-start}" in
+  config) "$node" "$root/ZenPWA/tools/skin-config.js" >/dev/null && echo "wrote ~/.config/zen-pwa/skin.json" ;;
+  stop)   pkill -x ZenSkin && echo "stopped" || echo "not running" ;;
+  start)
+    "$node" "$root/ZenPWA/tools/skin-config.js" >/dev/null
+    if [ ! -x "$app/Contents/MacOS/ZenSkin" ] || [ "$root/ZenSkin/main.swift" -nt "$app/Contents/MacOS/ZenSkin" ]; then
+      "$root/ZenSkin/build.sh" >/dev/null
+    fi
+    pkill -x ZenSkin 2>/dev/null || true
+    open "$app" && echo "ZenSkin running (skins every Safari web app)" ;;
+  *) echo "usage: zen-skin [start|stop|config]" >&2; exit 2 ;;
+esac
