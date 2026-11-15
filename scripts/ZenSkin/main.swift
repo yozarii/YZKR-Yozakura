@@ -29,7 +29,7 @@ struct SkinConfig {
     var titleBar: CGFloat = 28       // Safari web-app title bar (no nav controls)
     var windowRadius: CGFloat = 16
     var lensLift: CGFloat = 8        // lens top edge rises this far into the hidden title bar
-    var sideGap: CGFloat = 5         // left/right rim (top/bottom use the Zen gap)
+    var sideOut: CGFloat = 4         // lens reaches this far past the window's left/right edges
     var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
     var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
     var hideDelay: TimeInterval = 1.0
@@ -53,7 +53,7 @@ struct SkinConfig {
             if let v = layout["lensLift"] as? Double { config.lensLift = CGFloat(v) }
             if let v = layout["borderRadius"] as? Double { config.lensRadius = CGFloat(v) }
             if let v = layout["lensRadius"] as? Double { config.lensRadius = CGFloat(v) }
-            if let v = layout["sideGap"] as? Double { config.sideGap = CGFloat(v) }
+            if let v = layout["sideOut"] as? Double { config.sideOut = CGFloat(v) }
             if let v = layout["cardRadius"] as? Double { config.cardRadius = CGFloat(v) }
         }
         if let hex = json["defaultFrame"] as? String, let c = color(hex) { config.defaultFrame = c }
@@ -112,6 +112,7 @@ struct LensGeometry: Equatable {
     let bounds: CGRect   // overlay
     let window: CGRect   // the Safari window inside it
     let content: CGRect  // window minus Safari's title bar
+    let lens: CGRect     // outer edge of the rim
     let card: CGRect     // the page, inset by the Zen gap
     let lensRadius: CGFloat
     let cardRadius: CGFloat
@@ -125,13 +126,17 @@ struct LensGeometry: Equatable {
         let lift = max(0, min(config.lensLift, config.separation))
         let bar = max(0, min(config.titleBar - lift, window.height))
         content = CGRect(x: window.minX, y: window.minY, width: window.width, height: window.height - bar)
-        card = content.insetBy(dx: max(0, config.sideGap), dy: config.separation)
+        // The lens sits a little wider than the window, so the rim keeps the
+        // full Zen gap without eating into the page.
+        let out = max(0, min(config.sideOut, config.separation))
+        lens = content.insetBy(dx: -out, dy: 0)
+        card = lens.insetBy(dx: config.separation, dy: config.separation)
         lensRadius = config.lensRadius
         cardRadius = config.cardRadius ?? max(4, config.lensRadius - config.separation * 0.6)
     }
 
     var strip: CGRect { CGRect(x: window.minX, y: content.maxY, width: window.width, height: window.maxY - content.maxY) }
-    var lensPath: CGPath { CGPath(roundedRect: content, cornerWidth: lensRadius, cornerHeight: lensRadius, transform: nil) }
+    var lensPath: CGPath { CGPath(roundedRect: lens, cornerWidth: lensRadius, cornerHeight: lensRadius, transform: nil) }
     var cardPath: CGPath { CGPath(roundedRect: card, cornerWidth: cardRadius, cornerHeight: cardRadius, transform: nil) }
 }
 
@@ -172,7 +177,7 @@ final class RimView: NSView {
 
         // Hairline on the rim's outer edge, like Zen's window outline.
         NSColor(white: 1, alpha: 0.10).setStroke()
-        let edge = NSBezierPath(cgPath: CGPath(roundedRect: g.content.insetBy(dx: 0.5, dy: 0.5),
+        let edge = NSBezierPath(cgPath: CGPath(roundedRect: g.lens.insetBy(dx: 0.5, dy: 0.5),
                                                cornerWidth: g.lensRadius, cornerHeight: g.lensRadius, transform: nil))
         edge.lineWidth = 1
         edge.stroke()
@@ -405,7 +410,7 @@ final class SkinWindow: NSPanel {
 
     func updateMask() {
         let size = contentView?.bounds.size ?? .zero
-        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensLift)|\(config.lensRadius)|\(config.sideGap)|\(config.cardRadius ?? -1)|\(Int(bandOpacity * 100))"
+        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensLift)|\(config.lensRadius)|\(config.sideOut)|\(config.cardRadius ?? -1)|\(Int(bandOpacity * 100))"
         guard key != maskKey, size.width > 1 else { return }
         maskKey = key
         let g = LensGeometry(size: size, config: config)
