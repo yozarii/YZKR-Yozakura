@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ai-os",
+      "runtimeExecutable": "/opt/homebrew/bin/uv",
+      "runtimeArgs": ["run", "-q", "ai-os/server.py"],
+      "port": 7777
+    }
+  ]
+}

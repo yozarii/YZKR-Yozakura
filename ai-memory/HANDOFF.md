@@ -26,3 +26,23 @@ bg `#0b0b10`, bgElevated `#12121a`, surface `#171722`, border `#262636`, text `#
 - `route_intent`/`quick_worker` depend on model pulls completing; verify with `ollama list`.
 - Sol and Rectangle are installed but **theming/config of Sol and Rectangle not applied** (no stable config files; only the shell banner uses the tokens).
 - Restart Claude Desktop to load the `worker` server.
+
+---
+
+# Stage B (Phases 5–6) — done 2026-11-15
+
+## Phase 5 · Semantic spotlight (`scripts/spotlight_engine.py`)
+- Pipeline: source registry (apps, ~/YZKR files/folders, bin, git repos, zsh aliases, macros, Zen/Firefox/Safari/Chromium bookmarks, memory entities, AI-OS planes) → SQLite FTS5 **trigram** index (`ai-os/data/spotlight.db`, typo-tolerant) → lexical rerank (+usage boost) → `qwen2.5:3b` picks `{candidate, action}` from schema **enums built from the registries** (no free-text fields: 3B models degenerate in long strings) → action registry executes.
+- Exact title hits skip the model (~0.1s); LLM path ~1.5s; cached per query; falls back to lexical top hit if Ollama is down.
+- Safety: `run` needs an explicit verb unless it's the item's default (macros); actions declare allowed kinds.
+- CLI: `uv run scripts/spotlight_engine.py index|search|resolve|run|ask|macro …|sol-sync [--hotkey]`.
+- Macros (`scripts/yzkr_macros.py`): `scripts/macros/<slug>.zsh`, typed steps in `# yzkr-steps:` header (step-type registry: shell/open_app/open_url/open_path/quit_app/sleep/notify/yzkr). Record from NL (qwen, schema-constrained, normalized) or from last N zsh history lines.
+- Sol: scripts in `~/.config/sol/scripts/` (YZKR Spotlight, Record Macro, Reindex, one per macro, auto-synced); `~/.config/sol/config.json` → `globalShortcut: "command"` (⌘Space).
+- **User action left:** run `~/YZKR/bin/yzkr-hotkey` once to disable macOS Spotlight's ⌘Space (system shortcut; `--undo` reverts), then launch Sol.
+
+## Phase 6 · AI-OS (`ai-os/`)
+- `server.py` (aiohttp, 127.0.0.1:7777): per-launch token in index.html, Host allowlist (DNS rebinding), WS Origin check, CSP + DOMPurify for model output.
+- `backend/`: `files` (sandboxed to ~/YZKR, mtime conflict check), `graph` (3 layers sharing `file:<path>` ids), `system` (probe + toggle registries), `chat` (Claude via anthropic SDK `claude-opus-5-5` default + server-side refusal fallback; Ollama; auto-router local/claude/terminal), `term` (pty zsh over WS; `cls` via ZDOTDIR shim).
+- `web/`: no bundler; ES modules + vendored CodeMirror 5, xterm.js, marked, DOMPurify. Planes: Editor ⌘1, Graph ⌘E, Home ⌘3, Chat+Terminal ⌘T; palette ⌘K.
+- `mac/main.swift` + `mac/build.sh` → `~/Applications/YZKR AI-OS.app`: WKWebView window, starts/stops the server, `yzkr://` scheme (palette/editor/graph/chat/home), ⌥Space global hotkey, hides on close.
+- Claude chat needs credentials: `ANTHROPIC_API_KEY`, `ant auth login`, or NordPass item named "Anthropic". Untested live (no key present).

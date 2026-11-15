@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws://127.0.0.1:7777 ws://localhost:7777; object-src 'none'; base-uri 'none'">
+  <meta name="yzkr-token" content="__YZKR_TOKEN__">
+  <title>YZKR AI-OS</title>
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/vendor/cm/codemirror.css">
+  <link rel="stylesheet" href="/vendor/xterm/xterm.css">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div id="app">
+    <nav id="sidebar" aria-label="Planes">
+      <div class="traffic-space"></div>
+      <div id="plane-nav"></div>
+      <div class="grow"></div>
+      <button class="nav-btn" id="palette-btn" title="Command palette (⌘K)" aria-label="Command palette"></button>
+    </nav>
+    <main id="main">
+      <header id="titlebar">
+        <span id="plane-title"></span>
+        <span id="plane-sub"></span>
+        <span class="grow"></span>
+        <span id="status-pill" class="pill"></span>
+      </header>
+      <section id="planes"></section>
+    </main>
+  </div>
+
+  <div id="palette" class="overlay" hidden>
+    <div class="palette-box" role="dialog" aria-label="Command palette">
+      <div class="palette-input-row">
+        <span class="palette-glyph">⌘K</span>
+        <input id="palette-input" placeholder="Open, find, run, ask… natural language works" autocomplete="off" spellcheck="false">
+        <span id="palette-spin" class="spin" hidden></span>
+      </div>
+      <ul id="palette-list" role="listbox"></ul>
+      <div class="palette-foot"><span><kbd>↵</kbd> open</span><span><kbd>⌘↵</kbd> resolve with AI</span><span><kbd>⇥</kbd> ask chat</span><span><kbd>esc</kbd> close</span></div>
+    </div>
+  </div>
+  <div id="toasts"></div>
+
+  <script src="/vendor/cm/codemirror.js"></script>
+  <script src="/vendor/cm/addon/overlay.js"></script>
+  <script src="/vendor/cm/addon/closebrackets.js"></script>
+  <script src="/vendor/cm/addon/matchbrackets.js"></script>
+  <script src="/vendor/cm/addon/active-line.js"></script>
+  <script src="/vendor/cm/addon/continuelist.js"></script>
+  <script src="/vendor/cm/mode/xml.js"></script>
+  <script src="/vendor/cm/mode/javascript.js"></script>
+  <script src="/vendor/cm/mode/css.js"></script>
+  <script src="/vendor/cm/mode/htmlmixed.js"></script>
+  <script src="/vendor/cm/mode/markdown.js"></script>
+  <script src="/vendor/cm/mode/gfm.js"></script>
+  <script src="/vendor/cm/mode/python.js"></script>
+  <script src="/vendor/cm/mode/shell.js"></script>
+  <script src="/vendor/cm/mode/swift.js"></script>
+  <script src="/vendor/cm/mode/yaml.js"></script>
+  <script src="/vendor/cm/mode/toml.js"></script>
+  <script src="/vendor/xterm/xterm.js"></script>
+  <script src="/vendor/xterm/addon-fit.js"></script>
+  <script src="/vendor/marked.min.js"></script>
+  <script src="/vendor/purify.min.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
