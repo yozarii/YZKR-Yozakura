@@ -257,6 +257,37 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
         }
     }
 
+    /// One still screenshot of the display (same exclusions), for when there
+    /// is no frame yet but the live stream must stay off (video playing).
+    /// A single screenshot doesn't put macOS into "being recorded" mode the
+    /// way a running stream does.
+    var still: CGImage?
+    private var stillRequested = Date.distantPast
+    func takeStill(excluding pids: Set<pid_t>) {
+        guard CGPreflightScreenCaptureAccess(), still == nil, surface == nil,
+              Date().timeIntervalSince(stillRequested) > 5 else { return }
+        stillRequested = Date()
+        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { [weak self] content, _ in
+            guard let self, let content,
+                  let display = content.displays.first(where: { $0.displayID == self.displayID }) else { return }
+            let excluded = content.applications.filter { pids.contains($0.processID) }
+            let filter = SCContentFilter(display: display, excludingApplications: excluded, exceptingWindows: [])
+            let cfg = SCStreamConfiguration()
+            let scale = NSScreen.screens.first(where: {
+                ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == self.displayID
+            })?.backingScaleFactor ?? 2
+            cfg.width = Int(display.frame.width * scale)
+            cfg.height = Int(display.frame.height * scale)
+            cfg.showsCursor = false
+            SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg) { image, _ in
+                DispatchQueue.main.async {
+                    self.frame = display.frame
+                    if self.surface == nil, let image { self.still = image }
+                }
+            }
+        }
+    }
+
     /// Stops capturing. The last frame stays on screen (keepFrame) so the
     /// lens edges don't flash while capture is paused for video playback.
     func stop(keepFrame: Bool = false) {
@@ -277,6 +308,7 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
             guard let self else { return }
             if self.surface == nil, ProcessInfo.processInfo.environment["ZENSKIN_DEBUG"] != nil { NSLog("backdrop first frame %dx%d", IOSurfaceGetWidth(surface), IOSurfaceGetHeight(surface)) }
             self.surface = io
+            self.still = nil
             self.onFrame?(io)
         }
     }
@@ -426,7 +458,7 @@ final class SkinWindow: NSPanel {
     }
 
     /// Points both backdrop layers at this window's slice of the display frame.
-    func show(surface: IOSurface, displayFrame: CGRect) {
+    func show(surface: Any, displayFrame: CGRect) {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
         let f = frame
         // Overlay in global top-left coordinates, then in the display's unit space.
@@ -704,7 +736,13 @@ final class Skinner: NSObject {
                     return b
                 }()
                 if !playing { backdrop.ensure(excluding: pids.union([ProcessInfo.processInfo.processIdentifier])) }
-                if let surface = backdrop.surface { skin.show(surface: surface, displayFrame: backdrop.frame) }
+                if let surface = backdrop.surface {
+                    skin.show(surface: surface, displayFrame: backdrop.frame)
+                } else if let still = backdrop.still {
+                    skin.show(surface: still, displayFrame: backdrop.frame)
+                } else if playing {
+                    backdrop.takeStill(excluding: pids.union([ProcessInfo.processInfo.processIdentifier]))
+                }
             }
         }
 
