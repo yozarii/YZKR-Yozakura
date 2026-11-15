@@ -11,6 +11,8 @@
 ## Paths
 - `scripts/np_mcp.py` (np-manager MCP), `scripts/worker_mcp.py` (worker MCP: `route_intent`, `quick_worker`, `tri_search`)
 - `bin/zen`, `bin/zen-pwa`, `bin/npw`; PWA toolkit `scripts/ZenPWA/` (node tool `tools/cli.js`)
+  - Window tint: each PWA's window rim and its hidden top bar are tinted with the site's highlight colour. Source order: `~/.config/zen-pwa/accents.json` override (`{"<slug>": "#rrggbb"}`, set with `zen --pwa --rebuild <app> --accent "#hex"`, `auto` clears) → `site.json` `accent` (from manifest `theme_color` → `<meta name="theme-color">` → curated brand colour in `tools/siteinfo.js`; greys/black/white are skipped) → favicon colour sampled once at runtime → YZKR `line`. Logic in `app/main.js` `resolveTint()`, drawing in `app/shell/shell.css` (`--tint`, `#rim`, `#toolbar`). Overrides apply on next launch, no rebuild needed.
+  - Top bar: Zen-style hidden (revealed at the top edge), shaped like Safari's compact bar — full-width over the page card, address centred, site tint washed through the glass.
 - `ai-memory/memory.jsonl` (memory MCP store), `ai-os/theme.json`
 - Claude Desktop config: `~/Library/Application Support/Claude/claude_desktop_config.json` → servers: filesystem, git, memory, np-manager, worker (all via `/opt/homebrew/bin/uv run` / npx / uvx)
 

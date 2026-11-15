@@ -36,6 +36,14 @@
   --spring: cubic-bezier(.3, 1.5, .5, 1);
   --frame: 8px;
   --card-radius: 14px;
+
+  /* Site tint: the one place a site's own colour enters the chrome. It is
+     set at launch from site.json / ~/.config/zen-pwa/accents.json (see
+     main.js resolveTint). Without one, the rim stays on YZKR line. */
+  --tint: var(--line);
+  --tint-rim: var(--tint);
+  --tint-wash: color-mix(in srgb, var(--tint) 14%, var(--surface));
+  --window-radius: 12px;
 }
 
 /* YZKR tokens (Hiru / day) */
@@ -87,10 +95,25 @@ button:focus-visible, .search:focus-visible { outline: 2px solid var(--focus); o
   overflow: hidden;
   border-radius: var(--card-radius);
   background: var(--surface);
-  box-shadow: 0 0 0 1.5px var(--line-soft);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tint) 35%, var(--line-soft));
   -webkit-app-region: no-drag;
   transition: inset .3s ease, border-radius .3s ease;
 }
+
+/* ---------- Window rim: the site's tint around the whole window ---------- */
+
+#rim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  border-radius: var(--window-radius);
+  box-shadow: inset 0 0 0 2px var(--tint-rim);
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+  transition: opacity .25s ease, box-shadow .25s ease;
+}
+body.blurred #rim { opacity: .45; }
+body.fullscreen #rim { display: none; }
 
 #webview-host, #webview-host webview {
   position: absolute;
@@ -135,35 +158,54 @@ body.fullscreen #page { box-shadow: none; }
 body.blurred #grip { opacity: .2; }
 body.fullscreen #grip { display: none; }
 
-/* ---------- Toolbar: glass pill from the top edge ---------- */
+/* ---------- Toolbar: Zen's hidden reveal, Safari's compact bar ----------
+ * Hidden until the pointer reaches the top edge (Zen). When it drops in it is
+ * a full-width compact bar over the top of the page card with the address
+ * centred and the site's colour washed through the glass, like Safari's
+ * tinted tab bar.
+ * --------------------------------------------------------------------- */
 
 #toolbar {
   position: absolute;
-  top: 14px;
-  left: 50%;
+  top: var(--frame);
+  left: var(--frame);
+  right: var(--frame);
   z-index: 30;
-  width: min(680px, calc(100% - 48px));
   height: 48px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 480px) minmax(0, 1fr);
   align-items: center;
-  gap: 6px;
-  padding: 6px 6px 6px 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  gap: 8px;
+  padding: 0 8px 0 16px;
+  border-radius: var(--card-radius) var(--card-radius) 20px 20px;
+  background: color-mix(in srgb, var(--tint-wash) 80%, transparent);
   backdrop-filter: blur(22px) saturate(160%);
-  box-shadow: var(--shadow-glass), 0 0 0 1.5px var(--glass-line);
+  box-shadow:
+    var(--shadow-glass),
+    inset 0 -1.5px 0 color-mix(in srgb, var(--tint) 60%, transparent),
+    0 0 0 1.5px var(--glass-line);
+  -webkit-app-region: drag;
 
   opacity: 0;
   visibility: hidden;
-  transform: translate(-50%, calc(-100% - 24px));
+  transform: translateY(calc(-100% - var(--frame) - 12px));
   transition: transform .45s var(--spring), opacity .25s ease, visibility 0s .45s;
 }
 
 #toolbar.visible {
   opacity: 1;
   visibility: visible;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
   transition: transform .45s var(--spring), opacity .25s ease;
+}
+
+.bar-side { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.bar-trail { justify-content: flex-end; }
+
+body.fullscreen #toolbar { border-radius: 0 0 20px 20px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #toolbar, #toolbar.visible, #rim { transition: none; }
 }
 
 body.html-fullscreen #toolbar { display: none; }
@@ -207,11 +249,12 @@ body.blurred .dot { background: var(--line-soft); --ring: var(--line); }
 /* Address: the YZKR Search pill */
 .search {
   flex: 1 1 auto;
-  min-width: 80px;
+  min-width: 0;
   height: 36px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   padding: 0 14px 0 3px;
   margin: 0 2px;
   border-radius: 999px;
@@ -240,7 +283,10 @@ body.blurred .dot { background: var(--line-soft); --ring: var(--line); }
 
 .title, .host { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .title { flex: 0 1 auto; font-size: 13px; font-weight: 500; }
-.host { flex: 0 1 auto; margin-left: auto; font-size: 11px; color: var(--ink-muted); }
+.host { flex: 0 1 auto; font-size: 13px; color: var(--ink-muted); }
+.host:not(:empty)::before { content: "·"; margin-right: 8px; }
+.search .glyph { margin-right: auto; }
+.search .host { margin-right: auto; }
 
 .url {
   display: none;

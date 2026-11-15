@@ -83,7 +83,17 @@ function applyScheme(scheme) {
   if (scheme === appliedScheme) return;
   appliedScheme = scheme;
   document.documentElement.dataset.scheme = scheme;
-  zen.setAccent(GROUND[scheme]);
+  zen.setGround(GROUND[scheme]);
+}
+
+// Window tint: the site's highlight colour on the rim and the top bar.
+// Without one the rim stays on the YZKR `line` token.
+function applyTint(tint) {
+  const color = tint && /^#[0-9a-f]{6}$/i.test(String(tint.color || '')) ? tint.color : null;
+  const root = document.documentElement;
+  if (color) root.style.setProperty('--tint', color);
+  else root.style.removeProperty('--tint');
+  root.dataset.tint = tint && tint.source ? tint.source : 'yzkr';
 }
 
 /* ------------------------------------------------------------------ *
@@ -486,6 +496,7 @@ async function boot() {
   }
 
   applyScheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTint({ color: cfg.site.accent, source: cfg.site.accentSource });
 
   updateAddress(cfg.site.url, cfg.site.name);
   els.hostLabel.textContent = cfg.site.host;
@@ -615,6 +626,7 @@ zen.on('fullscreen', (on) => {
   if (on) hide();
 });
 zen.on('cmd', handleCommand);
+zen.on('tint', applyTint);
 zen.on('toast', (payload) => toast(payload && payload.message, payload && payload.kind));
 zen.on('widevine', (widevine) => {
   if (widevine.state === 'ready') {

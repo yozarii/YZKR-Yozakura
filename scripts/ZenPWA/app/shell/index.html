@@ -27,6 +27,7 @@
   <div id="grip" aria-hidden="true"><span id="progress"></span></div>
 
   <header id="toolbar" aria-hidden="true" aria-label="toolbar">
+    <div class="bar-side bar-lead">
     <div class="dots">
       <button class="dot close" data-action="close" title="close" aria-label="close window"></button>
       <button class="dot min" data-action="minimize" title="minimise" aria-label="minimise"></button>
@@ -34,14 +35,17 @@
     </div>
     <button class="chip" data-action="back" id="btn-back" title="back (⌘[)" aria-label="back" disabled>←</button>
     <button class="chip" data-action="forward" id="btn-forward" title="forward (⌘])" aria-label="forward" disabled>→</button>
+    </div>
     <div id="address" class="search" role="button" tabindex="0" title="find or go to… (⌘L)">
       <span class="glyph"><img id="favicon" alt="" hidden /><span id="monogram">&gt;</span></span>
       <span id="title" class="title">loading…</span>
       <span id="host" class="host"></span>
       <input id="url" class="url" spellcheck="false" autocomplete="off" placeholder="find or go to…" aria-label="address" />
     </div>
+    <div class="bar-side bar-trail">
     <button class="chip" data-action="reload" id="btn-reload" title="reload (⌘R)" aria-label="reload">↻</button>
     <button class="chip" data-action="menu" id="btn-menu" title="more" aria-label="more">···</button>
+    </div>
   </header>
 
   <div id="splash">
@@ -51,6 +55,9 @@
   </div>
 
   <div id="toast" hidden role="status"></div>
+
+  <!-- window rim, drawn in the site's tint -->
+  <div id="rim" aria-hidden="true"></div>
 
   <script src="shell.js"></script>
 </body>

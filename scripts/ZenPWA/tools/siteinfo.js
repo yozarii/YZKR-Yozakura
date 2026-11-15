@@ -352,6 +352,41 @@ function pickMeta(html, name) {
   return '';
 }
 
+/*
+ * Window tint. A theme colour only counts as a highlight if it has some
+ * colour in it: many sites ship #000 / #fff as theme-color, which would
+ * give every app the same grey rim.
+ */
+function normalizeHex(value) {
+  const text = String(value || '').trim().toLowerCase();
+  let m = /^#([0-9a-f]{3,4})$/.exec(text);
+  if (m) return `#${m[1].slice(0, 3).split('').map((c) => c + c).join('')}`;
+  m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(text);
+  if (m) return `#${m[1]}`;
+  m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(text);
+  if (m) return `#${m.slice(1, 4).map((n) => Math.min(255, Number(n)).toString(16).padStart(2, '0')).join('')}`;
+  return '';
+}
+
+function isHighlight(hex) {
+  if (!hex) return false;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+  return s >= 0.2 && l >= 0.12 && l <= 0.9;
+}
+
+// manifest theme_color → <meta name="theme-color"> → curated brand colour.
+function pickAccent(candidates) {
+  for (const [source, value] of candidates) {
+    const hex = normalizeHex(value);
+    if (isHighlight(hex)) return { accent: hex, source };
+  }
+  return { accent: '', source: '' };
+}
+
 function pickTitle(html) {
   const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
   return match ? decodeEntities(match[1]).replace(/\s+/g, ' ').trim() : '';
@@ -490,6 +525,12 @@ async function main() {
   const slug = slugify(name);
   const drm = args.drm || DRM_HOSTS.some((suffix) => displayHost === suffix || displayHost.endsWith(`.${suffix}`));
 
+  const tint = pickAccent([
+    ['manifest', manifest && manifest.theme_color],
+    ['meta', themeColor],
+    ['brand', alias && alias.accent],
+  ]);
+
   const output = {
     input: args.input,
     url: displayURL,
@@ -497,7 +538,8 @@ async function main() {
     host: displayHost,
     slug,
     drm,
-    themeColor: (alias && alias.accent) || themeColor || (manifest && manifest.theme_color) || '',
+    themeColor: tint.accent,
+    accentSource: tint.source,
     title: alias ? alias.name : (pageTitle || name),
     resolvedUrl: finalURL,
     icons,

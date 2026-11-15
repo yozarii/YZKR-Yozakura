@@ -104,7 +104,8 @@ const state = {
   widevine: { state: 'idle', version: null, error: null, path: null, raw: null },
   pointerNearTop: false,
   iconDataUrl: null,
-  accent: site.accent || null,
+  accent: null, // window tint; see resolveTint()
+  accentSource: null,
 };
 
 const boundsFile = path.join(userDataDir, 'window.json');
@@ -269,6 +270,44 @@ async function accentFromUrls(urls) {
     if (color) return color;
   }
   return null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Window tint
+ *
+ * The rim of each window is drawn in the site's highlight colour so every
+ * PWA reads as its own app. Priority:
+ *   1. ~/.config/zen-pwa/accents.json  { "<slug>": "#rrggbb" }  (override)
+ *   2. site.json `accent` (manifest theme_color → meta theme-color → brand)
+ *   3. dominant colour of the site's favicon, sampled once and cached
+ *   4. nothing: the shell keeps the YZKR `line` rim
+ * ------------------------------------------------------------------ */
+
+const ACCENTS_FILE = path.join(app.getPath('home'), '.config', 'zen-pwa', 'accents.json');
+const HEX = /^#[0-9a-f]{6}$/i;
+
+function resolveTint() {
+  const overrides = readJSON(ACCENTS_FILE) || {};
+  const override = overrides[profileSlug] || overrides[site.slug];
+  if (HEX.test(String(override || ''))) return { color: override.toLowerCase(), source: 'override' };
+  if (HEX.test(String(site.accent || ''))) return { color: site.accent.toLowerCase(), source: site.accentSource || 'site' };
+  if (HEX.test(String(settings.faviconTint || ''))) return { color: settings.faviconTint, source: 'favicon' };
+  return { color: null, source: 'yzkr' };
+}
+
+function applyTint(tint) {
+  state.accent = tint.color;
+  state.accentSource = tint.source;
+  sendToShell('tint', { color: tint.color, source: tint.source });
+}
+
+async function sampleFaviconTint() {
+  if (state.accent) return;
+  const color = await accentFromUrls([]);
+  if (!color || state.accent) return;
+  settings.faviconTint = color;
+  saveSettings();
+  applyTint({ color, source: 'favicon' });
 }
 
 /* ------------------------------------------------------------------ *
@@ -834,6 +873,7 @@ ipcMain.handle('site:init', async (event) => {
       host: site.host,
       drm: site.drm,
       accent: state.accent,
+      accentSource: state.accentSource,
     },
     widevine: state.widevine,
     icon: state.iconDataUrl,
@@ -984,10 +1024,10 @@ ipcMain.on('win:title', (event, title) => {
   if (state.window) state.window.setTitle(clean);
 });
 
-ipcMain.on('win:accent', (event, color) => {
+// The YZKR ground behind the page card (not the tint): keeps resizes flash-free.
+ipcMain.on('win:ground', (event, color) => {
   if (!isShellSender(event)) return;
-  if (!/^#[0-9a-f]{6}$/i.test(String(color || ''))) return;
-  state.accent = color;
+  if (!HEX.test(String(color || ''))) return;
   if (state.window) state.window.setBackgroundColor(color);
 });
 
@@ -1022,8 +1062,12 @@ if (!lock) {
       applicationVersion: '1.0',
       credits: `Zen PWA · ${site.host}`,
     });
+    const tint = resolveTint();
+    state.accent = tint.color;
+    state.accentSource = tint.source;
     createWindow();
     buildMenu();
+    if (!state.accent) setTimeout(() => { sampleFaviconTint().catch(() => {}); }, 1500);
     if (settings.alwaysOnTop && state.window) state.window.setAlwaysOnTop(true);
     prepareWidevine();
     if (flags.selftest) {

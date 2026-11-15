@@ -31,6 +31,8 @@ const ICONMAKER_SRC = path.join(ROOT, 'tools', 'iconmaker.swift');
 const EVS_VENV = path.join(ROOT, '.evs');
 const EVS_PY = path.join(EVS_VENV, 'bin', 'python');
 const EVS_CONFIG = path.join(HOME, '.config', 'evs', 'config.json');
+// Per-PWA window tint overrides, { "<slug>": "#rrggbb" }. Read by the shell at launch.
+const ACCENTS_FILE = path.join(HOME, '.config', 'zen-pwa', 'accents.json');
 const USER_DIR = path.join(HOME, 'Applications');
 const SYSTEM_DIR = '/Applications';
 const MARKER = 'ZenPWA.json';
@@ -39,7 +41,7 @@ const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks
 const VMP_SIG = path.join('Contents', 'Frameworks', 'Electron Framework.framework', 'Versions', 'A', 'Resources', 'Electron Framework.sig');
 
 const COMMANDS = new Set(['install', 'list', 'remove', 'rebuild', 'doctor', 'sign', 'update', 'open', 'help']);
-const VALUE_FLAGS = new Set(['site', 'url', 'name', 'dir']);
+const VALUE_FLAGS = new Set(['site', 'url', 'name', 'dir', 'accent']);
 const KNOWN_FLAGS = new Set([
   ...VALUE_FLAGS,
   'drm', 'force', 'help', 'purge', 'quiet', 'replace', 'system', 'no-open', 'version',
@@ -266,7 +268,8 @@ function writeSiteFiles(dest, site, name) {
     slug: site.slug || slugify(name),
     host: site.host,
     drm: Boolean(site.drm),
-    accent: site.themeColor || '',
+    accent: site.themeColor || site.accent || '',
+    accentSource: site.accentSource || (site.themeColor || site.accent ? 'site' : ''),
     iconUrl: site.iconUrl || '',
     installedAt,
   });
@@ -277,6 +280,25 @@ function writeSiteFiles(dest, site, name) {
     name,
     installedAt,
   });
+}
+
+function siteAccent(site) {
+  const value = String(site.themeColor || site.accent || '');
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : '#5b8cff';
+}
+
+function setAccentOverride(slug, value) {
+  if (!slug || value === undefined) return;
+  const accents = readJSON(ACCENTS_FILE, {}) || {};
+  if (value === true || /^(auto|site|none|clear)$/i.test(String(value))) {
+    delete accents[slug];
+  } else {
+    const hex = String(value).trim().toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(hex)) fail(`--accent wants a colour like #e50914 (or "auto" to clear), got "${value}".`);
+    accents[slug] = hex;
+  }
+  fs.mkdirSync(path.dirname(ACCENTS_FILE), { recursive: true });
+  writeJSON(ACCENTS_FILE, accents);
 }
 
 async function fetchBuffer(url) {
@@ -335,7 +357,7 @@ async function buildIcons(site, dest, name) {
       }
     }
 
-    const accent = /^#[0-9a-f]{6}$/i.test(String(site.themeColor || '')) ? site.themeColor : '#5b8cff';
+    const accent = siteAccent(site);
     if (!ensureIconmaker()) throw new Error('iconmaker is not available');
     const monogram = String(name || 'Z').trim().charAt(0).toUpperCase() || 'Z';
     const make = (args) => spawnSync(ICONMAKER, args, { stdio: 'inherit' });
@@ -374,7 +396,7 @@ async function buildIcons(site, dest, name) {
   } catch (error) {
     say(yellow(`  ! Icon generation failed (${error.message}); using a monogram.`));
     try {
-      const accent = /^#[0-9a-f]{6}$/i.test(String(site.themeColor || '')) ? site.themeColor : '#5b8cff';
+      const accent = siteAccent(site);
       const monogram = String(name || 'Z').trim().charAt(0).toUpperCase() || 'Z';
       if (ensureIconmaker() && spawnSync(ICONMAKER, ['-', canvas, accent, 'monogram', monogram], { stdio: 'inherit' }).status === 0) {
         run('sips', ['-z', '512', '512', canvas, '--out', path.join(resources, 'SiteIcon.png')], { stdio: 'pipe' });
@@ -504,6 +526,7 @@ async function commandInstall(flags, args) {
   say(`${blue('zen-pwa')} ${dim(`· ${site.name}`)}`);
   say(`  ${site.url}`);
   const result = await buildApp(site, flags);
+  setAccentOverride(site.slug, flags.accent);
   printInstalled(result, site);
   if (!flags['no-open'] && !flags.quiet) {
     const opened = run('open', [result.dest]);
@@ -565,6 +588,7 @@ async function commandRebuild(flags, args) {
     }
     say(`${blue('rebuilding')} ${app.name} ${dim(`(${site.host || site.url})`)}`);
     const result = await buildApp(site, { ...flags, replace: true }, app.name);
+    setAccentOverride(site.slug || slugify(app.name), flags.accent);
     say(`  ${green('done')} ${dim(result.dest)}${result.vmp ? `  ${green('VMP')}` : ''}`);
   }
   say('');
@@ -724,6 +748,7 @@ function usage() {
   say(`  zen --pwa --site https://example.com  ${dim('install an exact URL')}`);
   say(`  zen --pwa "Google Docs" --name Docs   ${dim('override the app name')}`);
   say(`  zen --pwa --system "Netflix"          ${dim('install into /Applications')}`);
+  say(`  zen --pwa --rebuild Netflix --accent "#e50914"  ${dim('pin the window tint (auto clears)')}`);
   say('');
   say(bold('Manage'));
   say(`  zen --pwa --list                      ${dim('show installed apps')}`);

@@ -11,6 +11,7 @@ const allowedEvents = new Set([
   'widevine',
   'toast',
   'window-state',
+  'tint',
 ]);
 
 function on(channel, callback) {
@@ -30,7 +31,7 @@ contextBridge.exposeInMainWorld('zen', {
   init: () => ipcRenderer.invoke('site:init'),
   windowAction: (action, value) => ipcRenderer.invoke('win:action', action, value),
   setTitle: (title) => ipcRenderer.send('win:title', String(title || '')),
-  setAccent: (color) => ipcRenderer.send('win:accent', String(color || '')),
+  setGround: (color) => ipcRenderer.send('win:ground', String(color || '')),
   faviconAccent: (urls) => ipcRenderer.invoke('accent:favicon', urls),
   copy: (text) => ipcRenderer.invoke('clipboard:write', String(text || '')),
   openInZen: (url) => ipcRenderer.invoke('open:zen', String(url || '')),
