@@ -1,6 +1,8 @@
 import AppKit
 import Foundation
 import ScreenCaptureKit
+import IOKit.pwr_mgt
+import Darwin
 
 /*
  * ZenSkin — reskins Safari web apps (Safari → File → Add to Dock) with the
@@ -255,11 +257,14 @@ final class DisplayBackdrop: NSObject, SCStreamOutput, SCStreamDelegate {
         }
     }
 
-    func stop() {
+    /// Stops capturing. The last frame stays on screen (keepFrame) so the
+    /// lens edges don't flash while capture is paused for video playback.
+    func stop(keepFrame: Bool = false) {
         stream?.stopCapture { _ in }
         stream = nil
-        surface = nil
+        if !keepFrame { surface = nil }
     }
+    var isRunning: Bool { stream != nil }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sampleBuffer.isValid,
@@ -460,6 +465,40 @@ final class SkinWindow: NSPanel {
     }
 }
 
+// MARK: - Playback guard
+
+var backdropPausedForVideo = false   // reported in zenskin-status.json
+
+/// macOS treats protected (FairPlay) video as being recorded while any
+/// screen capture runs, and Netflix then misbehaves, even though the web
+/// app's own window is excluded. Video playback holds a "keep the display
+/// awake" power assertion, so while one is held by WebKit / Safari / a
+/// skinned web app, the live backdrop is paused (last frame stays).
+enum Playback {
+    static func processName(_ pid: pid_t) -> String {
+        var buffer = [CChar](repeating: 0, count: 1024)
+        return proc_name(pid, &buffer, UInt32(buffer.count)) > 0 ? String(cString: buffer) : ""
+    }
+
+    static func isPlaying(webAppPids: Set<pid_t>) -> Bool {
+        var raw: Unmanaged<CFDictionary>?
+        guard IOPMCopyAssertionsByProcess(&raw) == kIOReturnSuccess,
+              let byPid = raw?.takeRetainedValue() as? [NSNumber: [[String: Any]]] else { return false }
+        for (pidNumber, assertions) in byPid {
+            let pid = pid_t(pidNumber.int32Value)
+            let keepsDisplayOn = assertions.contains {
+                let type = ($0["AssertType"] as? String) ?? ""
+                return type == "PreventUserIdleDisplaySleep" || type == "NoDisplaySleepAssertion"
+            }
+            guard keepsDisplayOn else { continue }
+            if webAppPids.contains(pid) { return true }
+            let name = processName(pid)
+            if name.contains("WebKit") || name.contains("Safari") || name.contains("WebApp") { return true }
+        }
+        return false
+    }
+}
+
 // MARK: - Tracking
 
 struct TargetWindow {
@@ -477,6 +516,9 @@ final class Skinner: NSObject {
     var fallbackTimer: Timer?
     var configWatcher: DispatchSourceFileSystemObject?
     var backdrops: [CGDirectDisplayID: AnyObject] = [:]
+    var playing = false
+    var lastPlaybackCheck: Date = .distantPast
+    var quietSince: Date = .distantPast
     let prefix = ProcessInfo.processInfo.environment["ZENSKIN_TARGET"] ?? "com.apple.Safari.WebApp"
 
     func start() {
@@ -597,6 +639,24 @@ final class Skinner: NSObject {
         guard !apps.isEmpty else { return }
         let byPid = Dictionary(apps.map { ($0.processIdentifier, $0) }, uniquingKeysWith: { a, _ in a })
         let pids = Set(byPid.keys)
+
+        // Pause the live backdrop while video plays; resume 2 s after it stops.
+        if Date().timeIntervalSince(lastPlaybackCheck) > 0.25 {
+            lastPlaybackCheck = Date()
+            let now = Playback.isPlaying(webAppPids: pids)
+            if now {
+                quietSince = .distantFuture
+                if !playing {
+                    playing = true
+                    backdropPausedForVideo = true
+                    if #available(macOS 14.0, *) { backdrops.values.forEach { ($0 as? DisplayBackdrop)?.stop(keepFrame: true) } }
+                }
+            } else if playing {
+                if quietSince == .distantFuture { quietSince = Date() }
+                if Date().timeIntervalSince(quietSince) > 2 { playing = false; backdropPausedForVideo = false }
+            }
+        }
+
         let found = currentWindows(pids: pids)
         let mouse = NSEvent.mouseLocation
         var live = Set<CGWindowID>()
@@ -643,7 +703,7 @@ final class Skinner: NSObject {
                     backdrops[did] = b
                     return b
                 }()
-                backdrop.ensure(excluding: pids.union([ProcessInfo.processInfo.processIdentifier]))
+                if !playing { backdrop.ensure(excluding: pids.union([ProcessInfo.processInfo.processIdentifier])) }
                 if let surface = backdrop.surface { skin.show(surface: surface, displayFrame: backdrop.frame) }
             }
         }
@@ -681,13 +741,14 @@ if ProcessInfo.processInfo.environment["ZENSKIN_NO_PROMPT"] == nil, !CGPreflight
 func writeStatus() {
     let path = (NSHomeDirectory() as NSString).appendingPathComponent(".config/zen-pwa/zenskin-status.json")
     let status: [String: Any] = ["screenRecording": CGPreflightScreenCaptureAccess(), "pid": ProcessInfo.processInfo.processIdentifier,
+                                 "backdropPausedForVideo": backdropPausedForVideo,
                                  "updated": ISO8601DateFormatter().string(from: Date())]
     if let data = try? JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted]) {
         try? data.write(to: URL(fileURLWithPath: path))
     }
 }
 writeStatus()
-Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in writeStatus() }
+Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in writeStatus() }
 let skinner = Skinner()
 skinner.start()
 app.run()
