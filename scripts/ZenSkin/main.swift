@@ -458,7 +458,11 @@ final class SkinWindow: NSPanel {
     }
 
     /// Points both backdrop layers at this window's slice of the display frame.
-    func show(surface: Any, displayFrame: CGRect) {
+    /// `live`: the frame is from the running stream. A frozen frame (video
+    /// playing) is only used for the hidden title bar; the soft area around
+    /// the lens then shows the real screen, so nothing that moved since the
+    /// freeze (e.g. Stage Manager thumbnails) appears stale or doubled.
+    func show(surface: Any, displayFrame: CGRect, live: Bool = true) {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
         let f = frame
         // Overlay in global top-left coordinates, then in the display's unit space.
@@ -480,10 +484,10 @@ final class SkinWindow: NSPanel {
             strip.contentsRect = unit(s)
             if !hasBackdrop {
                 hasBackdrop = true
-                backdropHolder.isHidden = false
                 strip.isHidden = false
                 fallbackStrip.opacity = 0
             }
+            backdropHolder.isHidden = !live
         }
     }
 
@@ -737,9 +741,9 @@ final class Skinner: NSObject {
                 }()
                 if !playing { backdrop.ensure(excluding: pids.union([ProcessInfo.processInfo.processIdentifier])) }
                 if let surface = backdrop.surface {
-                    skin.show(surface: surface, displayFrame: backdrop.frame)
+                    skin.show(surface: surface, displayFrame: backdrop.frame, live: backdrop.isRunning)
                 } else if let still = backdrop.still {
-                    skin.show(surface: still, displayFrame: backdrop.frame)
+                    skin.show(surface: still, displayFrame: backdrop.frame, live: false)
                 } else if playing {
                     backdrop.takeStill(excluding: pids.union([ProcessInfo.processInfo.processIdentifier]))
                 }
