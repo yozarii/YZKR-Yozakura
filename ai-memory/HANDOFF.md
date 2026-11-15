@@ -11,10 +11,6 @@
 ## Paths
 - `scripts/np_mcp.py` (np-manager MCP), `scripts/worker_mcp.py` (worker MCP: `route_intent`, `quick_worker`, `tri_search`)
 - `bin/zen`, `bin/zen-pwa`, `bin/npw`; PWA toolkit `scripts/ZenPWA/` (node tool `tools/cli.js`)
-  - Zen is the source of truth for the PWA look (`app/zen-config.js`). At launch, and live whenever Zen rewrites them, the shell reads the Zen profile (`installs.ini` default; override `ZENPWA_ZEN_PROFILE=/path`): `prefs.js`/`user.js` (gap `zen.theme.content-element-separation`, `zen.theme.border-radius`, `zen.view.compact.hide-toolbar`, hide delay, `zen.view.window.scheme`, grey-out-inactive), the active space's colour from `zen-sessions.jsonlz4`, and mods (`chrome/zen-themes.css` + `chrome/userChrome.css`). Layout uses Zen's own variables (`--zen-element-separation`, `--zen-native-inner-radius`, `--zen-toolbar-height`, …) and Zen's macOS paint maths (translucent layer over native vibrancy).
-  - Mods: rules are mapped onto the shell (`#urlbar`→`#address`, `#nav-bar`→`#toolbar`, `.toolbarbutton-1`→`.zbtn`, `#tabbrowser-tabbox`→`#page`, `:root` vars kept; `-moz-pref`/`-moz-bool-pref` evaluated against Zen prefs). Rules for parts a PWA doesn't have (tabs, sidebar) and nested CSS rules are dropped. Map lives in `ALIASES` in `zen-config.js`.
-  - Colour: the active space colour with the site's hue (manifest `theme_color` → meta `theme-color` → brand colour → favicon; per-PWA override `~/.config/zen-pwa/accents.json`, `zen --pwa --rebuild <app> --accent "#hex"`, `auto` clears). Only the space's primary colour is used, not the full gradient or grain.
-  - Widevine/castLabs runtime untouched; Netflix EME reports `ready` with the bridge on.
 - `ai-memory/memory.jsonl` (memory MCP store), `ai-os/theme.json`
 - Claude Desktop config: `~/Library/Application Support/Claude/claude_desktop_config.json` → servers: filesystem, git, memory, np-manager, worker (all via `/opt/homebrew/bin/uv run` / npx / uvx)
 
