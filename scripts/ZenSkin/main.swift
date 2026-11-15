@@ -657,6 +657,17 @@ app.setActivationPolicy(.accessory)   // no Dock icon, no menu bar
 if ProcessInfo.processInfo.environment["ZENSKIN_NO_PROMPT"] == nil, !CGPreflightScreenCaptureAccess() {
     _ = CGRequestScreenCaptureAccess()
 }
+// Status for zen-skin / humans: is the live backdrop allowed?
+func writeStatus() {
+    let path = (NSHomeDirectory() as NSString).appendingPathComponent(".config/zen-pwa/zenskin-status.json")
+    let status: [String: Any] = ["screenRecording": CGPreflightScreenCaptureAccess(), "pid": ProcessInfo.processInfo.processIdentifier,
+                                 "updated": ISO8601DateFormatter().string(from: Date())]
+    if let data = try? JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted]) {
+        try? data.write(to: URL(fileURLWithPath: path))
+    }
+}
+writeStatus()
+Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in writeStatus() }
 let skinner = Skinner()
 skinner.start()
 app.run()

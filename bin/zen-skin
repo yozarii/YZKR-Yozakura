@@ -3,6 +3,7 @@
 #   zen-skin start    refresh colours from Zen, build if needed, start the agent
 #   zen-skin stop     stop the agent
 #   zen-skin config   refresh ~/.config/zen-pwa/skin.json only
+#   zen-skin status   is it running, does it have Screen Recording
 set -euo pipefail
 root="$HOME/YZKR/scripts"
 app="$root/ZenSkin/build/ZenSkin.app"
@@ -16,6 +17,12 @@ case "${1:-start}" in
       "$root/ZenSkin/build.sh" >/dev/null
     fi
     pkill -x ZenSkin 2>/dev/null || true
-    open "$app" && echo "ZenSkin running (skins every Safari web app)" ;;
-  *) echo "usage: zen-skin [start|stop|config]" >&2; exit 2 ;;
+    open "$app" && echo "ZenSkin running (skins every Safari web app)"
+    sleep 1
+    if grep -q '"screenRecording" : false' "$HOME/.config/zen-pwa/zenskin-status.json" 2>/dev/null; then
+      echo "Screen Recording is off for ZenSkin: the hidden title bar shows the rim colour instead of your desktop."
+      echo "Turn it on: System Settings > Privacy & Security > Screen & System Audio Recording > ZenSkin, then: zen-skin start"
+    fi ;;
+  status) cat "$HOME/.config/zen-pwa/zenskin-status.json" 2>/dev/null || echo "not running" ;;
+  *) echo "usage: zen-skin [start|stop|config|status]" >&2; exit 2 ;;
 esac

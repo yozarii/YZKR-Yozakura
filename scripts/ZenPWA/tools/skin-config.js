@@ -62,6 +62,13 @@ function flatten(css) {
   return `#${out.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 }
 
+// Blend toward the site's own colour; 0 = pure Zen tone, 1 = the site colour.
+function mixHex(a, b, t) {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return `#${pa.map((c, i) => Math.round(c + (pb[i] - c) * t).toString(16).padStart(2, '0')).join('')}`;
+}
+
 function siteColour(name, cache) {
   const slug = slugify(name.replace(/\s+(web|app)$/i, ''));
   const accents = readJSON(ACCENTS, {});
@@ -85,10 +92,13 @@ function main() {
     const colour = siteColour(app.name, cache);
     const frame = zen.frameFor(config, colour || null, dark);
     const kept = (previous.apps || {})[app.name] || {};
+    const tint = Number.isFinite(kept.tint) ? kept.tint : 0.55;
+    const zenTone = flatten(frame.css);
     apps[app.name] = {
       bundleId: app.id,
       site: colour || null,
-      frame: flatten(frame.css),
+      tint,
+      frame: colour && zenTone ? mixHex(zenTone, colour.toLowerCase(), tint) : zenTone,
       ink: frame.inkScheme || 'dark',
       // Hand-tuned per app (Safari's bar is taller with navigation controls on).
       ...(Number.isFinite(kept.titleBar) ? { titleBar: kept.titleBar } : {}),
