@@ -29,6 +29,8 @@ struct SkinConfig {
     var titleBar: CGFloat = 28       // Safari web-app title bar (no nav controls)
     var windowRadius: CGFloat = 16
     var lensLift: CGFloat = 6        // lens top edge rises this far into the hidden title bar
+    var lensRadius: CGFloat = 11     // outer lens corner = Zen's window radius (zen.theme.border-radius)
+    var cardRadius: CGFloat? = nil   // page corner; default lensRadius minus most of the gap
     var hideDelay: TimeInterval = 1.0
     var defaultFrame = NSColor(srgbRed: 0.44, green: 0.36, blue: 0.41, alpha: 1)
     var frames: [String: NSColor] = [:]   // by app name and by bundle id
@@ -48,6 +50,9 @@ struct SkinConfig {
             if let v = layout["titleBar"] as? Double { config.titleBar = CGFloat(v) }
             if let v = layout["windowRadius"] as? Double { config.windowRadius = CGFloat(v) }
             if let v = layout["lensLift"] as? Double { config.lensLift = CGFloat(v) }
+            if let v = layout["borderRadius"] as? Double { config.lensRadius = CGFloat(v) }
+            if let v = layout["lensRadius"] as? Double { config.lensRadius = CGFloat(v) }
+            if let v = layout["cardRadius"] as? Double { config.cardRadius = CGFloat(v) }
         }
         if let hex = json["defaultFrame"] as? String, let c = color(hex) { config.defaultFrame = c }
         if let apps = json["apps"] as? [String: Any] {
@@ -119,8 +124,8 @@ struct LensGeometry: Equatable {
         let bar = max(0, min(config.titleBar - lift, window.height))
         content = CGRect(x: window.minX, y: window.minY, width: window.width, height: window.height - bar)
         card = content.insetBy(dx: config.separation, dy: config.separation)
-        cardRadius = config.innerRadius
-        lensRadius = config.innerRadius + config.separation
+        lensRadius = config.lensRadius
+        cardRadius = config.cardRadius ?? max(4, config.lensRadius - config.separation * 0.6)
     }
 
     var strip: CGRect { CGRect(x: window.minX, y: content.maxY, width: window.width, height: window.maxY - content.maxY) }
@@ -398,7 +403,7 @@ final class SkinWindow: NSPanel {
 
     func updateMask() {
         let size = contentView?.bounds.size ?? .zero
-        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensLift)|\(Int(bandOpacity * 100))"
+        let key = "\(size.width)x\(size.height)|\(config.titleBar)|\(config.separation)|\(config.lensLift)|\(config.lensRadius)|\(config.cardRadius ?? -1)|\(Int(bandOpacity * 100))"
         guard key != maskKey, size.width > 1 else { return }
         maskKey = key
         let g = LensGeometry(size: size, config: config)

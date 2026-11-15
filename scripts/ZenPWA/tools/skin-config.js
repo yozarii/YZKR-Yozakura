@@ -104,6 +104,9 @@ function main() {
     layout: {
       separation: config.layout.separation,
       innerRadius: config.layout.innerRadius,
+      borderRadius: config.layout.borderRadius,
+      // Hand-tuned lens values survive regeneration.
+      ...(['lensLift', 'lensRadius', 'cardRadius'].reduce((o, k) => (Number.isFinite((previous.layout || {})[k]) ? { ...o, [k]: previous.layout[k] } : o), {})),
       hideDelay: config.layout.hideDelay,
       hideToolbar: config.layout.hideToolbar,
     },
