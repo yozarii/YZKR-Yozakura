@@ -393,7 +393,9 @@ function pickTitle(html) {
 }
 
 function pickLink(html, relPattern) {
-  const pattern = new RegExp(`<link[^>]+rel=["']${relPattern}["'][^>]*>`, 'gi');
+  // Group the alternatives: an ungrouped `a|b` would split the whole regex
+  // and match tags without their href (which dropped every icon link).
+  const pattern = new RegExp(`<link[^>]+rel=["'](?:${relPattern})["'][^>]*>`, 'gi');
   const results = [];
   let match;
   while ((match = pattern.exec(html))) {
@@ -508,19 +510,24 @@ async function main() {
         url: absoluteURL(manifest.__url || finalURL, icon.src),
         size: sizeValue(icon.sizes),
         type: icon.type || '',
+        source: 'manifest',
+        purpose: String(icon.purpose || 'any'),
       });
     }
   }
   for (const link of pickLink(html, 'apple-touch-icon|apple-touch-icon-precomposed')) {
-    icons.push({ url: absoluteURL(finalURL, link.href), size: sizeValue(link.sizes) || 180, type: link.type || '' });
+    icons.push({ url: absoluteURL(finalURL, link.href), size: sizeValue(link.sizes) || 180, type: link.type || '', source: 'apple-touch' });
   }
-  for (const link of pickLink(html, 'icon|shortcut icon|fluid-icon')) {
-    icons.push({ url: absoluteURL(finalURL, link.href), size: sizeValue(link.sizes), type: link.type || '' });
+  for (const link of pickLink(html, 'icon|shortcut icon|fluid-icon|mask-icon')) {
+    icons.push({ url: absoluteURL(finalURL, link.href), size: sizeValue(link.sizes), type: link.type || '', source: 'icon' });
   }
+  // Chrome only uses the site's own icons; these two are last resorts
+  // (App Store art often has a bezel baked in, so it is never preferred).
   const storeIconURL = await storeIcon(name);
-  if (storeIconURL) icons.push({ url: storeIconURL, size: 1024, type: 'image/jpeg' });
-  icons.push({ url: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(alias ? displayHost : finalHost)}&sz=256`, size: 256, type: 'image/png' });
-  icons.sort((a, b) => b.size - a.size);
+  if (storeIconURL) icons.push({ url: storeIconURL, size: 1024, type: 'image/jpeg', source: 'store' });
+  icons.push({ url: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(alias ? displayHost : finalHost)}&sz=256`, size: 256, type: 'image/png', source: 'google' });
+  const rank = { manifest: 0, 'apple-touch': 1, icon: 2, store: 3, google: 4 };
+  icons.sort((a, b) => (rank[a.source] - rank[b.source]) || (b.size - a.size));
 
   const slug = slugify(name);
   const drm = args.drm || DRM_HOSTS.some((suffix) => displayHost === suffix || displayHost.endsWith(`.${suffix}`));

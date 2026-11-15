@@ -271,6 +271,7 @@ function writeSiteFiles(dest, site, name) {
     accent: site.themeColor || site.accent || '',
     accentSource: site.accentSource || (site.themeColor || site.accent ? 'site' : ''),
     iconUrl: site.iconUrl || '',
+    icons: Array.isArray(site.icons) ? site.icons.slice(0, 16) : [],
     installedAt,
   });
   writeJSON(path.join(resources, MARKER), {
@@ -328,11 +329,69 @@ function imageWidth(file) {
 }
 
 function ensureIconmaker() {
-  if (fs.existsSync(ICONMAKER)) return true;
-  if (!fs.existsSync(ICONMAKER_SRC)) return false;
+  const stale = () => {
+    try { return fs.statSync(ICONMAKER_SRC).mtimeMs > fs.statSync(ICONMAKER).mtimeMs; } catch { return true; }
+  };
+  if (fs.existsSync(ICONMAKER) && !stale()) return true;
+  if (!fs.existsSync(ICONMAKER_SRC)) return fs.existsSync(ICONMAKER);
   fs.mkdirSync(path.dirname(ICONMAKER), { recursive: true });
   const result = spawnSync('swiftc', ['-O', ICONMAKER_SRC, '-o', ICONMAKER], { stdio: 'inherit' });
   return result.status === 0 && fs.existsSync(ICONMAKER);
+}
+
+/*
+ * Chrome-style icon choice: the site's own icons first, measured (declared
+ * sizes are often wrong), maskable icons fill the macOS shape, everything
+ * else goes through iconmaker's auto mode (opaque → fill, transparent →
+ * white tile). App Store art and Google's favicon service are last resorts.
+ */
+async function pickIcon(site, work) {
+  const list = (Array.isArray(site.icons) && site.icons.length ? site.icons : [])
+    .concat(site.iconUrl ? [{ url: site.iconUrl, source: 'store' }] : [])
+    .filter((icon) => icon && /^https?:/i.test(String(icon.url)))
+    .filter((icon) => !/^\s*monochrome\s*$/i.test(String(icon.purpose || '')));
+  const seen = new Set();
+  const measured = [];
+  for (const icon of list) {
+    if (seen.has(icon.url) || measured.length >= 10) continue;
+    seen.add(icon.url);
+    const buffer = await fetchBuffer(icon.url);
+    if (!buffer) continue;
+    const file = path.join(work, `cand-${measured.length}`);
+    fs.writeFileSync(file, buffer);
+    const svg = /svg/i.test(String(icon.type || '')) || /\.svg(\?|$)/i.test(icon.url) || buffer.slice(0, 256).toString('utf8').includes('<svg');
+    const width = svg ? 1024 : imageWidth(file);
+    if (!width) continue;
+    measured.push({ ...icon, file, width, maskable: /maskable/i.test(String(icon.purpose || '')) });
+  }
+  const own = (icon) => ['manifest', 'apple-touch', 'icon'].includes(icon.source || 'icon');
+  const tier = (icon) => {
+    if (icon.maskable && icon.width >= 192) return 0;
+    if (icon.source === 'manifest' && icon.width >= 144) return 1;
+    if (icon.source === 'apple-touch' && icon.width >= 120) return 2;
+    if (own(icon) && icon.width >= 32) return 3;
+    if (icon.source === 'store') return 4;
+    if (icon.width >= 32) return 5;
+    return 9;
+  };
+  measured.sort((a, b) => (tier(a) - tier(b)) || (b.width - a.width));
+  const best = measured.find((icon) => tier(icon) < 9);
+  if (!best) return null;
+  return { file: best.file, mode: best.maskable || best.source === 'store' ? 'fill' : 'auto', source: best.source };
+}
+
+// Re-reads a site's icon list (older site.json files only kept one URL).
+function refreshIcons(site) {
+  if (!site.url) return [];
+  const tmp = path.join(os.tmpdir(), `zen-pwa-icons-${process.pid}-${Date.now()}.json`);
+  try {
+    const result = spawnSync(process.execPath, [SITEINFO, site.url, '--pin', '--name', site.name || '', '--out', tmp], { encoding: 'utf8', timeout: 60000 });
+    if (result.status !== 0) return [];
+    const info = readJSON(tmp, {});
+    return Array.isArray(info.icons) ? info.icons : [];
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
 }
 
 async function buildIcons(site, dest, name) {
@@ -341,20 +400,13 @@ async function buildIcons(site, dest, name) {
   const source = path.join(work, 'source');
   const canvas = path.join(work, 'canvas.png');
   try {
-    const candidates = Array.isArray(site.icons) ? site.icons.map((icon) => icon && icon.url) : [];
-    const iconURL = candidates.find((url) => /^https?:/i.test(String(url))) || site.iconUrl;
+    const picked = await pickIcon(site, work);
     let input = null;
     let mode = 'monogram';
-    if (iconURL) {
-      const buffer = await fetchBuffer(iconURL);
-      if (buffer) {
-        fs.writeFileSync(source, buffer);
-        const width = imageWidth(source);
-        if (width > 0) {
-          input = source;
-          mode = width >= 220 ? 'full' : 'tile';
-        }
-      }
+    if (picked) {
+      fs.copyFileSync(picked.file, source);
+      input = source;
+      mode = picked.mode;
     }
 
     const accent = siteAccent(site);
@@ -587,6 +639,7 @@ async function commandRebuild(flags, args) {
       site = await resolveSite(app.name, { ...flags, name: app.name });
     }
     say(`${blue('rebuilding')} ${app.name} ${dim(`(${site.host || site.url})`)}`);
+    if (!Array.isArray(site.icons) || !site.icons.length) site = { ...site, icons: refreshIcons(site) };
     const result = await buildApp(site, { ...flags, replace: true }, app.name);
     setAccentOverride(site.slug || slugify(app.name), flags.accent);
     say(`  ${green('done')} ${dim(result.dest)}${result.vmp ? `  ${green('VMP')}` : ''}`);

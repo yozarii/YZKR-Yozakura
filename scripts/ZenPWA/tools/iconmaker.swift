@@ -2,21 +2,28 @@ import AppKit
 import Foundation
 
 /*
- * iconmaker <input.png|jpg|-> <output.png> [accent-hex] [mode] [monogram]
+ * iconmaker <input|-> <output.png> [accent-hex] [mode] [monogram]
+ *
+ * Clean app icons in the style Chrome uses for installed PWAs on macOS:
+ * the site's own icon inside the macOS icon shape (824px continuous-corner
+ * squircle on a 1024px canvas, standard drop shadow), with no gloss.
  *
  * mode:
- *   full      draw the artwork edge to edge (use for >=256px icons)
- *   tile      accent gradient tile with the artwork centred (small favicons)
- *   monogram  accent gradient tile with a single letter
- *
- * Every icon keeps the macOS margin (100px on a 1024px canvas) and a
- * squircle-ish corner radius, so it sits beside native apps naturally.
+ *   auto      opaque square artwork fills the shape; artwork with
+ *             transparency sits on a white tile (Chrome's behaviour)
+ *   fill      artwork fills the shape (maskable / full-bleed icons)
+ *   logo      artwork on a white tile, trimmed and centred
+ *   monogram  flat accent tile with one letter (no usable icon)
  */
 
 let canvasSize: CGFloat = 1024
-let margin: CGFloat = 100
-let tile = NSRect(x: margin, y: margin, width: canvasSize - margin * 2, height: canvasSize - margin * 2)
-let radius: CGFloat = 186
+let shapeSize: CGFloat = 824          // macOS icon grid (Big Sur and later)
+let shape = NSRect(
+    x: (canvasSize - shapeSize) / 2,
+    y: (canvasSize - shapeSize) / 2 + 10, // optical lift for the shadow
+    width: shapeSize,
+    height: shapeSize
+)
 
 func color(_ hex: String) -> NSColor {
     var text = hex.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -32,36 +39,101 @@ func color(_ hex: String) -> NSColor {
     )
 }
 
-func mix(_ a: NSColor, _ b: NSColor, _ amount: CGFloat) -> NSColor {
-    let x = a.usingColorSpace(.sRGB) ?? a
-    let y = b.usingColorSpace(.sRGB) ?? b
-    let t = max(0, min(1, amount))
-    return NSColor(
-        srgbRed: x.redComponent + (y.redComponent - x.redComponent) * t,
-        green: x.greenComponent + (y.greenComponent - x.greenComponent) * t,
-        blue: x.blueComponent + (y.blueComponent - x.blueComponent) * t,
-        alpha: 1
-    )
+// Continuous-corner squircle (superellipse, n = 5), close to Apple's icon mask.
+func squircle(_ rect: NSRect) -> NSBezierPath {
+    let path = NSBezierPath()
+    let n: CGFloat = 5
+    let a = rect.width / 2
+    let b = rect.height / 2
+    let steps = 720
+    for i in 0...steps {
+        let t = CGFloat(i) / CGFloat(steps) * 2 * .pi
+        let c = cos(t)
+        let s = sin(t)
+        let x = pow(abs(c), 2 / n) * a * (c < 0 ? -1 : 1)
+        let y = pow(abs(s), 2 / n) * b * (s < 0 ? -1 : 1)
+        let point = NSPoint(x: rect.midX + x, y: rect.midY + y)
+        if i == 0 { path.move(to: point) } else { path.line(to: point) }
+    }
+    path.close()
+    return path
 }
 
-func roundedPath(_ rect: NSRect, _ corner: CGFloat) -> NSBezierPath {
-    NSBezierPath(roundedRect: rect, xRadius: corner, yRadius: corner)
+func bitmapOf(_ image: NSImage) -> NSBitmapImageRep? {
+    if let rep = image.representations
+        .compactMap({ $0 as? NSBitmapImageRep })
+        .max(by: { $0.pixelsWide < $1.pixelsWide }) {
+        return rep
+    }
+    guard let tiff = image.tiffRepresentation else { return nil }
+    return NSBitmapImageRep(data: tiff)
+}
+
+// True when the artwork reaches all four corners opaquely (a full-bleed tile).
+func isOpaqueSquare(_ rep: NSBitmapImageRep) -> Bool {
+    let w = rep.pixelsWide
+    let h = rep.pixelsHigh
+    guard w > 0, h > 0, abs(w - h) <= max(2, w / 20) else { return false }
+    let inset = max(1, w / 16)
+    let points = [(inset, inset), (w - 1 - inset, inset), (inset, h - 1 - inset), (w - 1 - inset, h - 1 - inset),
+                  (w / 2, inset), (w / 2, h - 1 - inset), (inset, h / 2), (w - 1 - inset, h / 2)]
+    for (x, y) in points {
+        guard let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.9 else { return false }
+    }
+    return true
+}
+
+// Bounding box of visible pixels, in the image's point space.
+func contentBounds(_ rep: NSBitmapImageRep, _ size: NSSize) -> NSRect {
+    let w = rep.pixelsWide
+    let h = rep.pixelsHigh
+    var minX = w, minY = h, maxX = -1, maxY = -1
+    let step = max(1, min(w, h) / 256)
+    var y = 0
+    while y < h {
+        var x = 0
+        while x < w {
+            if let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.08 {
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+            x += step
+        }
+        y += step
+    }
+    guard maxX >= minX, maxY >= minY else { return NSRect(origin: .zero, size: size) }
+    let sx = size.width / CGFloat(w)
+    let sy = size.height / CGFloat(h)
+    // Bitmap rows run top-down; image space runs bottom-up.
+    return NSRect(
+        x: CGFloat(minX) * sx,
+        y: CGFloat(h - 1 - maxY) * sy,
+        width: CGFloat(maxX - minX + step) * sx,
+        height: CGFloat(maxY - minY + step) * sy
+    )
 }
 
 let argv = CommandLine.arguments
 guard argv.count >= 3 else {
-    FileHandle.standardError.write(Data("usage: iconmaker <input> <output> [accent] [mode] [monogram]\n".utf8))
+    FileHandle.standardError.write(Data("usage: iconmaker <input|-> <output> [accent] [auto|fill|logo|monogram] [letter]\n".utf8))
     exit(2)
 }
 
 let inputPath = argv[1]
 let outputPath = argv[2]
 let accent = color(argv.count > 3 ? argv[3] : "#5b8cff")
-let mode = argv.count > 4 ? argv[4] : "tile"
+let requested = argv.count > 4 ? argv[4] : "auto"
 let monogram = argv.count > 5 ? String(argv[5].prefix(1)).uppercased() : "Z"
 
 let image: NSImage? = inputPath == "-" ? nil : NSImage(contentsOfFile: inputPath)
-let effectiveMode = (mode == "full" && image == nil) ? "monogram" : mode
+let rep = image.flatMap(bitmapOf)
+
+var mode = requested
+if image == nil { mode = "monogram" }
+// Older callers passed "full" / "tile".
+if mode == "full" { mode = "fill" }
+if mode == "tile" { mode = "logo" }
+if mode == "auto" { mode = (rep.map(isOpaqueSquare) ?? false) ? "fill" : "logo" }
 
 let bitmap = NSBitmapImageRep(
     bitmapDataPlanes: nil,
@@ -80,84 +152,65 @@ NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSGraphicsContext.current?.imageInterpolation = .high
 
-let clip = roundedPath(tile, radius)
+let mask = squircle(shape)
 
-if effectiveMode == "full", let image {
-    clip.addClip()
-    let source = image.size
-    let scale = max(tile.width / source.width, tile.height / source.height)
-    let size = NSSize(width: source.width * scale, height: source.height * scale)
-    let rect = NSRect(
-        x: tile.midX - size.width / 2,
-        y: tile.midY - size.height / 2,
-        width: size.width,
-        height: size.height
-    )
-    image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-    // Gentle inner lip keeps flat artwork from looking pasted on.
-    NSColor(white: 1, alpha: 0.10).setStroke()
-    let lip = roundedPath(tile.insetBy(dx: 1, dy: 1), radius - 1)
-    lip.lineWidth = 2
-    lip.stroke()
-} else {
-    let top = mix(accent, .white, 0.20)
-    let bottom = mix(accent, .black, 0.34)
-    let gradient = NSGradient(starting: top, ending: bottom)!
-    clip.addClip()
-    gradient.draw(in: tile, angle: -90)
+// Standard macOS icon shadow, drawn once under the tile.
+NSGraphicsContext.saveGraphicsState()
+let shadow = NSShadow()
+shadow.shadowColor = NSColor(white: 0, alpha: 0.28)
+shadow.shadowBlurRadius = 24
+shadow.shadowOffset = NSSize(width: 0, height: -10)
+shadow.set()
+(mode == "monogram" ? accent : NSColor.white).setFill()
+mask.fill()
+NSGraphicsContext.restoreGraphicsState()
 
-    // Soft light from the top-left, like macOS app icons.
-    let glow = NSGradient(colors: [
-        NSColor(white: 1, alpha: 0.22),
-        NSColor(white: 1, alpha: 0.0),
-    ])!
-    glow.draw(in: NSRect(x: tile.minX, y: tile.midY, width: tile.width, height: tile.height / 2), angle: -90)
+NSGraphicsContext.saveGraphicsState()
+mask.addClip()
 
-    if effectiveMode != "monogram", let image {
-        let target = tile.width * 0.60
+switch mode {
+case "fill":
+    if let image {
         let source = image.size
-        let scale = min(target / max(source.width, 1), target / max(source.height, 1))
+        let scale = max(shape.width / source.width, shape.height / source.height)
         let size = NSSize(width: source.width * scale, height: source.height * scale)
-        let rect = NSRect(
-            x: tile.midX - size.width / 2,
-            y: tile.midY - size.height / 2,
-            width: size.width,
-            height: size.height
+        image.draw(
+            in: NSRect(x: shape.midX - size.width / 2, y: shape.midY - size.height / 2, width: size.width, height: size.height),
+            from: .zero, operation: .sourceOver, fraction: 1
         )
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor(white: 0, alpha: 0.34)
-        shadow.shadowBlurRadius = 34
-        shadow.shadowOffset = NSSize(width: 0, height: -10)
-        shadow.set()
-        let artworkClip = roundedPath(rect.insetBy(dx: -size.width * 0.055, dy: -size.height * 0.055), size.width * 0.16)
-        artworkClip.addClip()
-        image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-        NSGraphicsContext.restoreGraphicsState()
-    } else {
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        let font = NSFont.systemFont(ofSize: tile.width * 0.46, weight: .semibold)
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor(white: 1, alpha: 0.96),
-            .paragraphStyle: paragraph,
-        ]
-        let text = NSAttributedString(string: monogram, attributes: attributes)
-        let height = text.size().height
-        text.draw(in: NSRect(
-            x: tile.minX,
-            y: tile.midY - height / 2,
-            width: tile.width,
-            height: height
-        ))
     }
-
-    NSColor(white: 1, alpha: 0.12).setStroke()
-    let lip = roundedPath(tile.insetBy(dx: 1, dy: 1), radius - 1)
-    lip.lineWidth = 2
-    lip.stroke()
+case "logo":
+    if let image {
+        let bounds = rep.map { contentBounds($0, image.size) } ?? NSRect(origin: .zero, size: image.size)
+        // Logo fits a 60% box, but never more than 8x its pixel size (keeps tiny favicons crisp).
+        let box = shape.width * 0.60
+        let pixelScale = rep.map { CGFloat($0.pixelsWide) / max(image.size.width, 1) } ?? 1
+        let maxScale = 8 * pixelScale * (canvasSize / 1024)
+        let scale = min(box / max(bounds.width, 1), box / max(bounds.height, 1), maxScale)
+        let size = NSSize(width: bounds.width * scale, height: bounds.height * scale)
+        image.draw(
+            in: NSRect(x: shape.midX - size.width / 2, y: shape.midY - size.height / 2, width: size.width, height: size.height),
+            from: bounds, operation: .sourceOver, fraction: 1
+        )
+    }
+default: // monogram
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = .center
+    let text = NSAttributedString(string: monogram, attributes: [
+        .font: NSFont.systemFont(ofSize: shape.width * 0.5, weight: .semibold),
+        .foregroundColor: NSColor.white,
+        .paragraphStyle: paragraph,
+    ])
+    let height = text.size().height
+    text.draw(in: NSRect(x: shape.minX, y: shape.midY - height / 2, width: shape.width, height: height))
 }
+NSGraphicsContext.restoreGraphicsState()
+
+// Hairline so a white tile still has an edge on a light Dock.
+NSColor(white: 0, alpha: 0.07).setStroke()
+let edge = squircle(shape.insetBy(dx: 0.75, dy: 0.75))
+edge.lineWidth = 1.5
+edge.stroke()
 
 NSGraphicsContext.restoreGraphicsState()
 
@@ -171,3 +224,4 @@ do {
     FileHandle.standardError.write(Data("iconmaker: \(error)\n".utf8))
     exit(1)
 }
+print(mode)
