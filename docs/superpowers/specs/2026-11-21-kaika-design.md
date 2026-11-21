@@ -160,7 +160,7 @@ All automated tests are hermetic: a temporary HOME and applications folder, stub
 - CLI integration tests on exit codes, plans and the manifest, including the no-terminal case, `-f`, every download format, trust-on-first-use upgrades and the full model ladder.
 - Python PoC tests (`poc/tests/`) and the labelled eval (`poc/eval.py`, needs a running Ollama, enforces the precision gate).
 - Opt-in checks against the real machine: `cargo test -- --ignored` runs the real `codesign` and `spctl` on an installed app.
-- Not automated: anything needing a sign-in (a real App Store through `mas`, a real Claude escalation call). Those come last.
+- Not automated: anything needing a sign-in. Verified by hand once: a real escalation call through the adapter (haiku, about 4 s, every locked-down flag accepted, correct pick on a three-site case). Still untested: a signed-in App Store through `mas`.
 
 ## Order of work
 
@@ -184,7 +184,7 @@ Done: contracts and formats; the Rust core and every backend; verification and t
 - **Trust on first use:** a recipe without a `team_id` shows the Team ID and records it; every later upgrade must match it.
 - **Verified against reality:** the `codesign`/`spctl` parsers were checked on an installed, notarized app (valid signature, notarized, 10-character Team ID parsed, wrong Team ID caught); real runs of discovery against live Wikidata and real vendor pages found a template-URL trap (`${version}`) and a bot-challenge wall on search engines, both now handled.
 - **Test hooks:** `KAIKA_TEST_MODE=1` permits `file://` URLs; `KAIKA_GITHUB_API` redirects the GitHub API; `KAIKA_ASSUME_TTY=1` makes the prompt readable from stdin; `KAIKA_MODELS`, `KAIKA_ESCALATION`, `OLLAMA_HOST`, `KAIKA_HOME`, `KAIKA_APPS_DIR` configure the rest. None weakens a check on the normal path.
-- **Not done yet:** a real Claude escalation call and the App Store through `mas` (both need a sign-in, so they are tested last; `mas` is implemented and tested against recorded output); scheduled upgrades (launchd); driving a real browser for pages that need JavaScript; a smaller or faster decision model (3 B is already about 0.3 s per decision); more labelled cases per decision (16 today); GitHub repository search as a second discovery source; installing from a name when the vendor page only offers the App Store (kaika says so and installs nothing).
+- **Not done yet:** the App Store through `mas` (needs a signed-in Apple ID; implemented and tested against recorded output only); scheduled upgrades (launchd); driving a real browser for pages that need JavaScript; a smaller or faster decision model (3 B is already about 0.3 s per decision); more labelled cases per decision (16 today); GitHub repository search as a second discovery source; installing from a name when the vendor page only offers the App Store (kaika says so and installs nothing).
 
 ## Approaches considered
 
