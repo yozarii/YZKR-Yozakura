@@ -61,6 +61,7 @@ if [ {any} -ne 1 ]; then
     text="$text $a"
   done
 fi
+text=$(printf '%s' "$text" | sed -E 's/127\.0\.0\.1:[0-9]+/127.0.0.1:PORT/g')
 key=$(printf '%s' "$text" | tr -c 'A-Za-z0-9' '_')
 f="$KAIKA_STUB_DIR/$key"
 n=0; [ -f "$f.n" ] && n=$(cat "$f.n"); n=$((n+1)); echo $n > "$f.n"
@@ -139,7 +140,6 @@ esac"#,
             .env("HOME", &self.home)
             .env("KAIKA_APPS_DIR", &self.apps)
             .env("KAIKA_MODELS", "off")
-            .env("KAIKA_ESCALATION", "none")
             .env("KAIKA_TEST_MODE", "1")
             .env("KAIKA_STUB_DIR", &self.resp)
             .env("KAIKA_STUB_LOG", &self.log);
@@ -176,6 +176,7 @@ esac"#,
         self.stub("hdiutil", 0, Match::Exact);
         self.stub("sudo", 0, Match::Exact);
         self.good_signature("ABCDE12345");
+        self.reply(Sandbox::PROBE, "");
         self
     }
 
@@ -203,13 +204,64 @@ esac"#,
         zip
     }
 
-    /// What Ollama answers: one token's log-probabilities, `(token, probability)`.
-    pub fn logprobs(tokens: &[(&str, f64)]) -> String {
-        let top: Vec<String> = tokens.iter().map(|(t, p)| format!(r#"{{"token":"{t}","logprob":{}}}"#, p.ln())).collect();
-        format!(r#"{{"message":{{"content":"{}"}},"logprobs":[{{"top_logprobs":[{}]}}]}}"#, tokens[0].0, top.join(","))
+    /// What llama-server answers on /v1/systemone: the probabilities of each option.
+    pub fn systemone(probs: &[(&str, f64)]) -> String {
+        let p: Vec<String> = probs.iter().map(|(k, v)| format!("{k:?}: {v}")).collect();
+        format!(r#"{{"model":"h2oai/h2o-lightning-4b","answers":{{"q":{{"type":"choice","choice":"{}","probabilities":{{{}}}}}}}}}"#, probs[0].0, p.join(","))
     }
 
-    pub const OLLAMA: &'static str = "curl -s --max-time 60 -H Content-Type: application/json -d @- http://127.0.0.1:11434/api/chat";
+    /// The (port-normalised) curl invocations kaika makes against its own model server.
+    pub const ASK: &'static str = "curl -s --max-time 60 -H Content-Type: application/json -d @- http://127.0.0.1:PORT/v1/systemone";
+    pub const HEALTH: &'static str = "curl -sf --max-time 1 http://127.0.0.1:PORT/health";
+    /// What the connectivity probe runs (answering it means "online").
+    pub const PROBE: &'static str = "curl -s -o /dev/null -I --connect-timeout 2 --max-time 3 https://www.wikidata.org/";
+
+    /// A stand-in `llama-server`: `--version` prints a build number; started as a server it records its pid and
+    /// its arguments, then sleeps until it is killed.
+    pub fn stub_llama(&self, build: u32) -> &Sandbox {
+        let pid = self.resp.join("llama.pid");
+        self.custom_stub(
+            "llama-server",
+            &format!(
+                r#"case "$1" in --version) echo "version: 1.0.0 (build {build}, commit stub)"; exit 0;; esac
+echo $$ > "{}"
+exec sleep 600"#,
+                pid.display()
+            ),
+        )
+    }
+
+    pub fn llama_pid(&self) -> Option<u32> {
+        fs::read_to_string(self.resp.join("llama.pid")).ok().and_then(|t| t.trim().parse().ok())
+    }
+
+    pub fn pid_alive(pid: u32) -> bool {
+        std::process::Command::new("kill").args(["-0", &pid.to_string()]).stderr(std::process::Stdio::null()).status().map(|s| s.success()).unwrap_or(false)
+    }
+
+    /// Wait up to `secs` for a process to be gone.
+    pub fn gone_within(pid: u32, secs: u64) -> bool {
+        for _ in 0..secs * 20 {
+            if !Sandbox::pid_alive(pid) {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        false
+    }
+
+    /// A small file standing in for the model, at the place kaika looks for it.
+    pub fn put_model(&self) -> &Sandbox {
+        let d = self.kaika_home().join("models/h2o-lightning");
+        fs::create_dir_all(&d).unwrap();
+        fs::write(d.join("h2o-lightning-4b-Q4_K_M.gguf"), "not a real model").unwrap();
+        self
+    }
+
+    /// Everything the model needs: llama-server, the model file, and a server that answers `health`.
+    pub fn model_ready(&self) -> &Sandbox {
+        self.stub_llama(12359).put_model().reply(Sandbox::HEALTH, r#"{"status":"ok"}"#)
+    }
 
     pub fn recipe(&self, file: &str, body: &str) {
         let d = self.config_dir().join("recipes");

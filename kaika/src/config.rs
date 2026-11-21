@@ -1,33 +1,19 @@
-//! User configuration: backend preference order and the decision layer's commands.
+//! User configuration: the backend preference order, and whether models may be used at all.
 
 use crate::paths::Dirs;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_ORDER: [&str; 6] = ["brew", "cask", "uv", "npm", "mas", "direct"];
+pub const KEYS: [&str; 2] = ["order", "models"];
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Config {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub order: Vec<String>,
-    /// Command that answers escalated decisions: JSON prompt on stdin, JSON answer on stdout.
+    /// "off" turns off every model call and the web lookups that feed them. Anything else (or unset) leaves them on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub escalation: Option<String>,
-    /// Local decision model name (Ollama).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
-}
-
-pub const KEYS: [&str; 3] = ["order", "escalation", "model"];
-pub const DEFAULT_MODEL: &str = "qwen2.5:3b-instruct-q4_K_M";
-
-fn on_path(prog: &str) -> bool {
-    std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(prog).is_file()))
-}
-
-fn poc(file: &str) -> Option<String> {
-    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("poc").join(file);
-    p.exists().then(|| p.display().to_string())
+    pub models: Option<String>,
 }
 
 impl Config {
@@ -53,56 +39,26 @@ impl Config {
     pub fn get(&self, key: &str) -> Result<String> {
         Ok(match key {
             "order" => self.order().join(","),
-            "escalation" => self.escalation.clone().unwrap_or_default(),
-            "model" => self.model.clone().unwrap_or_default(),
+            "models" => if self.models_enabled() { "on".into() } else { "off".into() },
             _ => bail!("unknown key '{key}' (keys: {})", KEYS.join(", ")),
         })
     }
 
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
-        let opt = |v: &str| if v.is_empty() { None } else { Some(v.to_string()) };
         match key {
             "order" => self.order = value.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
-            "escalation" => self.escalation = opt(value),
-            "model" => self.model = opt(value),
+            "models" => match value {
+                "on" | "off" => self.models = Some(value.into()),
+                _ => bail!("models must be 'on' or 'off'"),
+            },
             _ => bail!("unknown key '{key}' (keys: {})", KEYS.join(", ")),
         }
         Ok(())
     }
 
-    /// All model use, and web discovery of vendor downloads, can be switched off: `KAIKA_MODELS=off`, or `kaika config set model none`.
+    /// Models, and web discovery of vendor downloads, can be switched off: `KAIKA_MODELS=off`, or `kaika config set models off`.
     pub fn models_enabled(&self) -> bool {
-        std::env::var("KAIKA_MODELS").as_deref() != Ok("off") && self.model.as_deref() != Some("none")
-    }
-
-    /// The small local decision model (Ollama).
-    pub fn model(&self) -> String {
-        self.model.clone().filter(|m| !m.is_empty() && m != "none").unwrap_or_else(|| DEFAULT_MODEL.into())
-    }
-
-    pub fn ollama_host(&self) -> String {
-        let h = std::env::var("OLLAMA_HOST").ok().filter(|h| !h.is_empty()).unwrap_or_else(|| "http://127.0.0.1:11434".into());
-        let h = if h.starts_with("http") { h } else { format!("http://{h}") };
-        h.trim_end_matches('/').to_string()
-    }
-
-    /// The bigger model, asked only when the small one is unsure: `KAIKA_ESCALATION` (or "none"), then config,
-    /// then the Claude Code adapter when the `claude` CLI is installed.
-    pub fn escalation_cmd(&self) -> Option<Vec<String>> {
-        if !self.models_enabled() {
-            return None;
-        }
-        let split = |s: &str| s.split_whitespace().map(String::from).collect::<Vec<_>>();
-        match std::env::var("KAIKA_ESCALATION").ok().or_else(|| self.escalation.clone()).as_deref() {
-            Some("none") | Some("") => None,
-            Some(c) => Some(split(c)),
-            None if on_path("claude") => poc("escalate.py").map(|p| vec!["python3".into(), "-I".into(), p]),
-            None => None,
-        }
-    }
-
-    pub fn escalation_string(&self) -> Option<String> {
-        self.escalation_cmd().map(|c| c.join(" "))
+        std::env::var("KAIKA_MODELS").as_deref() != Ok("off") && self.models.as_deref() != Some("off")
     }
 }
 
@@ -120,8 +76,19 @@ mod tests {
         let mut c = Config::default();
         c.set("order", "cask, brew").unwrap();
         assert_eq!(c.get("order").unwrap(), "cask,brew");
-        c.set("model", "qwen2.5:3b").unwrap();
-        assert_eq!(c.get("model").unwrap(), "qwen2.5:3b");
+        c.set("models", "off").unwrap();
+        assert!(!c.models_enabled());
+        assert_eq!(c.get("models").unwrap(), "off");
+        c.set("models", "on").unwrap();
+        assert!(c.set("models", "maybe").is_err());
         assert!(c.set("nope", "x").is_err());
+    }
+
+    #[test]
+    fn the_retired_settings_are_gone() {
+        let mut c = Config::default();
+        for k in ["model", "escalation", "resolver"] {
+            assert!(c.set(k, "x").is_err() && c.get(k).is_err(), "{k} must not exist any more");
+        }
     }
 }

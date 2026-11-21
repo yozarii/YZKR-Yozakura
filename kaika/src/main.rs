@@ -2,6 +2,7 @@ use clap::Parser;
 use kaika::cli::Cli;
 use kaika::commands::{self, Ctx};
 use kaika::config::Config;
+use kaika::model::LlamaDecider;
 use kaika::paths::Dirs;
 use kaika::runner::RealRunner;
 
@@ -15,12 +16,13 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let ctx = Ctx { dirs, r: &RealRunner, cfg, json: cli.json, quiet: cli.quiet, verbose: cli.verbose };
-    match commands::dispatch(&ctx, cli.cmd) {
-        Ok(()) => {}
-        Err(e) => {
-            eprintln!("kaika: {}", e.msg);
-            std::process::exit(e.code);
-        }
+    let runner = RealRunner;
+    let decider = LlamaDecider::new(&runner, dirs.clone(), cfg.models_enabled());
+    let ctx = Ctx { dirs, r: &runner, decider: &decider, cfg, json: cli.json, quiet: cli.quiet, verbose: cli.verbose };
+    let result = commands::dispatch(&ctx, cli.cmd);
+    decider.shutdown(); // std::process::exit skips destructors, so stop the model explicitly
+    if let Err(e) = result {
+        eprintln!("kaika: {}", e.msg);
+        std::process::exit(e.code);
     }
 }

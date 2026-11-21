@@ -47,7 +47,7 @@ pub struct Asset {
     pub sha256: Option<String>,
 }
 
-const EMBEDDED: &[&str] = &[include_str!("../recipes/rectangle.toml")];
+const EMBEDDED: &[&str] = &[include_str!("../recipes/rectangle.toml"), include_str!("../recipes/h2o-lightning.toml")];
 
 pub fn embedded() -> Vec<Recipe> {
     EMBEDDED.iter().filter_map(|t| toml::from_str(t).ok()).collect()
@@ -128,10 +128,15 @@ pub fn asset_score(name: &str) -> Option<i32> {
     } else {
         return None;
     };
-    if ["linux", "windows", "win32", "win64", ".exe", "freebsd", "-src", "source"].iter().any(|w| n.contains(w)) {
+    // Other operating systems, source, and files that are not the app itself (debug symbols and builds).
+    if ["linux", "windows", "win32", "win64", ".exe", "freebsd", "-src", "source", "dsym", "symbols", "-debug", "_debug", ".debug", "-dbg"].iter().any(|w| n.contains(w)) {
         return None;
     }
     let mut s = ext;
+    // Not the stable release: still installable when it is all there is, but never preferred.
+    if ["nightly", "-beta", ".beta", "-alpha", ".alpha", "-rc", "-dev", "preview", "canary"].iter().any(|w| n.contains(w)) {
+        s -= 12;
+    }
     if ["arm64", "aarch64", "apple-silicon", "applesilicon"].iter().any(|w| n.contains(w)) {
         s += 8;
     }
@@ -292,6 +297,24 @@ mod tests {
     }
 
     #[test]
+    fn debug_symbols_and_debug_builds_are_not_the_app() {
+        for n in ["Ghost-3.0-arm64-dSYM.zip", "Ghost-3.0-symbols.zip", "Ghost-3.0-arm64-debug.zip", "ghost_debug.dmg", "Ghost-3.0.debug.tar.gz"] {
+            assert_eq!(asset_score(n), None, "{n}");
+        }
+        assert!(asset_score("Ghost-3.0-arm64.zip").is_some());
+    }
+
+    #[test]
+    fn nightly_and_beta_builds_never_beat_the_stable_one_but_are_usable_alone() {
+        let stable = asset_score("Ghost-3.0.2-arm64.dmg").unwrap();
+        for n in ["Ghost-nightly-arm64.dmg", "Ghost-3.1.0-beta1-arm64.dmg", "Ghost-3.1-rc1-arm64.dmg", "Ghost-canary-arm64.dmg", "Ghost-preview-arm64.dmg"] {
+            let s = asset_score(n).unwrap();
+            assert!(stable - s >= 8, "{n}: {s} vs {stable}");
+        }
+        assert_eq!(pick_asset(&["Ghost-nightly-arm64.dmg".to_string()], None), Some(0));
+    }
+
+    #[test]
     fn universal_beats_intel_only() {
         let names = s(&["App-intel.dmg", "App-universal.zip"]);
         assert_eq!(pick_asset(&names, None), Some(1));
@@ -339,6 +362,15 @@ mod tests {
         let mine = Recipe { name: "rectangle".into(), url: Some("https://x/y.dmg".into()), ..Default::default() };
         save_learned(&d, &mine).unwrap();
         assert_eq!(find(&d, "Rectangle").unwrap().url.as_deref(), Some("https://x/y.dmg"));
+    }
+
+    #[test]
+    fn the_embedded_model_recipe_is_pinned_to_one_exact_file() {
+        let r = embedded().into_iter().find(|r| r.name == crate::model::MODEL_NAME).expect("the model recipe is embedded");
+        let url = r.url.unwrap();
+        assert!(url.starts_with("https://huggingface.co/h2oai/h2o-lightning-4b-gguf/") && url.ends_with(crate::model::MODEL_FILE), "{url}");
+        let sum = r.sha256.expect("a model download must carry its checksum");
+        assert!(sum.len() == 64 && sum.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]

@@ -183,6 +183,22 @@ fn install_downloaded(r: &dyn Runner, dirs: &Dirs, job: &Job, file: &Path, stage
         return Ok(Installed { path: String::new(), team_id: rep.team_id.unwrap_or_default(), overridden: failures });
     }
 
+    if lower.ends_with(".gguf") {
+        // A model file is a large opaque download that nothing can inspect, so a published checksum is the only
+        // check that means anything.
+        if job.sha256.is_none() {
+            failures.push("model download has no published checksum to verify".into());
+        }
+        gate(&failures, job.force)?;
+        let dest_dir = dirs.root.join("models").join(&job.name);
+        std::fs::create_dir_all(&dest_dir)?;
+        let dest = dest_dir.join(file.file_name().unwrap());
+        if std::fs::rename(file, &dest).is_err() {
+            std::fs::copy(file, &dest)?; // moving avoids keeping a second multi-gigabyte copy in the cache
+        }
+        return Ok(Installed { path: path_str(&dest), team_id: String::new(), overridden: failures });
+    }
+
     if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
         // Command-line packages have no notarization story; a checksum is the only check that means anything.
         if job.sha256.is_none() {
@@ -306,6 +322,14 @@ pub fn uninstall(r: &dyn Runner, dirs: &Dirs, e: &Entry, zap: bool) -> Result<Ve
     let app = PathBuf::from(&e.path);
     if !app.exists() {
         bail!("{} not found (already removed?)", app.display());
+    }
+    if app.starts_with(dirs.root.join("models")) {
+        std::fs::remove_file(&app)?;
+        if let Some(parent) = app.parent() {
+            let _ = std::fs::remove_dir(parent); // the model's folder, once empty
+        }
+        gone.push(path_str(&app));
+        return Ok(gone);
     }
     if app.starts_with(&dirs.packages) {
         // A command-line package: remove the links that point into it, then the package itself.

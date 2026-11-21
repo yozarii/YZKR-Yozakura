@@ -1,0 +1,5 @@
+name = "h2o-lightning"
+description = "The local decision model kaika uses to pick vendor sites and downloads (H2O-Lightning-4B, Q4_K_M, Apache-2.0)"
+url = "https://huggingface.co/h2oai/h2o-lightning-4b-gguf/resolve/main/h2o-lightning-4b-Q4_K_M.gguf"
+# Pinned: matches the LFS object id Hugging Face publishes for this file (2,708,808,736 bytes).
+sha256 = "5ec969c6edbad5f1750141742f635cc7f01576bf9432151f730f0a6c30042768"

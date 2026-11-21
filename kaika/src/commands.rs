@@ -3,14 +3,16 @@
 use crate::backend::{self, app, Candidate};
 use crate::cli::{Act, Cmd};
 use crate::config::Config;
-use crate::decision;
+use crate::decision::{self, Decider};
 use crate::discovery;
+use crate::model;
+use crate::net;
 use crate::direct::{self, DErr, Job};
 use crate::manifest::{now, Entry, Manifest};
 use crate::paths::Dirs;
 use crate::plan::{decide, Action, Decision, Plan};
 use crate::recipe::{self, Asset};
-use crate::resolver::Outcome;
+use crate::outcome::Outcome;
 use crate::runner::{argv, Runner};
 use crate::select::{self, Choice, Target};
 use serde::Serialize;
@@ -20,6 +22,8 @@ use std::io::{BufRead, IsTerminal, Write};
 pub struct Ctx<'a> {
     pub dirs: Dirs,
     pub r: &'a dyn Runner,
+    /// Decides between third-party candidates. Loads its model lazily, only when discovery asks.
+    pub decider: &'a dyn Decider,
     pub cfg: Config,
     pub json: bool,
     pub quiet: bool,
@@ -50,7 +54,21 @@ impl From<anyhow::Error> for KErr {
 
 pub type KResult<T = ()> = Result<T, KErr>;
 
+/// Exit code for "the network is unreachable" (sysexits.h EX_UNAVAILABLE).
+pub const EX_UNAVAILABLE: i32 = 69;
+
+/// Commands that cannot work without a network fail in about two seconds, before any solver or model starts.
+fn needs_network(cmd: &Cmd) -> bool {
+    matches!(cmd, Cmd::Install { .. } | Cmd::Upgrade { .. } | Cmd::Update | Cmd::Outdated | Cmd::Search { .. })
+}
+
 pub fn dispatch(ctx: &Ctx, cmd: Cmd) -> KResult {
+    if needs_network(&cmd) && !net::online(ctx.r) {
+        return Err(KErr {
+            code: EX_UNAVAILABLE,
+            msg: format!("offline: could not reach {} within 2 s, so nothing was started or changed. list, info, uninstall, cleanup, doctor and config still work offline", net::PROBE),
+        });
+    }
     match cmd {
         Cmd::Install { names, act } => install(ctx, &names, act),
         Cmd::Uninstall { names, zap, act } => uninstall(ctx, &names, zap, act),
@@ -295,7 +313,7 @@ fn discover(ctx: &Ctx, name: &str, act: Act) -> KResult<Resolution> {
     if !ctx.cfg.models_enabled() {
         return Err(not_found("no backend carries it, and vendor-site discovery is off"));
     }
-    match discovery::discover(ctx.r, &ctx.cfg, name) {
+    match discovery::discover(ctx.r, ctx.decider, name) {
         Outcome::Unsure(why) => Err(not_found(&format!("vendor-site discovery unsure: {why}"))),
         Outcome::Picked(d) => Ok(discovered_resolution(name, d, act)),
     }
@@ -315,7 +333,7 @@ fn name_from_url(url: &str) -> String {
 
 fn from_url(ctx: &Ctx, url: &str, act: Act) -> KResult<Resolution> {
     let name = name_from_url(url);
-    match discovery::from_url(ctx.r, &ctx.cfg, &name, url) {
+    match discovery::from_url(ctx.r, ctx.decider, &name, url) {
         Outcome::Picked(d) => Ok(discovered_resolution(&name, d, act)),
         Outcome::Unsure(why) => Err(KErr::fail(format!("could not find a download at {url}: {why}; nothing changed"))),
     }
@@ -648,18 +666,16 @@ fn doctor(ctx: &Ctx) -> KResult {
     if !ctx.cfg.models_enabled() {
         println!("{:<8}off (no model decisions, no web discovery of vendor downloads)", "models");
     } else {
-        let host = ctx.cfg.ollama_host();
-        let tags = ctx.r.run(&argv(&["curl", "-sf", "--max-time", "2", &format!("{host}/api/tags")])).ok().filter(|o| o.ok()).map(|o| o.stdout);
-        let model = ctx.cfg.model();
-        let state = match &tags {
-            None => "not reachable (decisions fall back to the bigger model, then to you)".to_string(),
-            Some(t) if t.contains(&format!("\"{model}\"")) => "ready".to_string(),
-            Some(_) => format!("running, but the model is not pulled: ollama pull {model}"),
-        };
-        println!("{:<8}{model} via ollama: {state}", "models");
-        match ctx.cfg.escalation_cmd() {
-            Some(c) => println!("{:<8}escalation: {}", "", c.join(" ")),
-            None => println!("{:<8}escalation: off (an unsure decision asks you instead)", ""),
+        // Reports only: nothing is started. The model loads when a third-party app needs it.
+        let st = model::status(ctx.r, &ctx.dirs);
+        match st.llama_build {
+            Some(b) if b >= model::MIN_BUILD => println!("{:<8}llama-server build {b}", "models"),
+            Some(b) => println!("{:<8}llama-server build {b} is too old (need {} or newer): kaika upgrade llama.cpp", "models", model::MIN_BUILD),
+            None => println!("{:<8}llama-server missing: kaika install llama.cpp", "models"),
+        }
+        match st.model_bytes {
+            Some(n) => println!("{:<8}{} installed ({:.1} GB); loaded only while a third-party app is being found", "", model::MODEL_NAME, n as f64 / 1e9),
+            None => println!("{:<8}{} not installed: kaika install {}", "", model::MODEL_NAME, model::MODEL_NAME),
         }
     }
     if bad { Err(KErr::fail("doctor found problems")) } else { Ok(()) }
