@@ -1,0 +1,7 @@
+name = "rectangle"
+description = "Window management for macOS"
+github = "rxhanson/Rectangle"
+asset_pattern = "*.dmg"
+app = "Rectangle.app"
+# No team_id: trust on first use. kaika shows the Team ID in the plan and records it,
+# and every later upgrade must match it.
