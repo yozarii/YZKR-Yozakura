@@ -1,0 +1,436 @@
+{
+ "summary": {
+  "title": "ModernBERT INT8 / ONNX Runtime (cpu, 4 threads) on triage, variant b",
+  "accuracy": 0.7857142857142857,
+  "n": 28,
+  "latency_p50_ms": 46.83337500318885,
+  "latency_p95_ms": 95.45616600007634,
+  "memory_mb": 276.0,
+  "cold: session init (ms)": 176,
+  "cold: first inference (ms)": 42,
+  "hypotheses per decision": 7,
+  "padded tokens per hypothesis (max)": 73
+ },
+ "rows": [
+  {
+   "name": "brew dns",
+   "expected": "network",
+   "pred": "network",
+   "ms": 40.20962499998859,
+   "scores": {
+    "network": 0.861,
+    "permission": 0.009,
+    "disk_full": 0.001,
+    "checksum": 0.001,
+    "conflict": 0.012,
+    "not_found": 0.068,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "npm enotfound",
+   "expected": "network",
+   "pred": "network",
+   "ms": 84.52641700205277,
+   "scores": {
+    "network": 0.875,
+    "permission": 0.023,
+    "disk_full": 0.005,
+    "checksum": 0.002,
+    "conflict": 0.023,
+    "not_found": 0.103,
+    "other": 0.001
+   }
+  },
+  {
+   "name": "github timeout",
+   "expected": "network",
+   "pred": "network",
+   "ms": 52.78845900102169,
+   "scores": {
+    "network": 0.905,
+    "permission": 0.004,
+    "disk_full": 0.003,
+    "checksum": 0.001,
+    "conflict": 0.002,
+    "not_found": 0.017,
+    "other": 0.002
+   }
+  },
+  {
+   "name": "uv fetch",
+   "expected": "network",
+   "pred": "network",
+   "ms": 95.45616600007634,
+   "scores": {
+    "network": 0.739,
+    "permission": 0.003,
+    "disk_full": 0.001,
+    "checksum": 0.001,
+    "conflict": 0.011,
+    "not_found": 0.323,
+    "other": 0.023
+   }
+  },
+  {
+   "name": "brew mkdir",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 31.162750001385575,
+   "scores": {
+    "network": 0.022,
+    "permission": 0.973,
+    "disk_full": 0.016,
+    "checksum": 0.003,
+    "conflict": 0.047,
+    "not_found": 0.039,
+    "other": 0.002
+   }
+  },
+  {
+   "name": "npm eacces",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 76.63220800168347,
+   "scores": {
+    "network": 0.027,
+    "permission": 0.936,
+    "disk_full": 0.006,
+    "checksum": 0.003,
+    "conflict": 0.063,
+    "not_found": 0.033,
+    "other": 0.002
+   }
+  },
+  {
+   "name": "brew not writable",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 54.829792003147304,
+   "scores": {
+    "network": 0.004,
+    "permission": 0.929,
+    "disk_full": 0.007,
+    "checksum": 0.002,
+    "conflict": 0.111,
+    "not_found": 0.247,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "mv not permitted",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 43.29912500179489,
+   "scores": {
+    "network": 0.007,
+    "permission": 0.968,
+    "disk_full": 0.007,
+    "checksum": 0.003,
+    "conflict": 0.357,
+    "not_found": 0.03,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "brew enospc",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 45.52737500125659,
+   "scores": {
+    "network": 0.031,
+    "permission": 0.11,
+    "disk_full": 0.982,
+    "checksum": 0.004,
+    "conflict": 0.025,
+    "not_found": 0.11,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "npm enospc",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 44.158207998407306,
+   "scores": {
+    "network": 0.548,
+    "permission": 0.054,
+    "disk_full": 0.965,
+    "checksum": 0.013,
+    "conflict": 0.009,
+    "not_found": 0.042,
+    "other": 0.002
+   }
+  },
+  {
+   "name": "uv os error 28",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 31.025874999613734,
+   "scores": {
+    "network": 0.022,
+    "permission": 0.004,
+    "disk_full": 0.971,
+    "checksum": 0.001,
+    "conflict": 0.019,
+    "not_found": 0.013,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "ditto full",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 39.27641700283857,
+   "scores": {
+    "network": 0.028,
+    "permission": 0.019,
+    "disk_full": 0.988,
+    "checksum": 0.003,
+    "conflict": 0.062,
+    "not_found": 0.22,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "brew sha",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 75.22687499658787,
+   "scores": {
+    "network": 0.132,
+    "permission": 0.023,
+    "disk_full": 0.007,
+    "checksum": 0.87,
+    "conflict": 0.478,
+    "not_found": 0.127,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "npm integrity",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 85.98975000131759,
+   "scores": {
+    "network": 0.013,
+    "permission": 0.003,
+    "disk_full": 0.001,
+    "checksum": 0.931,
+    "conflict": 0.08,
+    "not_found": 0.009,
+    "other": 0.002
+   }
+  },
+  {
+   "name": "kaika checksum",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 48.41733399734949,
+   "scores": {
+    "network": 0.053,
+    "permission": 0.003,
+    "disk_full": 0.003,
+    "checksum": 0.978,
+    "conflict": 0.229,
+    "not_found": 0.659,
+    "other": 0.009
+   }
+  },
+  {
+   "name": "uv hash",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 51.41366600219044,
+   "scores": {
+    "network": 0.009,
+    "permission": 0.005,
+    "disk_full": 0.003,
+    "checksum": 0.697,
+    "conflict": 0.189,
+    "not_found": 0.097,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "cask app exists",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 32.64166599910823,
+   "scores": {
+    "network": 0.014,
+    "permission": 0.033,
+    "disk_full": 0.002,
+    "checksum": 0.002,
+    "conflict": 0.223,
+    "not_found": 0.066,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "brew conflicting",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 41.6125000010652,
+   "scores": {
+    "network": 0.006,
+    "permission": 0.033,
+    "disk_full": 0.002,
+    "checksum": 0.009,
+    "conflict": 0.719,
+    "not_found": 0.553,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "npm eexist",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 103.63466699709534,
+   "scores": {
+    "network": 0.01,
+    "permission": 0.004,
+    "disk_full": 0.004,
+    "checksum": 0.017,
+    "conflict": 0.084,
+    "not_found": 0.083,
+    "other": 0.001
+   }
+  },
+  {
+   "name": "uv exe exists",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 42.58316699997522,
+   "scores": {
+    "network": 0.001,
+    "permission": 0.007,
+    "disk_full": 0.001,
+    "checksum": 0.001,
+    "conflict": 0.028,
+    "not_found": 0.017,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "brew typo",
+   "expected": "not_found",
+   "pred": "not_found",
+   "ms": 33.263833000091836,
+   "scores": {
+    "network": 0.007,
+    "permission": 0.004,
+    "disk_full": 0.005,
+    "checksum": 0.434,
+    "conflict": 0.2,
+    "not_found": 0.549,
+    "other": 0.007
+   }
+  },
+  {
+   "name": "npm 404",
+   "expected": "not_found",
+   "pred": "network",
+   "ms": 69.31970799996634,
+   "scores": {
+    "network": 0.443,
+    "permission": 0.001,
+    "disk_full": 0.003,
+    "checksum": 0.019,
+    "conflict": 0.115,
+    "not_found": 0.355,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "uv no solution",
+   "expected": "not_found",
+   "pred": "conflict",
+   "ms": 86.95791699938127,
+   "scores": {
+    "network": 0.001,
+    "permission": 0.001,
+    "disk_full": 0.0,
+    "checksum": 0.017,
+    "conflict": 0.513,
+    "not_found": 0.228,
+    "other": 0.007
+   }
+  },
+  {
+   "name": "cask unavailable",
+   "expected": "not_found",
+   "pred": "not_found",
+   "ms": 37.96249999868451,
+   "scores": {
+    "network": 0.056,
+    "permission": 0.131,
+    "disk_full": 0.007,
+    "checksum": 0.003,
+    "conflict": 0.036,
+    "not_found": 0.887,
+    "other": 0.004
+   }
+  },
+  {
+   "name": "xcode path",
+   "expected": "other",
+   "pred": "not_found",
+   "ms": 55.40654100332176,
+   "scores": {
+    "network": 0.002,
+    "permission": 0.004,
+    "disk_full": 0.001,
+    "checksum": 0.008,
+    "conflict": 0.055,
+    "not_found": 0.238,
+    "other": 0.003
+   }
+  },
+  {
+   "name": "segfault",
+   "expected": "other",
+   "pred": "conflict",
+   "ms": 46.83337500318885,
+   "scores": {
+    "network": 0.082,
+    "permission": 0.072,
+    "disk_full": 0.016,
+    "checksum": 0.009,
+    "conflict": 0.13,
+    "not_found": 0.053,
+    "other": 0.002
+   }
+  },
+  {
+   "name": "xcode outdated",
+   "expected": "other",
+   "pred": "conflict",
+   "ms": 43.702750001102686,
+   "scores": {
+    "network": 0.013,
+    "permission": 0.008,
+    "disk_full": 0.113,
+    "checksum": 0.031,
+    "conflict": 0.188,
+    "not_found": 0.142,
+    "other": 0.007
+   }
+  },
+  {
+   "name": "brew missing",
+   "expected": "other",
+   "pred": "permission",
+   "ms": 20.23166700018919,
+   "scores": {
+    "network": 0.017,
+    "permission": 0.177,
+    "disk_full": 0.012,
+    "checksum": 0.012,
+    "conflict": 0.017,
+    "not_found": 0.008,
+    "other": 0.001
+   }
+  }
+ ]
+}

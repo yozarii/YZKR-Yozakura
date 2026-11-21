@@ -1,0 +1,182 @@
+{
+ "summary": {
+  "title": "xLAM-2-1B as classifier (report tool) on triage",
+  "accuracy": 0.7857142857142857,
+  "n": 28,
+  "latency_p50_ms": 365.05112500162795,
+  "latency_p95_ms": 401.9222919996537,
+  "memory_mb": 176.0,
+  "resident (RSS) MB": 1202,
+  "cold: first call (ms)": 663
+ },
+ "rows": [
+  {
+   "name": "brew dns",
+   "expected": "network",
+   "pred": "network",
+   "ms": 319.761708000442
+  },
+  {
+   "name": "npm enotfound",
+   "expected": "network",
+   "pred": "network",
+   "ms": 374.6946669998579
+  },
+  {
+   "name": "github timeout",
+   "expected": "network",
+   "pred": "network",
+   "ms": 359.3705829989631
+  },
+  {
+   "name": "uv fetch",
+   "expected": "network",
+   "pred": "network",
+   "ms": 370.87054200310376
+  },
+  {
+   "name": "brew mkdir",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 329.3975410015264
+  },
+  {
+   "name": "npm eacces",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 368.59416700099246
+  },
+  {
+   "name": "brew not writable",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 371.77437500213273
+  },
+  {
+   "name": "mv not permitted",
+   "expected": "permission",
+   "pred": "permission",
+   "ms": 347.4925830014399
+  },
+  {
+   "name": "brew enospc",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 359.84466599984444
+  },
+  {
+   "name": "npm enospc",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 388.86216600076295
+  },
+  {
+   "name": "uv os error 28",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 361.90704199907486
+  },
+  {
+   "name": "ditto full",
+   "expected": "disk_full",
+   "pred": "disk_full",
+   "ms": 360.86524999700487
+  },
+  {
+   "name": "brew sha",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 373.29637500079116
+  },
+  {
+   "name": "npm integrity",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 365.05112500162795
+  },
+  {
+   "name": "kaika checksum",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 366.4686670017545
+  },
+  {
+   "name": "uv hash",
+   "expected": "checksum",
+   "pred": "checksum",
+   "ms": 364.2349999972794
+  },
+  {
+   "name": "cask app exists",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 358.1356249997043
+  },
+  {
+   "name": "brew conflicting",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 361.9628329979605
+  },
+  {
+   "name": "npm eexist",
+   "expected": "conflict",
+   "pred": null,
+   "ms": 377.89820800026064
+  },
+  {
+   "name": "uv exe exists",
+   "expected": "conflict",
+   "pred": "conflict",
+   "ms": 354.28787500131875
+  },
+  {
+   "name": "brew typo",
+   "expected": "not_found",
+   "pred": "checksum",
+   "ms": 333.47020799919846
+  },
+  {
+   "name": "npm 404",
+   "expected": "not_found",
+   "pred": "not_found",
+   "ms": 416.6669999976875
+  },
+  {
+   "name": "uv no solution",
+   "expected": "not_found",
+   "pred": "not_found",
+   "ms": 388.20299999861163
+  },
+  {
+   "name": "cask unavailable",
+   "expected": "not_found",
+   "pred": "not_found",
+   "ms": 353.6209999983839
+  },
+  {
+   "name": "xcode path",
+   "expected": "other",
+   "pred": "permission",
+   "ms": 367.6197909990151
+  },
+  {
+   "name": "segfault",
+   "expected": "other",
+   "pred": null,
+   "ms": 401.9222919996537
+  },
+  {
+   "name": "xcode outdated",
+   "expected": "other",
+   "pred": "permission",
+   "ms": 369.13758300215704
+  },
+  {
+   "name": "brew missing",
+   "expected": "other",
+   "pred": "not_found",
+   "ms": 340.333666998049
+  }
+ ]
+}

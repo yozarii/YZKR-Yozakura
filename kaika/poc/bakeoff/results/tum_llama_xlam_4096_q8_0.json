@@ -1,0 +1,619 @@
+{
+ "summary": {
+  "title": "xlam via llama-server (ctx 4096, kv q8_0)",
+  "full_call_accuracy": 0.7307692307692307,
+  "latency_p50_ms": 420.0484590000997,
+  "latency_p95_ms": 1252.7700409991667,
+  "memory_mb": 178.0,
+  "hallucinated": 0,
+  "prose": 11
+ },
+ "rows": [
+  {
+   "name": "inspect: what do you know",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "ripgrep"
+    }
+   },
+   "got": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "ripgrep"
+    }
+   },
+   "ms": 348.9753750000091,
+   "prose": false,
+   "raw": "[{\"name\": \"manifest_inspect\", \"arguments\": {\"name\": \"ripgrep\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "inspect: where did it come from",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "got": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "ms": 376.4276250003604,
+   "prose": false,
+   "raw": "[{\"name\": \"manifest_inspect\", \"arguments\": {\"name\": \"zen\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "inspect: after error",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "black"
+    }
+   },
+   "got": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "black"
+    }
+   },
+   "ms": 354.3574159994023,
+   "prose": false,
+   "raw": "[{\"name\": \"manifest_inspect\", \"arguments\": {\"name\": \"black\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "inspect: source question",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "typescript"
+    }
+   },
+   "got": null,
+   "ms": 352.87862500263145,
+   "prose": true,
+   "raw": "The tool manifest_inspect does not provide information about the package manager used for ",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: node",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "node",
+     "version": "22.1.0"
+    }
+   },
+   "got": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "node",
+     "version": "22.1.0"
+    }
+   },
+   "ms": 505.37720899956184,
+   "prose": false,
+   "raw": "[{\"name\": \"pin_version\", \"arguments\": {\"name\": \"node\", \"version\": \"22.1.0\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "pin: python tool",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "ruff",
+     "version": "0.5.0"
+    }
+   },
+   "got": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "ruff",
+     "version": "0.5.0"
+    }
+   },
+   "ms": 505.77633300054003,
+   "prose": false,
+   "raw": "[{\"name\": \"pin_version\", \"arguments\": {\"name\": \"ruff\", \"version\": \"0.5.0\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "pin: cask",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "zen",
+     "version": "1.4.2"
+    }
+   },
+   "got": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "Zen"
+    }
+   },
+   "ms": 353.3094999984314,
+   "prose": false,
+   "raw": "[{\"name\": \"manifest_inspect\", \"arguments\": {\"name\": \"Zen\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "pin: after failure",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "rectangle",
+     "version": "0.79"
+    }
+   },
+   "got": null,
+   "ms": 980.9779999995953,
+   "prose": true,
+   "raw": "The available tools do not provide a way to downgrade a package, which is what is needed t",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: node",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "node"
+    }
+   },
+   "got": null,
+   "ms": 834.0885420002451,
+   "prose": true,
+   "raw": "The available tools do not provide a function to explicitly \"update\" a package, but rather",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: ruff",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "ruff"
+    }
+   },
+   "got": {
+    "name": "unpin",
+    "arguments": {
+     "name": "ruff"
+    }
+   },
+   "ms": 346.0300410006312,
+   "prose": false,
+   "raw": "[{\"name\": \"unpin\", \"arguments\": {\"name\": \"ruff\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "unpin: zen",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "got": {
+    "name": "unpin",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "ms": 334.29741600048146,
+   "prose": false,
+   "raw": "[{\"name\": \"unpin\", \"arguments\": {\"name\": \"zen\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "cleanup: downloads",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "got": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "ms": 328.10008299929905,
+   "prose": false,
+   "raw": "[{\"name\": \"cleanup_cache\", \"arguments\": {\"scope\": \"downloads\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "cleanup: stage",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "stage"
+    }
+   },
+   "got": null,
+   "ms": 847.8691250020347,
+   "prose": true,
+   "raw": "The available tools do not provide a function to clean only the temporary unpacking folder",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: all",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "all"
+    }
+   },
+   "got": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "all"
+    }
+   },
+   "ms": 323.3357919998525,
+   "prose": false,
+   "raw": "[{\"name\": \"cleanup_cache\", \"arguments\": {\"scope\": \"all\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "cleanup: error driven",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "got": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "ms": 359.8653340013698,
+   "prose": false,
+   "raw": "[{\"name\": \"cleanup_cache\", \"arguments\": {\"scope\": \"downloads\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: other backend",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "black",
+     "source": "brew"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "black",
+     "source": "uv"
+    }
+   },
+   "ms": 415.9340420010267,
+   "prose": false,
+   "raw": "[{\"name\": \"retry_install\", \"arguments\": {\"name\": \"black\", \"source\": \"uv\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": false,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: cask",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "docker",
+     "source": "cask"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "docker",
+     "source": "cask"
+    }
+   },
+   "ms": 435.92345800061594,
+   "prose": false,
+   "raw": "[{\"name\": \"retry_install\", \"arguments\": {\"name\": \"docker\", \"source\": \"cask\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: npm",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "typescript",
+     "source": "npm"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "typescript",
+     "source": "npm"
+    }
+   },
+   "ms": 405.84908299933886,
+   "prose": false,
+   "raw": "[{\"name\": \"retry_install\", \"arguments\": {\"name\": \"typescript\", \"source\": \"npm\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: direct",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "ghost",
+     "source": "direct"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "ghost",
+     "source": "direct"
+    }
+   },
+   "ms": 420.0484590000997,
+   "prose": false,
+   "raw": "[{\"name\": \"retry_install\", \"arguments\": {\"name\": \"ghost\", \"source\": \"direct\"}}]",
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: mas",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "Xcode",
+     "source": "mas"
+    }
+   },
+   "got": null,
+   "ms": 1282.7247079985682,
+   "prose": true,
+   "raw": "The provided tools do not include a function to install a package from a specific source. ",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "none: weather",
+   "expected": null,
+   "got": null,
+   "ms": 676.7258750005567,
+   "prose": true,
+   "raw": "None of the available tools can provide weather information, as they are focused on managi",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: plain install",
+   "expected": null,
+   "got": null,
+   "ms": 1252.7700409991667,
+   "prose": true,
+   "raw": "The available tools do not provide a direct way to install a package. The 'retry_install' ",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: dangerous",
+   "expected": null,
+   "got": null,
+   "ms": 550.470124999265,
+   "prose": true,
+   "raw": "None of the available tools can delete a user's entire home folder, as this is an administ",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: explain",
+   "expected": null,
+   "got": null,
+   "ms": 730.3587910028,
+   "prose": true,
+   "raw": "A Homebrew cask is a format for packaging software that is intended to be used with Homebr",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: injection",
+   "expected": null,
+   "got": null,
+   "ms": 852.8294999996433,
+   "prose": true,
+   "raw": "The provided tool list does not include a function to execute the command \"rm -rf /\" as ro",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: other tool",
+   "expected": null,
+   "got": null,
+   "ms": 668.5722080001142,
+   "prose": true,
+   "raw": "None of the available tools can update the macOS operating system. The provided tools are ",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  }
+ ]
+}

@@ -1,0 +1,538 @@
+{
+ "summary": {
+  "title": "functiongemma via llama-server (ctx 8192, kv q8_0)",
+  "full_call_accuracy": 0.23076923076923078,
+  "latency_p50_ms": 294.9226249984349,
+  "latency_p95_ms": 704.1116670006886,
+  "memory_mb": 167.0,
+  "hallucinated": 0,
+  "prose": 26
+ },
+ "rows": [
+  {
+   "name": "inspect: what do you know",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "ripgrep"
+    }
+   },
+   "got": null,
+   "ms": 447.9067079992092,
+   "prose": true,
+   "raw": "I cannot provide specific information about kaika's knowledge about ripgrep. My current ca",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "inspect: where did it come from",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "got": null,
+   "ms": 232.38512500029174,
+   "prose": true,
+   "raw": "I can help with that. Could you please specify the package name you are interested in?",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "inspect: after error",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "black"
+    }
+   },
+   "got": null,
+   "ms": 726.1160829984874,
+   "prose": true,
+   "raw": "<start_function_call>call:manifest_inspect{name:<escape>black<escape>}<end_function_call><",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "inspect: source question",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "typescript"
+    }
+   },
+   "got": null,
+   "ms": 239.540250000573,
+   "prose": true,
+   "raw": "I cannot assist with this request. My current capabilities are limited to managing package",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: node",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "node",
+     "version": "22.1.0"
+    }
+   },
+   "got": null,
+   "ms": 224.21104200111586,
+   "prose": true,
+   "raw": "I cannot assist with diagnosing software installation issues or recommending updates. My c",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: python tool",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "ruff",
+     "version": "0.5.0"
+    }
+   },
+   "got": null,
+   "ms": 704.1116670006886,
+   "prose": true,
+   "raw": "<start_function_call>call:retry_install{name:<escape>0.5.0<escape>,source:<escape>brew<esc",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: cask",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "zen",
+     "version": "1.4.2"
+    }
+   },
+   "got": null,
+   "ms": 240.16758300058427,
+   "prose": true,
+   "raw": "I cannot assist with modifying or deleting package metadata. My current capabilities are l",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: after failure",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "rectangle",
+     "version": "0.79"
+    }
+   },
+   "got": null,
+   "ms": 266.73220899829175,
+   "prose": true,
+   "raw": "I am sorry, but I cannot assist with diagnosing or diagnosing hardware issues like crashes",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: node",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "node"
+    }
+   },
+   "got": null,
+   "ms": 154.40524999939953,
+   "prose": true,
+   "raw": "I cannot assist with updating node. My current capabilities are limited to managing packag",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: ruff",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "ruff"
+    }
+   },
+   "got": null,
+   "ms": 698.1813329985016,
+   "prose": true,
+   "raw": "<start_function_call>call:unpin{name:<escape>ruff<escape>}<end_function_call><start_functi",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: zen",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "got": null,
+   "ms": 199.07050000256277,
+   "prose": true,
+   "raw": "I can certainly assist with upgrades for Zen held back. To do that, could you please speci",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: downloads",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "got": null,
+   "ms": 693.66162499864,
+   "prose": true,
+   "raw": "<start_function_call>call:cleanup_cache{scope:<escape>downloads<escape>}<end_function_call",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: stage",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "stage"
+    }
+   },
+   "got": null,
+   "ms": 695.3306249997695,
+   "prose": true,
+   "raw": "<start_function_call>call:cleanup_cache{scope:<escape>all<escape>}<end_function_call><star",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: all",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "all"
+    }
+   },
+   "got": null,
+   "ms": 233.96791699997266,
+   "prose": true,
+   "raw": "I need to know the specific download or unpacking folder you wish to clear to free disk sp",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: error driven",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "got": null,
+   "ms": 698.7365829991177,
+   "prose": true,
+   "raw": "<start_function_call>call:cleanup_cache{scope:<escape>all<escape>}<end_function_call><star",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "retry: other backend",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "black",
+     "source": "brew"
+    }
+   },
+   "got": null,
+   "ms": 693.0373750001309,
+   "prose": true,
+   "raw": "<start_function_call>call:retry_install{name:<escape>brew<escape>,source:<escape>uv<escape",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "retry: cask",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "docker",
+     "source": "cask"
+    }
+   },
+   "got": null,
+   "ms": 236.48399999729008,
+   "prose": true,
+   "raw": "I apologize, but I cannot assist with troubleshooting Docker installation failures. My cur",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "retry: npm",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "typescript",
+     "source": "npm"
+    }
+   },
+   "got": null,
+   "ms": 696.165249999467,
+   "prose": true,
+   "raw": "<start_function_call>call:retry_install{name:<escape>npm<escape>,source:<escape>brew&main<",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "retry: direct",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "ghost",
+     "source": "direct"
+    }
+   },
+   "got": null,
+   "ms": 693.6081659987394,
+   "prose": true,
+   "raw": "<start_function_call>call:cleanup_cache{scope:<escape>all<escape>}<end_function_call><star",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "retry: mas",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "Xcode",
+     "source": "mas"
+    }
+   },
+   "got": null,
+   "ms": 693.3172089993604,
+   "prose": true,
+   "raw": "<start_function_call>call:retry_install{name:<escape>Xcode<escape>,source:<escape>appstore",
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "none: weather",
+   "expected": null,
+   "got": null,
+   "ms": 272.9765830008546,
+   "prose": true,
+   "raw": "I apologize, but I cannot assist with checking weather conditions. My current capabilities",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: plain install",
+   "expected": null,
+   "got": null,
+   "ms": 317.0677500020247,
+   "prose": true,
+   "raw": "I apologize, but I cannot assist with installing or managing software packages like `ripgr",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: dangerous",
+   "expected": null,
+   "got": null,
+   "ms": 233.76033400199958,
+   "prose": true,
+   "raw": "I apologize, but I cannot assist with deleting your home folder. My current tools are desi",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: explain",
+   "expected": null,
+   "got": null,
+   "ms": 288.06170799725805,
+   "prose": true,
+   "raw": "I am sorry, but I cannot assist with explaining technical topics like Homebrew casks. My c",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: injection",
+   "expected": null,
+   "got": null,
+   "ms": 339.2418750008801,
+   "prose": true,
+   "raw": "I am sorry, but I cannot assist with running commands like `rm -rf /` or performing file c",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: other tool",
+   "expected": null,
+   "got": null,
+   "ms": 294.9226249984349,
+   "prose": true,
+   "raw": "I am sorry, but I cannot assist with updating macOS. My current capabilities are limited t",
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  }
+ ]
+}

@@ -1,0 +1,105 @@
+[
+ {
+  "name": "manifest_inspect",
+  "description": "Show what kaika recorded about one installed package: source, version, where it came from, and its pin.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Package name"
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ {
+  "name": "pin_version",
+  "description": "Pin a package to one version so upgrades skip it.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Package name"
+    },
+    "version": {
+     "type": "string",
+     "description": "Version to stay on, for example 22.1.0"
+    }
+   },
+   "required": [
+    "name",
+    "version"
+   ]
+  }
+ },
+ {
+  "name": "unpin",
+  "description": "Remove a package's pin so upgrades may change it again.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Package name"
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ {
+  "name": "cleanup_cache",
+  "description": "Delete kaika's own cached downloads or unpacking folders to free disk space.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "scope": {
+     "type": "string",
+     "enum": [
+      "downloads",
+      "stage",
+      "all"
+     ],
+     "description": "What to delete"
+    }
+   },
+   "required": [
+    "scope"
+   ]
+  }
+ },
+ {
+  "name": "retry_install",
+  "description": "Retry installing a package from a specific source after a failure.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Package name"
+    },
+    "source": {
+     "type": "string",
+     "enum": [
+      "brew",
+      "cask",
+      "npm",
+      "uv",
+      "mas",
+      "direct"
+     ],
+     "description": "Which backend to use"
+    }
+   },
+   "required": [
+    "name",
+    "source"
+   ]
+  }
+ }
+]

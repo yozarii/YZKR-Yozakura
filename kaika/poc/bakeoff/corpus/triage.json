@@ -1,0 +1,142 @@
+[
+ {
+  "name": "brew dns",
+  "text": "curl: (6) Could not resolve host: formulae.brew.sh\nError: Failed to download resource \"jq\"",
+  "expected": "network"
+ },
+ {
+  "name": "npm enotfound",
+  "text": "npm ERR! code ENOTFOUND\nnpm ERR! syscall getaddrinfo\nnpm ERR! errno ENOTFOUND\nnpm ERR! network request to https://registry.npmjs.org/typescript failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org",
+  "expected": "network"
+ },
+ {
+  "name": "github timeout",
+  "text": "curl: (7) Failed to connect to github.com port 443 after 75003 ms: Couldn't connect to server",
+  "expected": "network"
+ },
+ {
+  "name": "uv fetch",
+  "text": "error: Failed to fetch: `https://pypi.org/simple/ruff/`\n  Caused by: error sending request for url (https://pypi.org/simple/ruff/)\n  Caused by: client error (Connect): dns error: failed to lookup address information",
+  "expected": "network"
+ },
+ {
+  "name": "brew mkdir",
+  "text": "Error: Permission denied @ dir_s_mkdir - /usr/local/Cellar",
+  "expected": "permission"
+ },
+ {
+  "name": "npm eacces",
+  "text": "npm ERR! code EACCES\nnpm ERR! syscall mkdir\nnpm ERR! path /usr/local/lib/node_modules\nnpm ERR! Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules'",
+  "expected": "permission"
+ },
+ {
+  "name": "brew not writable",
+  "text": "Error: The following directories are not writable by your user:\n/opt/homebrew/share/zsh\nYou should change the ownership of these directories to your user.",
+  "expected": "permission"
+ },
+ {
+  "name": "mv not permitted",
+  "text": "mv: rename /Users/me/.kaika/cache/stage/App.app to /Applications/App.app: Operation not permitted",
+  "expected": "permission"
+ },
+ {
+  "name": "brew enospc",
+  "text": "Error: No space left on device @ io_write - /opt/homebrew/Cellar/node/24.0/bin/node",
+  "expected": "disk_full"
+ },
+ {
+  "name": "npm enospc",
+  "text": "npm ERR! code ENOSPC\nnpm ERR! syscall write\nnpm ERR! ENOSPC: no space left on device, write",
+  "expected": "disk_full"
+ },
+ {
+  "name": "uv os error 28",
+  "text": "error: failed to write to cache: No space left on device (os error 28)",
+  "expected": "disk_full"
+ },
+ {
+  "name": "ditto full",
+  "text": "ditto: /Applications/Ghost.app/Contents/MacOS/Ghost: No space left on device",
+  "expected": "disk_full"
+ },
+ {
+  "name": "brew sha",
+  "text": "Error: SHA256 mismatch\nExpected: 3b5d8a0c1e\n  Actual: 91fe44d200\n    File: /Users/me/Library/Caches/Homebrew/downloads/abc--zen.dmg",
+  "expected": "checksum"
+ },
+ {
+  "name": "npm integrity",
+  "text": "npm ERR! code EINTEGRITY\nnpm ERR! sha512-AbC== integrity checksum failed when using sha512: wanted sha512-xYz== but got sha512-Q1w==",
+  "expected": "checksum"
+ },
+ {
+  "name": "kaika checksum",
+  "text": "kaika: verification failed for ghost; nothing was installed:\n  - checksum mismatch: expected 00ab, got 91fe",
+  "expected": "checksum"
+ },
+ {
+  "name": "uv hash",
+  "text": "error: Hash mismatch for `ruff==0.5.0`\n  Expected: sha256:aa11\n  Computed: sha256:bb22",
+  "expected": "checksum"
+ },
+ {
+  "name": "cask app exists",
+  "text": "Error: It seems there is already an App at '/Applications/Zen.app'.",
+  "expected": "conflict"
+ },
+ {
+  "name": "brew conflicting",
+  "text": "Error: Cannot install node because conflicting formulae are installed.\n  node@18: because both install `node` binaries",
+  "expected": "conflict"
+ },
+ {
+  "name": "npm eexist",
+  "text": "npm ERR! code EEXIST\nnpm ERR! path /opt/homebrew/bin/tsc\nnpm ERR! EEXIST: file already exists, symlink '../lib/node_modules/typescript/bin/tsc' -> '/opt/homebrew/bin/tsc'",
+  "expected": "conflict"
+ },
+ {
+  "name": "uv exe exists",
+  "text": "error: Executable already exists: ruff (use `--force` to overwrite)",
+  "expected": "conflict"
+ },
+ {
+  "name": "brew typo",
+  "text": "Error: No available formula with the name \"ripgrp\". Did you mean ripgrep?",
+  "expected": "not_found"
+ },
+ {
+  "name": "npm 404",
+  "text": "npm ERR! code E404\nnpm ERR! 404 Not Found - GET https://registry.npmjs.org/nosuchpackagexyz - Not found\nnpm ERR! 404  'nosuchpackagexyz@*' is not in this registry.",
+  "expected": "not_found"
+ },
+ {
+  "name": "uv no solution",
+  "text": "  × No solution found when resolving tool dependencies:\n  ╰─▶ Because nosuchtoolxyz was not found in the package registry and you require nosuchtoolxyz, we can conclude that your requirements are unsatisfiable.",
+  "expected": "not_found"
+ },
+ {
+  "name": "cask unavailable",
+  "text": "Error: Cask 'zenn' is unavailable: No Cask with this name exists.",
+  "expected": "not_found"
+ },
+ {
+  "name": "xcode path",
+  "text": "xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools), missing xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun",
+  "expected": "other"
+ },
+ {
+  "name": "segfault",
+  "text": "/opt/homebrew/Library/Homebrew/brew.sh: line 604: 4821 Segmentation fault: 11  /usr/bin/ruby",
+  "expected": "other"
+ },
+ {
+  "name": "xcode outdated",
+  "text": "Error: Your Xcode (15.0) is too outdated.\nPlease update to Xcode 16.2 (or delete it).",
+  "expected": "other"
+ },
+ {
+  "name": "brew missing",
+  "text": "zsh: command not found: brew",
+  "expected": "other"
+ }
+]

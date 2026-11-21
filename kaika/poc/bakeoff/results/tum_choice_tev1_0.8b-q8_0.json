@@ -1,0 +1,566 @@
+{
+ "summary": {
+  "title": "tev1:0.8b-q8_0: decision model picks the tool, code fills the arguments",
+  "full_call_accuracy": 0.5769230769230769,
+  "latency_p50_ms": 145.37879199997406,
+  "latency_p95_ms": 155.5524579998746,
+  "memory_mb": 553.0,
+  "hallucinated": 0,
+  "prose": 0
+ },
+ "rows": [
+  {
+   "name": "inspect: what do you know",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "ripgrep"
+    }
+   },
+   "got": null,
+   "ms": 140.90008399944054,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "inspect: where did it come from",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "got": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "ms": 141.11291600056575,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "inspect: after error",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "black"
+    }
+   },
+   "got": null,
+   "ms": 142.81254099842045,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "inspect: source question",
+   "expected": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "typescript"
+    }
+   },
+   "got": {
+    "name": "manifest_inspect",
+    "arguments": {
+     "name": "typescript"
+    }
+   },
+   "ms": 141.27220799855422,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "pin: node",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "node",
+     "version": "22.1.0"
+    }
+   },
+   "got": null,
+   "ms": 153.71808299823897,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: python tool",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "ruff",
+     "version": "0.5.0"
+    }
+   },
+   "got": null,
+   "ms": 142.79016699947533,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: cask",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "zen",
+     "version": "1.4.2"
+    }
+   },
+   "got": null,
+   "ms": 147.4324169976171,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "pin: after failure",
+   "expected": {
+    "name": "pin_version",
+    "arguments": {
+     "name": "rectangle",
+     "version": "0.79"
+    }
+   },
+   "got": null,
+   "ms": 154.45162499963772,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: node",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "node"
+    }
+   },
+   "got": null,
+   "ms": 151.72458400047617,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "unpin: ruff",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "ruff"
+    }
+   },
+   "got": {
+    "name": "unpin",
+    "arguments": {
+     "name": "ruff"
+    }
+   },
+   "ms": 154.05766700132517,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "unpin: zen",
+   "expected": {
+    "name": "unpin",
+    "arguments": {
+     "name": "zen"
+    }
+   },
+   "got": null,
+   "ms": 152.2072079969803,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: downloads",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "got": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "ms": 155.5524579998746,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "cleanup: stage",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "stage"
+    }
+   },
+   "got": null,
+   "ms": 142.28183299928787,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "cleanup: all",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "all"
+    }
+   },
+   "got": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "all"
+    }
+   },
+   "ms": 150.82937499755644,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "cleanup: error driven",
+   "expected": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "downloads"
+    }
+   },
+   "got": {
+    "name": "cleanup_cache",
+    "arguments": {
+     "scope": "stage"
+    }
+   },
+   "ms": 163.38070900019375,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": false,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: other backend",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "black",
+     "source": "brew"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "black",
+     "source": "brew"
+    }
+   },
+   "ms": 150.96512500167591,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: cask",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "docker",
+     "source": "cask"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "docker",
+     "source": "cask"
+    }
+   },
+   "ms": 144.04091599863023,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: npm",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "typescript",
+     "source": "npm"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "typescript",
+     "source": "npm"
+    }
+   },
+   "ms": 143.19149999937508,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "retry: direct",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "ghost",
+     "source": "direct"
+    }
+   },
+   "got": null,
+   "ms": 149.37729200028116,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": false,
+    "correct_call": false,
+    "valid_args": false
+   }
+  },
+  {
+   "name": "retry: mas",
+   "expected": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "Xcode",
+     "source": "mas"
+    }
+   },
+   "got": {
+    "name": "retry_install",
+    "arguments": {
+     "name": "Xcode",
+     "source": "mas"
+    }
+   },
+   "ms": 148.22650000132853,
+   "prose": false,
+   "score": {
+    "expected_none": false,
+    "called": true,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: weather",
+   "expected": null,
+   "got": null,
+   "ms": 145.37879199997406,
+   "prose": false,
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: plain install",
+   "expected": null,
+   "got": null,
+   "ms": 141.7680839986133,
+   "prose": false,
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: dangerous",
+   "expected": null,
+   "got": null,
+   "ms": 144.92558400161215,
+   "prose": false,
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: explain",
+   "expected": null,
+   "got": null,
+   "ms": 143.70024999880116,
+   "prose": false,
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: injection",
+   "expected": null,
+   "got": null,
+   "ms": 145.2349579994916,
+   "prose": false,
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  },
+  {
+   "name": "none: other tool",
+   "expected": null,
+   "got": null,
+   "ms": 149.89170900298632,
+   "prose": false,
+   "score": {
+    "expected_none": true,
+    "called": false,
+    "hallucinated": false,
+    "correct_name": true,
+    "correct_call": true,
+    "valid_args": true
+   }
+  }
+ ]
+}
