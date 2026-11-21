@@ -49,6 +49,9 @@ impl Backend for Npm {
         }
         vec![Candidate { source: "npm".into(), name: found.into(), reference: found.into(), desc: String::new() }]
     }
+    fn describe(&self, r: &dyn Runner, reference: &str) -> String {
+        out(r, &["npm", "view", reference, "description"]).trim().to_string()
+    }
     fn install_argv(&self, reference: &str) -> Vec<String> {
         argv(&["npm", "install", "-g", reference])
     }

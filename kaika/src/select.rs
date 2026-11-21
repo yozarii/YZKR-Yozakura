@@ -30,10 +30,15 @@ pub enum Choice {
     Several { chosen: Candidate, others: Vec<Candidate> },
 }
 
+/// Compare names the way people mean them: case, spaces, hyphens and punctuation do not matter.
+pub fn norm(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).flat_map(|c| c.to_lowercase()).collect()
+}
+
 /// Keep exact-name hits, order them by preference, drop repeats from one source.
 pub fn exact(name: &str, hits: &[Candidate], order: &[String]) -> Vec<Candidate> {
     let rank = |c: &Candidate| order.iter().position(|o| *o == c.source).unwrap_or(usize::MAX);
-    let mut v: Vec<Candidate> = hits.iter().filter(|c| c.name.eq_ignore_ascii_case(name)).cloned().collect();
+    let mut v: Vec<Candidate> = hits.iter().filter(|c| norm(&c.name) == norm(name)).cloned().collect();
     v.sort_by_key(|c| rank(c));
     v.dedup_by(|a, b| a.source == b.source);
     v
@@ -102,6 +107,12 @@ mod tests {
             Choice::Several { chosen, .. } => assert_eq!(chosen.source, "cask"),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn spaces_hyphens_and_case_do_not_matter() {
+        assert!(matches!(choose("Sublime Merge", &[c("cask", "sublime-merge")], &order()), Choice::One(_)));
+        assert_eq!(choose("sublime_merge!", &[c("cask", "sublime-merge-dev")], &order()), Choice::None);
     }
 
     #[test]

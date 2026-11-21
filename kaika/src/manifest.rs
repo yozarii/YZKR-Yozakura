@@ -90,7 +90,7 @@ mod tests {
         let t = tmp.to_str().unwrap().to_string();
         Dirs::from_lookup(move |k| match k {
             "HOME" => Some(t.clone()),
-            "KAIKA_DATA_DIR" => Some(format!("{t}/data")),
+            "KAIKA_HOME" => Some(format!("{t}/data")),
             _ => None,
         })
     }

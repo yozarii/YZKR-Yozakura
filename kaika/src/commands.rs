@@ -3,12 +3,14 @@
 use crate::backend::{self, app, Candidate};
 use crate::cli::{Act, Cmd};
 use crate::config::Config;
+use crate::decision;
+use crate::discovery;
 use crate::direct::{self, DErr, Job};
 use crate::manifest::{now, Entry, Manifest};
 use crate::paths::Dirs;
 use crate::plan::{decide, Action, Decision, Plan};
-use crate::recipe::{self, Asset, Recipe};
-use crate::resolver::{self, Outcome};
+use crate::recipe::{self, Asset};
+use crate::resolver::Outcome;
 use crate::runner::{argv, Runner};
 use crate::select::{self, Choice, Target};
 use serde::Serialize;
@@ -279,25 +281,43 @@ fn direct_job_for(ctx: &Ctx, name: &str, act: Act) -> KResult<Job> {
     Ok(Job::from_asset(&rec, asset, act.force, false, None))
 }
 
+fn discovered_resolution(name: &str, d: discovery::Discovered, act: Act) -> Resolution {
+    let learned = d.recipe(name);
+    let asset = Asset { name: recipe::file_name(&d.url), url: d.url.clone(), version: d.version.clone(), sha256: d.sha256.clone() };
+    let mut job = Job::from_asset(&learned, asset, act.force, false, None);
+    job.resolved_by = format!("found via {}", d.source);
+    job.learned = Some(learned);
+    Resolution::Direct(Box::new(job), Some(format!("found online: {}", d.evidence)))
+}
+
 fn discover(ctx: &Ctx, name: &str, act: Act) -> KResult<Resolution> {
     let not_found = |why: &str| KErr::fail(format!("no package named '{name}' found ({why}); nothing changed"));
-    let Some(cmd) = ctx.cfg.resolver_cmd() else { return Err(not_found("no backend carries it and the decision layer is off")) };
-    match resolver::resolve(ctx.r, &cmd, &ctx.cfg, name) {
+    if !ctx.cfg.models_enabled() {
+        return Err(not_found("no backend carries it, and vendor-site discovery is off"));
+    }
+    match discovery::discover(ctx.r, &ctx.cfg, name) {
         Outcome::Unsure(why) => Err(not_found(&format!("vendor-site discovery unsure: {why}"))),
-        Outcome::Picked(res) => {
-            let asset = Asset { name: recipe::file_name(&res.url), url: res.url.clone(), version: res.version.clone().unwrap_or_default(), sha256: res.sha256.clone() };
-            let base = Recipe { name: name.into(), domain: res.domain.clone(), app: res.app.clone(), asset_pattern: res.link_pattern.clone(), ..Default::default() };
-            let learned = match (&res.github, &res.page) {
-                (Some(g), _) => Recipe { github: Some(g.clone()), ..base },
-                (None, Some(p)) => Recipe { page: Some(p.clone()), ..base },
-                (None, None) => Recipe { url: Some(res.url.clone()), asset_pattern: None, ..base },
-            };
-            let mut job = Job::from_asset(&learned, asset, act.force, false, None);
-            job.resolved_by = format!("decision layer: {} ({:.2})", if res.model.is_empty() { "model" } else { &res.model }, res.confidence);
-            job.sha256 = res.sha256.clone();
-            job.learned = Some(learned);
-            Ok(Resolution::Direct(Box::new(job), Some(format!("found by the decision layer: {}", res.evidence))))
+        Outcome::Picked(d) => Ok(discovered_resolution(name, d, act)),
+    }
+}
+
+/// A short name for an app given only as a URL: the site's own name, or the GitHub project's.
+fn name_from_url(url: &str) -> String {
+    let host = crate::html::host(url);
+    if host == "github.com" {
+        if let Some(repo) = url.split_once("://").map(|x| x.1).and_then(|r| r.split('/').nth(2)) {
+            return repo.to_string();
         }
+    }
+    let labels: Vec<&str> = host.split('.').collect();
+    labels.get(labels.len().saturating_sub(2)).copied().unwrap_or(&host).to_string()
+}
+
+fn from_url(ctx: &Ctx, url: &str, act: Act) -> KResult<Resolution> {
+    let name = name_from_url(url);
+    match discovery::from_url(ctx.r, &ctx.cfg, &name, url) {
+        Outcome::Picked(d) => Ok(discovered_resolution(&name, d, act)),
+        Outcome::Unsure(why) => Err(KErr::fail(format!("could not find a download at {url}: {why}; nothing changed"))),
     }
 }
 
@@ -320,8 +340,10 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
     }
 
     let mut hits: Vec<Candidate> = vec![];
+    // Package names are hyphenated, people type spaces: "Sublime Merge" finds `sublime-merge`.
+    let term = t.name.trim().to_lowercase().split_whitespace().collect::<Vec<_>>().join("-");
     for b in &backends {
-        hits.extend(b.search(ctx.r, &t.name));
+        hits.extend(b.search(ctx.r, &term));
     }
     if let Some(rec) = recipe::find(&ctx.dirs, &t.name) {
         hits.push(Candidate { source: "direct".into(), name: rec.name.clone(), reference: rec.name.clone(), desc: rec.description.clone() });
@@ -340,22 +362,28 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
         Choice::Several { chosen, others } => {
             let mut all = vec![chosen.clone()];
             all.extend(others.clone());
+            let cands: Vec<(String, String)> = all.iter().map(|c| (format!("{}:{}", c.source, c.name), String::new())).collect();
             let also = others.iter().map(|o| format!("{}:{}", o.source, o.name)).collect::<Vec<_>>().join(", ");
-            let mut note = format!("also available as {also}; chose {}:{} by preference order", chosen.source, chosen.name);
-            let mut winner = chosen;
-            if let Some(cmd) = ctx.cfg.resolver_cmd() {
-                let cands: Vec<(String, String)> = all.iter().map(|c| (format!("{}:{}", c.source, c.name), c.desc.clone())).collect();
-                match resolver::decide(ctx.r, &cmd, &ctx.cfg, "backend", &t.name, &cands) {
-                    Outcome::Picked(id) => {
-                        if let Some(c) = all.iter().find(|c| format!("{}:{}", c.source, c.name) == id) {
-                            note = format!("also available as {also}; the decision layer chose {id}");
-                            winner = c.clone();
-                        }
-                    }
-                    Outcome::Unsure(why) => note = format!("{note} (decision layer unsure: {why})"),
+            match decision::decide_backend(&cands) {
+                Outcome::Picked(p) => {
+                    let note = format!("also available as {also} (less trusted sources are never chosen over {}); {}", p.id, p.how);
+                    pick(chosen, Some(note))
+                }
+                Outcome::Unsure(why) => {
+                    // A human decision: say what the tied candidates are, so the choice can be made with open eyes.
+                    let tied: Vec<&Candidate> = all.iter().filter(|c| decision::tier(&format!("{}:{}", c.source, c.name)) == decision::tier(&cands[0].0)).collect();
+                    let described: Vec<String> = tied
+                        .iter()
+                        .map(|c| {
+                            let d = backend::by_id(&c.source).map(|b| b.describe(ctx.r, &c.reference)).unwrap_or_default();
+                            let d: String = d.chars().take(90).collect();
+                            if d.is_empty() { format!("{}:{}", c.source, c.name) } else { format!("{}:{} ({d})", c.source, c.name) }
+                        })
+                        .collect();
+                    let note = format!("{why}; chose {}:{} by preference order. Candidates: {}. Use source:name to choose another", chosen.source, chosen.name, described.join("; "));
+                    pick(chosen, Some(note))
                 }
             }
-            pick(winner, Some(note))
         }
     }
 }
@@ -363,8 +391,15 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
 fn install(ctx: &Ctx, names: &[String], act: Act) -> KResult {
     let mut plan = Plan { title: format!("install {}", names.join(", ")), actions: vec![], warnings: vec![] };
     for n in names {
-        let t = select::parse_target(n).map_err(KErr::usage)?;
-        match resolve_install(ctx, &t, act)? {
+        let is_url = n.starts_with("https://") || n.starts_with("http://");
+        let (resolution, explicit_source) = if is_url {
+            (from_url(ctx, n, act)?, false)
+        } else {
+            let t = select::parse_target(n).map_err(KErr::usage)?;
+            let explicit = t.source.is_some();
+            (resolve_install(ctx, &t, act)?, explicit)
+        };
+        match resolution {
             Resolution::Backend { cand, note } => {
                 let b = backend::by_id(&cand.source).ok_or_else(|| KErr::fail("unknown backend"))?;
                 plan.actions.push(Action::Cmd { argv: b.install_argv(&cand.reference), admin: b.needs_admin(false) });
@@ -372,7 +407,7 @@ fn install(ctx: &Ctx, names: &[String], act: Act) -> KResult {
                     source: cand.source.clone(),
                     name: cand.name.clone(),
                     reference: cand.reference.clone(),
-                    resolved_by: if t.source.is_some() { "explicit source".into() } else { "backend lookup".into() },
+                    resolved_by: if explicit_source { "explicit source".into() } else { "backend lookup".into() },
                 });
                 plan.warnings.extend(note.map(|n| format!("{}: {n}", cand.name)));
             }
@@ -598,6 +633,11 @@ fn doctor(ctx: &Ctx) -> KResult {
         let ok = ctx.r.exists(b.tool());
         println!("{:<8}{}", b.id(), if ok { format!("ok ({} found)", b.tool()) } else { format!("missing ({} not on PATH)", b.tool()) });
     }
+    println!("{:<8}{}", "home", ctx.dirs.root.display());
+    let on_path = std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d == ctx.dirs.bin));
+    if ctx.dirs.bin.exists() && !on_path {
+        println!("{:<8}{} is not on PATH; add it to use the command-line tools kaika installs", "bin", ctx.dirs.bin.display());
+    }
     match Manifest::load(&ctx.dirs) {
         Ok(m) => println!("{:<8}ok ({} packages)", "state", m.packages.len()),
         Err(e) => {
@@ -605,13 +645,21 @@ fn doctor(ctx: &Ctx) -> KResult {
             println!("{:<8}error: {e:#}", "state");
         }
     }
-    match ctx.cfg.resolver_cmd() {
-        None => println!("{:<8}off (vendor-site discovery and ambiguity decisions disabled)", "models"),
-        Some(c) => {
-            println!("{:<8}resolver: {}", "models", c.join(" "));
-            let up = ctx.r.run(&argv(&["curl", "-sf", "--max-time", "2", "http://localhost:11434/api/tags"])).map(|o| o.ok()).unwrap_or(false);
-            println!("{:<8}ollama {}", "", if up { "reachable" } else { "not reachable (falls back to heuristics, then escalation)" });
-            println!("{:<8}escalation: {}", "", ctx.cfg.escalation.as_deref().unwrap_or("not configured (kaika asks you instead)"));
+    if !ctx.cfg.models_enabled() {
+        println!("{:<8}off (no model decisions, no web discovery of vendor downloads)", "models");
+    } else {
+        let host = ctx.cfg.ollama_host();
+        let tags = ctx.r.run(&argv(&["curl", "-sf", "--max-time", "2", &format!("{host}/api/tags")])).ok().filter(|o| o.ok()).map(|o| o.stdout);
+        let model = ctx.cfg.model();
+        let state = match &tags {
+            None => "not reachable (decisions fall back to the bigger model, then to you)".to_string(),
+            Some(t) if t.contains(&format!("\"{model}\"")) => "ready".to_string(),
+            Some(_) => format!("running, but the model is not pulled: ollama pull {model}"),
+        };
+        println!("{:<8}{model} via ollama: {state}", "models");
+        match ctx.cfg.escalation_cmd() {
+            Some(c) => println!("{:<8}escalation: {}", "", c.join(" ")),
+            None => println!("{:<8}escalation: off (an unsure decision asks you instead)", ""),
         }
     }
     if bad { Err(KErr::fail("doctor found problems")) } else { Ok(()) }

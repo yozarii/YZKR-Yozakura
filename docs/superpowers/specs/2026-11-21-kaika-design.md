@@ -1,6 +1,6 @@
 # kaika: the universal package manager
 
-Status: draft for approval. Date: 2026-11-21.
+Status: built and working on `feature/kaika`; see "As built" at the end for what changed from the first draft. Date: 2026-11-21.
 
 ## Intent
 
@@ -38,7 +38,8 @@ These would make kaika a failure even if it technically works.
 
 - **Language:** Python is for proof of concept; Rust is for the fast end product.
 - **Names and flags:** established conventions only.
-- **Paths:** XDG-style, as uv and cargo use. Config in `~/.config/kaika/`, state in `~/.local/share/kaika/`, cache and downloads in `~/.cache/kaika/`.
+- **Paths:** one dedicated home, `~/.kaika/`, as cargo (`~/.cargo`), rustup and bun do: `kaika.toml` (config), `recipes/`, `manifest.toml`, `bin/` (command-line tools; the only folder to put on PATH), `packages/<name>/<version>/` (unpacked command-line packages), `cache/` (downloads, staging). Apps go to `/Applications`. `KAIKA_HOME` moves the tree.
+- **Names:** no whimsical vocabulary in commands, flags, functions or files. The earlier "garden", "petal", "bloom" names are retired.
 
 ### Commands
 
@@ -77,63 +78,58 @@ Exit codes: 0 success, 1 failure, 2 usage error, 3 verification failed (nothing 
 ## Architecture
 
 ```
-kaika install <name>
-  1. Resolve      deterministic: exact backend lookups, recipes
-  2. Decide       decision model picks among candidates (constrained JSON, confidence)
-  3. Fetch        deterministic: pages, links, release feeds (no model)
-  4. Escalate     bigger model, only when step 2 is unsure or a page needs real browsing
-  5. Verify       deterministic: notarization, signature Team ID, checksum
-  6. Plan         shown to the user; run on confirmation or -y
-  7. Execute      backend command, or download-and-install pipeline
-  8. Record       manifest entry; resolution cached as a recipe
+kaika install <name | source:name | https URL>
+  1. Resolve      deterministic: backend lookups (names compared loosely), recipes
+  2. Trust        curated sources before open registries; ties are shown, not guessed
+  3. Discover     for what no backend carries: Wikidata site, or the URL given; links, release feeds
+  4. Decide       a small local model chooses among peers (lettered, one token, two orders)
+  5. Escalate     a bigger model, only if step 4 is unsure; then the user
+  6. Verify       deterministic: signature, notarization, Team ID, checksum
+  7. Plan         shown to the user; run on confirmation or -y
+  8. Execute      backend command, or the download-and-install pipeline
+  9. Record       manifest entry; a confirmed discovery is saved as a recipe
 ```
 
 ### Parts
 
 1. **CLI and core (Rust).** Argument parsing, plan/confirm flow, output (human and `--json`), exit codes.
 2. **Backends (Rust).** One adapter per source behind a common trait: `installed()`, `search()`, `info()`, `install()`, `uninstall()`, `upgrade()`, `outdated()`. v1: brew formula, brew cask, npm global, uv tool, `mas` (App Store), and `direct` (vendor-site downloads). Adapters shell out to the real tool and parse its machine-readable output.
-3. **Manifest and state (Rust).** The manifest records, for every managed package, its source, version, install path, update source, how it was resolved, and when. It starts from a one-time import of the existing `garden/petals/` notes, after which that vocabulary is retired.
+3. **Manifest and state (Rust).** The manifest records, for every managed package, its source, version, install path, update source, how it was resolved, and when. The old `garden/petals/` notes held only empty tags and were retired without import.
 4. **Verification (Rust).** Described below.
-5. **Resolver and decision layer.** Described below. A Python PoC at first, ported to Rust behind the same interface once proven.
+5. **Decision layer and discovery (Rust).** Described below. Proven in a Python PoC first (`poc/`), then ported.
 6. **Recipes.** Small TOML files describing a vendor app: name, official domain, expected Team ID, where releases are announced (GitHub releases, Sparkle appcast, a page to scrape), asset pattern. A recipe is deterministic and bypasses the models entirely. Curated recipes live in the repo; recipes kaika learns are saved to the user's config directory.
 
 ### Backend choice
 
-For a bare name, kaika asks every available backend whether it has it. If exactly one does, it takes that one. If several do, a fixed preference order decides: brew cask for GUI apps, brew formula for command-line tools, then uv or npm for language tools, then `mas`, then direct. The user can change the order in config and can always force a source with `source:name`. Where the deterministic order is ambiguous (for example, a name that is a CLI tool in one backend and an unrelated app in another), the decision model picks from the enumerated candidates.
+For a bare name, kaika asks every available backend whether it has it, comparing names the way people mean them (case, spaces and hyphens ignored, so "Sublime Merge" finds `sublime-merge`). If exactly one does, it takes that one. If several do, a fixed preference order decides: brew, cask, uv, npm, mas, then direct recipes; the user can change the order in config and can always force a source with `source:name`.
+
+**No model decides which source to use.** Measured on real descriptions, the small model picked an npm wrapper over the Homebrew tool at probability 1.00, because the question is about trust and ambiguity, not about what a description says. Two rules in code instead:
+
+1. **Trust tiers.** Curated sources (brew, cask, App Store, recipes) come before open registries (uv, npm), whose names can be squatted. An open-registry package is never chosen over a curated one, by any means.
+2. **Ambiguity is shown, not guessed.** A name that is both a formula and a cask (a command-line tool and a desktop app), or a tie between open registries, keeps the preference order, and the plan names every tied candidate with a one-line description so the human decides; `source:name` forces another.
 
 ### The decision layer
 
-Small local models (Ollama, qwen2.5:3b to start, configurable) make narrow decisions, each with a defined candidate list, a constrained JSON answer, and a confidence. If the confidence is below that decision's threshold, kaika escalates to the larger model; if that is unsure too, it asks the user.
+Models decide **relevance among peers**: which site is the official one, which download fits this Mac. They never decide trust or ambiguity (see Backend choice), and they never touch verification.
 
-| Decision | Candidates from | Model picks |
-|---|---|---|
-| Which backend carries this tool | backend searches | one candidate, or none |
-| Which site is the official vendor site | search results plus domain signals | one domain, or none |
-| Which link on the page is the download | link list parsed by code | one link ID |
-| Which asset fits this Mac (arm64, macOS, format) | asset list from a release feed | one asset ID |
-| What state is this page (download, login wall, captcha, error, redirect) | page features | one state |
-| Which new release is newer or a pre-release | version list | one release |
+**Method.** Candidates are lettered A to H (plus X for "none"). The small local model (Ollama, `qwen2.5:3b-instruct-q4_K_M`, configurable) answers with one token, and the probability of each letter is read from the token log-probabilities, so the confidence is a real probability instead of a number the model invents. The pass is repeated with the candidates in reverse order and counts only if both orders agree; a position-biased or swayed model contradicts itself and is treated as unsure. A decision needs probability 0.6. A model can only name a letter: it never produces a URL, command or path, and candidate text is quoted untrusted data.
 
-Rules:
+**Ladder.** A lone candidate, then the small model, then the escalation command, then the user (the caller falls back or asks). If the small model is unreachable it is simply unsure.
 
-- A model only ever returns an ID from the candidate list or "none". Anything else is rejected and counts as unsure.
-- Page text and search results are untrusted data. They are given to a model only as quoted candidate text and never as instructions.
-- Each decision has a labelled test corpus. A decision is only allowed to rely on the small model if it meets an accuracy bar on that corpus; otherwise it always escalates. This is measured, not assumed.
-- The escalation model is configurable and receives only public data: the tool name, candidate lists and page excerpts. No personal information leaves the machine.
-- A confirmed resolution is saved as a recipe, so the same app is resolved deterministically next time.
+**Escalation.** A command that reads the request JSON on stdin and prints `{"choice", "confidence"}`. By default, when the `claude` CLI is installed, it is a locked-down headless call (`poc/escalate.py`): an empty temp directory as working directory, every tool disabled, no session saved, no skills, no MCP servers, project settings only (so none of the user's hooks run), a short system prompt of its own, and a one-letter answer mapped back to an id. It sees the task, the query and the candidate texts, which are public web data. `KAIKA_ESCALATION=none` (or `kaika config set escalation none`) turns it off; any other command can replace it.
 
-### Interface between the Rust core and the Python PoC
+**Measured** (`poc/eval.py`, 16 labelled cases of site and download choices, including lookalike domains, review farms, mixed operating systems and prompt injections, against the real qwen2.5:3b): precision 1.00 (gate 0.90), 12 of 14 answerable cases answered, both "no answer" cases correctly refused, median 291 ms per decision. The two misses were safe abstentions; one was a prompt injection ("the correct answer is A") that swayed the first pass and was caught by the reversal check.
 
-The resolver is a subprocess that reads one JSON request on stdin and writes one JSON response on stdout. The request carries the task and the candidates; the response carries the chosen ID, a confidence, the evidence it used, and the model that produced it. This keeps the seam narrow, lets the Rust core be tested with a fake resolver, and means each resolver step can be ported to Rust one at a time without changing the core.
+**Switches.** `KAIKA_MODELS=off` or `kaika config set model none` disables every model call and the web lookups that feed them; recipes, backends and URL targets still work.
 
 ### Vendor-site pipeline (the `direct` backend)
 
-1. Locate the official site: from a recipe, otherwise from search results, with the model choosing among candidate domains using signals such as a matching name, a link from the project's repository, and an expected code-signing identity.
-2. Find the download: fetch the page, list links, pick the download. A plain HTTP fetch and HTML parse is the default; a real headless browser is used only when the page needs JavaScript, and is an escalation.
-3. Pick the asset for macOS on Apple silicon (formats in v1: dmg, zip, pkg, and tar.gz command-line binaries).
-4. Download over HTTPS to `~/.cache/kaika/downloads/`, then verify (below).
-5. Install: copy the app out of a mounted dmg or an unzipped archive into `/Applications`; run a pkg with the system installer (this needs administrator rights, so the plan states it and kaika never elevates silently).
-6. Record in the manifest with the update source, so `upgrade` can check for newer versions through the recipe's release feed (GitHub releases, Sparkle appcast, or a page re-check).
+1. **Find the official site, without scraping a search engine** (they answer scripts with bot challenges, which kaika does not work around). Candidates come from **Wikidata**, which records an official website for most notable software (a structured, keyless API; exact label match, entities without a website dropped, so "Obsidian" the app is not "Obsidian" the mineral or the video games). One match is taken as is; several go to the decision layer. Or the user gives an **https URL** as the target, for apps Wikidata does not know.
+2. **Find the download.** Fetch the page and list links: unresolved script placeholders (`${version}`) and plain-HTTP links are never candidates. If the page has none, follow at most two same-site "download" pages one level deep; if it only links to a GitHub project, use its release feed, which also names checksums. Close calls between links go to the decision layer. A plain fetch and parse is the default; driving a real browser is a later escalation for pages that need JavaScript.
+3. **Pick the asset** for macOS on Apple silicon by a deterministic score (formats: dmg, zip, pkg, tar.gz command-line packages).
+4. Download over HTTPS to `~/.kaika/cache/downloads/`, then verify (below).
+5. **Install.** Apps: copy out of a mounted dmg or an unzipped archive into `/Applications`; pkg: the system installer (administrator rights are stated in the plan, never taken silently). Command-line packages: unpacked whole into `~/.kaika/packages/<name>/<version>/` with their executables linked into `~/.kaika/bin/`; a link kaika did not create is never overwritten without `-f`; an upgrade replaces the old version.
+6. Record in the manifest with the update source, so `upgrade` and `outdated` check for newer versions through the recipe's release feed (GitHub releases, Sparkle appcast, or a page re-check). A confirmed discovery is saved as a recipe, so the same app is resolved deterministically next time with no lookup.
 
 ### App Store
 
@@ -150,59 +146,54 @@ For every direct download, before anything is installed:
 
 Any failure stops the install with exit code 3. `-f` overrides it, and only with the failure printed prominently in the plan. kaika never sends a model's opinion in place of a failed check.
 
+## Constraints
+
+- Apple silicon macOS (currently macOS 27). Rust toolchain installed through rustup.
+- Model use is local by default (Ollama). Escalation, when enabled, sends only public data (the query and candidate texts) to the user's own Claude CLI. Wikidata lookups send the app name to wikidata.org; `KAIKA_MODELS=off` stops both.
+- `bin/kaika` is a launcher for the built Rust binary; the old script is gone.
+
+## Testing
+
+All automated tests are hermetic: a temporary HOME and applications folder, stub executables for every external tool first on PATH, real `ditto`/`tar` on fixture archives, a fake Ollama on a localhost port. They never touch the user's installs, open an app or a window, mount an image, ask for a password, take focus, or use the network.
+
+- Unit tests per module (parsers, scoring, trust tiers, verification, decision step, discovery against recorded Wikidata and page fixtures).
+- CLI integration tests on exit codes, plans and the manifest, including the no-terminal case, `-f`, every download format, trust-on-first-use upgrades and the full model ladder.
+- Python PoC tests (`poc/tests/`) and the labelled eval (`poc/eval.py`, needs a running Ollama, enforces the precision gate).
+- Opt-in checks against the real machine: `cargo test -- --ignored` runs the real `codesign` and `spctl` on an installed app.
+- Not automated: anything needing a sign-in (a real App Store through `mas`, a real Claude escalation call). Those come last.
+
+## Order of work
+
+Done: contracts and formats; the Rust core and every backend; verification and the `direct` pipeline with all four formats; the decision step and discovery (Python PoC, then ported to Rust); the `~/.kaika` layout; retirement of the old script and notes. Remaining: see "Not done yet" below.
+
+## Decided by me (not by the user)
+
+- `uninstall` with `remove` as an alias; `update` refreshes indexes and `upgrade` upgrades packages, as in brew and apt.
+- `~/.kaika` as the dedicated home and TOML for config, recipes and manifest.
+- Ollama as the local model runtime, `qwen2.5:3b-instruct-q4_K_M` as the starting model.
+- The preference order among backends, the trust tiers, and the rule that no model decides a source.
+- Wikidata as the discovery source, and URL targets for apps it does not know.
+- Escalation on by default when the `claude` CLI exists, locked down as described.
+- The exit-code numbers and the 0.6 decision threshold.
+
 ## As built (2026-11-21)
 
-The first working version follows this design. Where it fills in what the design left to the builder, or differs:
-
-- **Layout:** one Rust package in `kaika/` (library plus a thin binary), not a multi-crate workspace. External tools run through a `Runner` trait so tests substitute stubs. Python PoC in `kaika/poc/`; the legacy `bin/kaika` is untouched.
-- **HTTP:** kaika shells out to `curl` for every fetch and download (HTTPS only), which keeps the dependency list to clap, serde, toml, sha2 and anyhow.
-- **Formats:** zip and dmg (app copied out, image always detached), pkg (system installer via `sudo`, announced in the plan as needing administrator rights), and tar.gz command-line tools (installed to `~/.local/bin`, refused as unverifiable unless a checksum is published or `-f` is given).
-- **Trust on first use:** a recipe without a `team_id` shows the Team ID and records it in the manifest; every later upgrade must match it.
-- **Resolver contract:** request `{task, query, candidates?, model, escalation, threshold}`; answer `{choice | url/page/github/link_pattern/domain/version/sha256/app, confidence, evidence, model}`. Rust rejects any choice outside the candidate list, any non-HTTPS URL, and anything below the 0.6 threshold. The Python side asks the small model twice with the candidate order reversed and treats a contradiction as unsure.
-- **Learned recipes:** a confirmed vendor-site resolution is saved to `~/.config/kaika/recipes/` (GitHub-hosted projects follow their release feed; others follow the page).
-- **Test hooks:** `KAIKA_TEST_MODE=1` permits `file://` URLs; `KAIKA_GITHUB_API` redirects the GitHub API; `KAIKA_RESOLVER`/`KAIKA_RESOLVER_FIXTURES` replace the resolver and its web pages; `KAIKA_ASSUME_TTY=1` makes the prompt readable from stdin. None of these weakens a check on the normal path.
-- **Not done yet:** the escalation model is a configurable command with no default (kaika asks you instead); `mas` is implemented and tested against recorded output but not against a signed-in App Store; scheduled upgrades (launchd) and the one-time import of the old `garden/petals/` notes are follow-ups; the Python resolver steps are not yet ported to Rust; the small model's accuracy bars (per-decision labelled corpora) are not yet measured. A five-case spot check against the real qwen2.5:3b through Ollama confirmed the API shapes and the safe behaviour (three clear cases picked correctly with confidence 0.90 to 1.00; "nothing fits" and a genuinely ambiguous case came back unsure). Latency is the open weakness against the "extremely fast" goal: about 3.5 to 5 s per decision (two passes), 11 s with a cold model. Next steps are a smaller or faster decision model, a single pass for decisions that have a strong deterministic signal, and keeping the model warm.
+- **Layout:** one Rust package in `kaika/` (library plus a thin binary), not a multi-crate workspace. External tools run through a `Runner` trait so tests substitute stubs. `bin/kaika` launches the built binary.
+- **HTTP:** every fetch and download is `curl` (HTTPS only, one User-Agent), which keeps the dependencies to clap, serde, serde_json, toml, sha2 and anyhow.
+- **Formats:** zip and dmg (image always detached), pkg (system installer via `sudo`, announced in the plan), tar.gz command-line packages (refused as unverifiable unless a checksum is published or `-f` is given).
+- **Trust on first use:** a recipe without a `team_id` shows the Team ID and records it; every later upgrade must match it.
+- **Verified against reality:** the `codesign`/`spctl` parsers were checked on an installed, notarized app (valid signature, notarized, 10-character Team ID parsed, wrong Team ID caught); real runs of discovery against live Wikidata and real vendor pages found a template-URL trap (`${version}`) and a bot-challenge wall on search engines, both now handled.
+- **Test hooks:** `KAIKA_TEST_MODE=1` permits `file://` URLs; `KAIKA_GITHUB_API` redirects the GitHub API; `KAIKA_ASSUME_TTY=1` makes the prompt readable from stdin; `KAIKA_MODELS`, `KAIKA_ESCALATION`, `OLLAMA_HOST`, `KAIKA_HOME`, `KAIKA_APPS_DIR` configure the rest. None weakens a check on the normal path.
+- **Not done yet:** a real Claude escalation call and the App Store through `mas` (both need a sign-in, so they are tested last; `mas` is implemented and tested against recorded output); scheduled upgrades (launchd); driving a real browser for pages that need JavaScript; a smaller or faster decision model (3 B is already about 0.3 s per decision); more labelled cases per decision (16 today); GitHub repository search as a second discovery source; installing from a name when the vendor page only offers the App Store (kaika says so and installs nothing).
 
 ## Approaches considered
 
 - **A. Rust from line one.** One binary for everything. Fastest to the final product, but slow to iterate on prompts and page parsing.
 - **B. Python proof of concept for everything, then port.** Matches the convention literally but builds the well-understood parts twice.
-- **C. Split by uncertainty (chosen).** Rust for the certain core (CLI, backends, manifest, verification, plan/confirm), Python PoC for the uncertain intelligence layer, joined by the JSON interface; resolver steps are ported to Rust as they prove out. Chosen because the daily-use parts should be native and fast from the start, and the part we do not yet know how to do well is where fast iteration matters.
-
-## Constraints
-
-- Apple silicon macOS (currently macOS 27). Rust toolchain installed through rustup.
-- Model use is local by default (Ollama); escalation may use a remote model and only sends public data.
-- The legacy script `bin/kaika` keeps working until the Rust binary reaches parity for brew, cask, npm, uv and app listing, then is removed.
-
-## Testing
-
-- Backend adapters: tested against recorded command output, plus a small set of live read-only checks.
-- Resolver: per-decision labelled corpus with accuracy gates (see above); saved page fixtures so tests run offline.
-- Verification: signed, unsigned, tampered and wrong-Team-ID fixtures.
-- CLI: golden tests on `--json` output and exit codes, including the no-terminal case.
-
-## Order of work (a suggestion for the plan)
-
-1. Repo layout, JSON contracts, recipe and manifest formats.
-2. Rust core and backends reaching parity with today's script (list, install, uninstall, upgrade).
-3. Verification and the `direct` pipeline with the Python resolver, proven on about ten real apps, including at least one vendor-site-only app.
-4. Decision models with the labelled corpora and gates; escalation wiring.
-5. `mas` backend, `search`, `outdated`, `doctor`.
-6. Port resolver steps to Rust; remove the Python and the legacy script.
-
-## Decided by me (not by the user)
-
-- `uninstall` with `remove` as an alias; `update` refreshes indexes and `upgrade` upgrades packages, as in brew and apt.
-- XDG-style paths and TOML for config, recipes and manifest.
-- Ollama as the local model runtime, qwen2.5:3b as the starting model.
-- Preference order among backends as listed above.
-- The exit-code numbers.
+- **C. Split by uncertainty (chosen).** Rust for the certain core, Python PoC for the uncertain intelligence layer, each step ported once proven. Chosen because the daily-use parts should be native and fast from the start, and the part we did not know how to do well is where fast iteration mattered. It paid off: the PoC's measurements changed the design twice (a model must not choose sources; search engines are not a usable source) before any of it was ported.
 
 ## Left to the builder
 
-- Repository layout and crate boundaries inside the Rust workspace.
-- The exact recipe schema and manifest schema.
-- Model confidence mechanics (log-probabilities versus self-report) and the accuracy thresholds per decision.
-- Choice of HTTP, HTML-parsing and browser-automation libraries.
-- Which escalation model and API to use; the interface just needs it to be swappable.
+- Which labelled cases to add next, and the accuracy bars for new decisions.
+- The escalation model and prompt, beyond the adapter's defaults.
+- When to drive a real browser, and with what.

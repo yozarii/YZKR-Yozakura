@@ -159,14 +159,27 @@ pub fn pick_asset(names: &[String], pattern: Option<&str>) -> Option<usize> {
     best.map(|(i, _)| i)
 }
 
+/// Generalise a download's file name so the next version still matches: `Ghost-1.2-arm64.dmg` becomes `Ghost-*.dmg`.
+pub fn link_pattern(filename: &str) -> String {
+    let lower = filename.to_lowercase();
+    let ext = [".tar.gz", ".dmg", ".zip", ".pkg", ".tgz"].into_iter().find(|e| lower.ends_with(e)).unwrap_or("");
+    let stem = &filename[..filename.len() - ext.len()];
+    let head: String = stem.chars().take_while(|c| !c.is_ascii_digit()).collect();
+    format!("{head}*{ext}")
+}
+
 pub fn file_name(url: &str) -> String {
     let no_query = url.split(['?', '#']).next().unwrap_or(url);
     no_query.rsplit('/').next().unwrap_or("download").to_string()
 }
 
-fn fetch(r: &dyn Runner, url: &str) -> Result<String> {
+/// How kaika identifies itself to every site it reads.
+pub const USER_AGENT: &str = "kaika/0.1 (package manager)";
+
+/// Read a page or feed over HTTPS: the one place kaika fetches text from the web.
+pub fn fetch(r: &dyn Runner, url: &str) -> Result<String> {
     ensure_https(url)?;
-    let o = r.run(&argv(&["curl", "-fsSL", "--max-time", "30", url]))?;
+    let o = r.run(&argv(&["curl", "-fsSL", "--max-time", "30", "-A", USER_AGENT, url]))?;
     if !o.ok() {
         bail!("could not fetch {url}: {}", o.stderr.trim());
     }
@@ -307,6 +320,14 @@ mod tests {
     }
 
     #[test]
+    fn link_patterns_generalise_a_file_name() {
+        assert_eq!(link_pattern("Ghost-1.2.3-arm64.dmg"), "Ghost-*.dmg");
+        assert_eq!(link_pattern("Ghost.zip"), "Ghost*.zip");
+        assert_eq!(link_pattern("tool-1.0.tar.gz"), "tool-*.tar.gz");
+        assert!(glob_match(&link_pattern("Ghost-1.2.3-arm64.dmg"), "Ghost-9.9-universal.dmg"));
+    }
+
+    #[test]
     fn versions_lose_their_v() {
         assert_eq!(norm_version("v1.2.3"), "1.2.3");
     }
@@ -314,7 +335,7 @@ mod tests {
     #[test]
     fn user_recipes_override_embedded_ones() {
         let t = tempfile::tempdir().unwrap();
-        let d = Dirs::from_lookup(|k| (k == "KAIKA_CONFIG_DIR").then(|| t.path().display().to_string()).or(Some("/h".into())));
+        let d = Dirs::from_lookup(|k| (k == "KAIKA_HOME").then(|| t.path().display().to_string()).or(Some("/h".into())));
         let mine = Recipe { name: "rectangle".into(), url: Some("https://x/y.dmg".into()), ..Default::default() };
         save_learned(&d, &mine).unwrap();
         assert_eq!(find(&d, "Rectangle").unwrap().url.as_deref(), Some("https://x/y.dmg"));

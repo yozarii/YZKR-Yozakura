@@ -1,15 +1,33 @@
-//! Where kaika keeps things. XDG-style, overridable per directory (used by tests and sandboxes).
+//! Where kaika keeps things: one dedicated home, `~/.kaika`, as cargo, rustup and bun do.
+//!
+//! ```text
+//! ~/.kaika/
+//!   kaika.toml        configuration
+//!   recipes/          your recipes and the ones kaika learned
+//!   manifest.toml     what kaika installed, from where
+//!   bin/              command-line tools (the only folder to put on PATH)
+//!   packages/<name>/<version>/   unpacked command-line packages
+//!   cache/            downloads and staging
+//! ```
+//!
+//! Apps still go to `/Applications`. `KAIKA_HOME` moves the whole tree (tests and sandboxes use it).
 
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct Dirs {
+    /// The user's home directory.
     pub home: PathBuf,
+    /// kaika's own home, `~/.kaika`.
+    pub root: PathBuf,
+    /// Where `kaika.toml` and `recipes/` live.
     pub config: PathBuf,
+    /// Where `manifest.toml` lives.
     pub data: PathBuf,
     pub cache: PathBuf,
-    pub apps: PathBuf,
     pub bin: PathBuf,
+    pub packages: PathBuf,
+    pub apps: PathBuf,
 }
 
 impl Dirs {
@@ -19,21 +37,18 @@ impl Dirs {
 
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Dirs {
         let home = PathBuf::from(get("HOME").unwrap_or_else(|| ".".into()));
-        let pick = |own: &str, xdg: &str, rel: &str| -> PathBuf {
-            if let Some(v) = get(own) {
-                return PathBuf::from(v);
-            }
-            if let Some(v) = get(xdg) {
-                return PathBuf::from(v).join("kaika");
-            }
-            home.join(rel).join("kaika")
-        };
-        let config = pick("KAIKA_CONFIG_DIR", "XDG_CONFIG_HOME", ".config");
-        let data = pick("KAIKA_DATA_DIR", "XDG_DATA_HOME", ".local/share");
-        let cache = pick("KAIKA_CACHE_DIR", "XDG_CACHE_HOME", ".cache");
+        let root = get("KAIKA_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".kaika"));
         let apps = get("KAIKA_APPS_DIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/Applications"));
-        let bin = get("KAIKA_BIN_DIR").map(PathBuf::from).unwrap_or_else(|| home.join(".local/bin"));
-        Dirs { home, config, data, cache, apps, bin }
+        Dirs {
+            config: root.clone(),
+            data: root.clone(),
+            cache: root.join("cache"),
+            bin: root.join("bin"),
+            packages: root.join("packages"),
+            root,
+            apps,
+            home,
+        }
     }
 }
 
@@ -48,19 +63,23 @@ mod tests {
     }
 
     #[test]
-    fn defaults_live_under_home() {
+    fn everything_lives_under_one_dedicated_home() {
         let d = dirs(&[("HOME", "/h")]);
-        assert_eq!(d.config, PathBuf::from("/h/.config/kaika"));
-        assert_eq!(d.data, PathBuf::from("/h/.local/share/kaika"));
-        assert_eq!(d.cache, PathBuf::from("/h/.cache/kaika"));
+        assert_eq!(d.root, PathBuf::from("/h/.kaika"));
+        assert_eq!(d.config, PathBuf::from("/h/.kaika"));
+        assert_eq!(d.data, PathBuf::from("/h/.kaika"));
+        assert_eq!(d.cache, PathBuf::from("/h/.kaika/cache"));
+        assert_eq!(d.bin, PathBuf::from("/h/.kaika/bin"));
+        assert_eq!(d.packages, PathBuf::from("/h/.kaika/packages"));
         assert_eq!(d.apps, PathBuf::from("/Applications"));
     }
 
     #[test]
-    fn xdg_beats_home_and_own_beats_xdg() {
-        let d = dirs(&[("HOME", "/h"), ("XDG_DATA_HOME", "/x"), ("KAIKA_DATA_DIR", "/own"), ("XDG_CACHE_HOME", "/c")]);
-        assert_eq!(d.data, PathBuf::from("/own"));
-        assert_eq!(d.cache, PathBuf::from("/c/kaika"));
+    fn kaika_home_moves_the_whole_tree() {
+        let d = dirs(&[("HOME", "/h"), ("KAIKA_HOME", "/elsewhere")]);
+        assert_eq!(d.bin, PathBuf::from("/elsewhere/bin"));
+        assert_eq!(d.packages, PathBuf::from("/elsewhere/packages"));
+        assert_eq!(d.home, PathBuf::from("/h"));
     }
 
     #[test]

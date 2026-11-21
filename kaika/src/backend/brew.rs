@@ -23,6 +23,12 @@ pub fn parse_search(text: &str) -> Vec<String> {
     text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with("==>")).map(String::from).collect()
 }
 
+/// `brew desc` prints `name: description`; casks add the display name in parentheses.
+pub fn parse_desc(text: &str) -> String {
+    let line = text.lines().next().unwrap_or("");
+    line.split_once(": ").map(|(_, d)| d).unwrap_or("").trim().to_string()
+}
+
 /// `brew outdated --verbose` lines: `name (1.0) < 2.0`.
 pub fn parse_outdated(text: &str) -> Vec<Pkg> {
     text.lines()
@@ -83,6 +89,11 @@ impl Backend for Brew {
         a
     }
 
+    fn describe(&self, r: &dyn Runner, reference: &str) -> String {
+        let kind = if self.cask { "--cask" } else { "--formula" };
+        parse_desc(&out(r, &["brew", "desc", kind, reference]))
+    }
+
     fn outdated(&self, r: &dyn Runner) -> Vec<Pkg> {
         let kind = if self.cask { "--cask" } else { "--formula" };
         parse_outdated(&out(r, &["brew", "outdated", kind, "--verbose"]))
@@ -124,6 +135,14 @@ mod tests {
         assert_eq!(b.uninstall_argv("zen", true), ["brew", "uninstall", "--cask", "--zap", "zen"]);
         assert_eq!(b.uninstall_argv("zen", false), ["brew", "uninstall", "--cask", "zen"]);
         assert_eq!(Brew { cask: false }.uninstall_argv("jq", true), ["brew", "uninstall", "jq"]);
+    }
+
+    #[test]
+    fn desc_is_the_text_after_the_name() {
+        assert_eq!(parse_desc("ripgrep: Search tool like grep\n"), "Search tool like grep");
+        assert_eq!(parse_desc(""), "");
+        let r = Fake::default().with("brew desc --cask zen", "zen: (Zen Browser) Firefox-based browser\n");
+        assert_eq!(Brew { cask: true }.describe(&r, "zen"), "(Zen Browser) Firefox-based browser");
     }
 
     #[test]

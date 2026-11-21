@@ -39,6 +39,10 @@ pub trait Backend {
     fn outdated(&self, _r: &dyn Runner) -> Vec<Pkg> {
         Vec::new()
     }
+    /// One line saying what the package is, fetched only when a decision needs it.
+    fn describe(&self, _r: &dyn Runner, _reference: &str) -> String {
+        String::new()
+    }
     /// Whether the uninstall needs administrator rights (the plan says so and kaika never elevates silently).
     fn needs_admin(&self, _uninstall: bool) -> bool {
         false

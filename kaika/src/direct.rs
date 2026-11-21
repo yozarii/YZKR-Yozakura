@@ -70,11 +70,10 @@ impl Job {
             None => "Team ID shown and recorded on first use".into(),
         };
         let admin = if recipe::file_name(&self.url).to_lowercase().ends_with(".pkg") { "   (needs administrator rights)" } else { "" };
+        let verb = if self.upgrade { "upgrade" } else { "download and install" };
+        let what = if self.version.is_empty() { self.name.clone() } else { format!("{} v{}", self.name, self.version) };
         format!(
-            "{} {} {} from {host} ({}; verifies signature, notarization{}; {trust}){}{admin}",
-            if self.upgrade { "upgrade" } else { "download and install" },
-            self.name,
-            if self.version.is_empty() { String::new() } else { format!("v{}", self.version) },
+            "{verb} {what} from {host} ({}; verifies signature, notarization{}; {trust}){}{admin}",
             self.resolved_by,
             if self.sha256.is_some() { ", checksum" } else { "" },
             if self.force { "  [-f: verification failures will be overridden]" } else { "" },
@@ -185,16 +184,13 @@ fn install_downloaded(r: &dyn Runner, dirs: &Dirs, job: &Job, file: &Path, stage
     }
 
     if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
-        // Command-line binaries have no notarization story; a checksum is the only check that means anything.
+        // Command-line packages have no notarization story; a checksum is the only check that means anything.
         if job.sha256.is_none() {
             failures.push("command-line download has no published checksum to verify".into());
         }
         gate(&failures, job.force)?;
         run_ok(r, &["tar", "-xzf", &path_str(file), "-C", &path_str(stage)], "extracting archive")?;
-        let bin = first_executable(stage).ok_or_else(|| anyhow!("no executable found in the archive"))?;
-        std::fs::create_dir_all(&dirs.bin)?;
-        let dest = dirs.bin.join(bin.file_name().unwrap());
-        std::fs::copy(&bin, &dest)?;
+        let dest = install_package(dirs, job, stage)?;
         return Ok(Installed { path: path_str(&dest), team_id: String::new(), overridden: failures });
     }
 
@@ -239,22 +235,66 @@ fn install_downloaded(r: &dyn Runner, dirs: &Dirs, job: &Job, file: &Path, stage
     Ok(Installed { path: path_str(&dest), team_id: rep.team_id.unwrap_or_default(), overridden: failures })
 }
 
-fn first_executable(dir: &Path) -> Option<PathBuf> {
+fn is_executable(p: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
-    let mut stack = vec![dir.to_path_buf()];
-    while let Some(d) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
-        let mut entries: Vec<_> = rd.filter_map(|e| e.ok()).map(|e| e.path()).collect();
-        entries.sort();
-        for p in entries {
-            if p.is_dir() {
-                stack.push(p);
-            } else if std::fs::metadata(&p).map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false) {
-                return Some(p);
-            }
+    std::fs::metadata(p).map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+}
+
+/// Executables a package offers: those in its `bin/`, or else the ones at its top level.
+fn package_executables(pkg: &Path) -> Vec<PathBuf> {
+    let list = |d: &Path| -> Vec<PathBuf> {
+        let mut v: Vec<PathBuf> = std::fs::read_dir(d).into_iter().flatten().filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| is_executable(p)).collect();
+        v.sort();
+        v
+    };
+    let in_bin = list(&pkg.join("bin"));
+    if in_bin.is_empty() { list(pkg) } else { in_bin }
+}
+
+/// Unpack a command-line package into `packages/<name>/<version>` and link its executables into `bin/`.
+fn install_package(dirs: &Dirs, job: &Job, stage: &Path) -> Result<PathBuf, DErr> {
+    // Archives usually wrap everything in one folder; the package is that folder.
+    let entries: Vec<PathBuf> = std::fs::read_dir(stage)?.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+    let content = if entries.len() == 1 && entries[0].is_dir() { entries[0].clone() } else { stage.to_path_buf() };
+    let version = if job.version.is_empty() { "latest" } else { job.version.as_str() };
+    let pkg_dir = dirs.packages.join(&job.name);
+    let dest = pkg_dir.join(version);
+    let exes = package_executables(&content);
+    if exes.is_empty() {
+        return Err(anyhow!("no executable found in the package").into());
+    }
+    // Refuse to replace a file in bin/ that kaika did not put there, unless forced.
+    std::fs::create_dir_all(&dirs.bin)?;
+    for exe in &exes {
+        let link = dirs.bin.join(exe.file_name().unwrap());
+        if std::fs::symlink_metadata(&link).is_ok() && !is_ours(&link, &dirs.packages) && !job.force {
+            return Err(anyhow!("{} already exists and is not a kaika link; use -f to replace it", link.display()).into());
         }
     }
-    None
+    std::fs::create_dir_all(&pkg_dir)?;
+    if dest.exists() {
+        std::fs::remove_dir_all(&dest)?;
+    }
+    if std::fs::rename(&content, &dest).is_err() {
+        run_ok_anyhow(&crate::runner::RealRunner, &["ditto", &path_str(&content), &path_str(&dest)])?;
+    }
+    for exe in package_executables(&dest) {
+        let link = dirs.bin.join(exe.file_name().unwrap());
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(&exe, &link)?;
+    }
+    // An upgrade replaces the old version: drop every other version of this package.
+    for e in std::fs::read_dir(&pkg_dir)?.filter_map(|e| e.ok()) {
+        if e.path() != dest {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
+    Ok(dest)
+}
+
+/// Is this a symlink pointing into kaika's packages folder?
+fn is_ours(link: &Path, packages: &Path) -> bool {
+    std::fs::read_link(link).map(|t| t.starts_with(packages)).unwrap_or(false)
 }
 
 /// Remove a direct install: the app goes to the Trash; `zap` also removes its support files.
@@ -266,6 +306,21 @@ pub fn uninstall(r: &dyn Runner, dirs: &Dirs, e: &Entry, zap: bool) -> Result<Ve
     let app = PathBuf::from(&e.path);
     if !app.exists() {
         bail!("{} not found (already removed?)", app.display());
+    }
+    if app.starts_with(&dirs.packages) {
+        // A command-line package: remove the links that point into it, then the package itself.
+        for l in std::fs::read_dir(&dirs.bin).into_iter().flatten().filter_map(|x| x.ok()).map(|x| x.path()) {
+            if std::fs::read_link(&l).map(|t| t.starts_with(&app)).unwrap_or(false) {
+                std::fs::remove_file(&l)?;
+                gone.push(path_str(&l));
+            }
+        }
+        std::fs::remove_dir_all(&app)?;
+        if let Some(parent) = app.parent() {
+            let _ = std::fs::remove_dir(parent); // the name folder, once empty
+        }
+        gone.push(path_str(&app));
+        return Ok(gone);
     }
     let bundle_id = if zap && app.extension().is_some_and(|x| x == "app") {
         let info = app.join("Contents/Info");

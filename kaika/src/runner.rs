@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Result};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -90,6 +90,8 @@ impl Runner for RealRunner {
 #[derive(Default)]
 pub struct Fake {
     pub responses: HashMap<String, Out>,
+    /// Successive answers to the same command (a decision asks twice, in two candidate orders).
+    pub sequences: RefCell<HashMap<String, VecDeque<Out>>>,
     pub tools: Vec<String>,
     pub log: RefCell<Vec<String>>,
 }
@@ -97,6 +99,11 @@ pub struct Fake {
 impl Fake {
     pub fn with(mut self, cmd: &str, stdout: &str) -> Self {
         self.responses.insert(cmd.into(), Out { code: 0, stdout: stdout.into(), stderr: String::new() });
+        self
+    }
+    pub fn then(self, cmd: &str, outputs: &[&str]) -> Self {
+        let q = outputs.iter().map(|o| Out { code: 0, stdout: o.to_string(), stderr: String::new() }).collect();
+        self.sequences.borrow_mut().insert(cmd.into(), q);
         self
     }
     pub fn failing(mut self, cmd: &str) -> Self {
@@ -113,6 +120,9 @@ impl Runner for Fake {
     fn run(&self, argv: &[String]) -> Result<Out> {
         let key = argv.join(" ");
         self.log.borrow_mut().push(key.clone());
+        if let Some(next) = self.sequences.borrow_mut().get_mut(&key).and_then(|q| q.pop_front()) {
+            return Ok(next);
+        }
         Ok(self.responses.get(&key).cloned().unwrap_or(Out { code: 1, ..Default::default() }))
     }
     fn run_stdin(&self, argv: &[String], _input: &str) -> Result<Out> {

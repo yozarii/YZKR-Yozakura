@@ -63,9 +63,12 @@ if [ {any} -ne 1 ]; then
 fi
 key=$(printf '%s' "$text" | tr -c 'A-Za-z0-9' '_')
 f="$KAIKA_STUB_DIR/$key"
+n=0; [ -f "$f.n" ] && n=$(cat "$f.n"); n=$((n+1)); echo $n > "$f.n"
+out="$f.out"; [ -f "$f.out.$n" ] && out="$f.out.$n"
 [ -f "$f.err" ] && cat "$f.err" >&2
-[ -f "$f.out" ] && cat "$f.out"
+[ -f "$out" ] && cat "$out"
 if [ -f "$f.code" ]; then exit "$(cat "$f.code")"; fi
+if [ -f "$out" ]; then exit 0; fi
 exit {default_code}
 "#
         );
@@ -113,6 +116,13 @@ esac"#,
         fs::write(self.resp.join(format!("{}.out", key(text))), stdout).unwrap();
         self
     }
+    /// Successive stdout answers to the same command: the first call gets `outputs[0]`, the second `outputs[1]`...
+    pub fn reply_seq(&self, text: &str, outputs: &[&str]) -> &Sandbox {
+        for (i, o) in outputs.iter().enumerate() {
+            fs::write(self.resp.join(format!("{}.out.{}", key(text), i + 1)), o).unwrap();
+        }
+        self
+    }
     pub fn reply_err(&self, text: &str, stderr: &str) -> &Sandbox {
         fs::write(self.resp.join(format!("{}.err", key(text))), stderr).unwrap();
         self
@@ -128,8 +138,8 @@ esac"#,
             .env("PATH", format!("{}:/usr/bin:/bin", self.stubs.display()))
             .env("HOME", &self.home)
             .env("KAIKA_APPS_DIR", &self.apps)
-            .env("KAIKA_BIN_DIR", self.home.join("bin"))
-            .env("KAIKA_RESOLVER", "none")
+            .env("KAIKA_MODELS", "off")
+            .env("KAIKA_ESCALATION", "none")
             .env("KAIKA_TEST_MODE", "1")
             .env("KAIKA_STUB_DIR", &self.resp)
             .env("KAIKA_STUB_LOG", &self.log);
@@ -140,11 +150,15 @@ esac"#,
         fs::read_to_string(&self.log).unwrap()
     }
 
+    /// kaika's dedicated home: config, recipes, manifest, bin, packages and cache all live here.
+    pub fn kaika_home(&self) -> PathBuf {
+        self.home.join(".kaika")
+    }
     pub fn data(&self) -> PathBuf {
-        self.home.join(".local/share/kaika")
+        self.kaika_home()
     }
     pub fn config_dir(&self) -> PathBuf {
-        self.home.join(".config/kaika")
+        self.kaika_home()
     }
     pub fn manifest(&self) -> String {
         fs::read_to_string(self.data().join("manifest.toml")).unwrap_or_default()
@@ -188,6 +202,14 @@ esac"#,
         assert!(st.success());
         zip
     }
+
+    /// What Ollama answers: one token's log-probabilities, `(token, probability)`.
+    pub fn logprobs(tokens: &[(&str, f64)]) -> String {
+        let top: Vec<String> = tokens.iter().map(|(t, p)| format!(r#"{{"token":"{t}","logprob":{}}}"#, p.ln())).collect();
+        format!(r#"{{"message":{{"content":"{}"}},"logprobs":[{{"top_logprobs":[{}]}}]}}"#, tokens[0].0, top.join(","))
+    }
+
+    pub const OLLAMA: &'static str = "curl -s --max-time 60 -H Content-Type: application/json -d @- http://127.0.0.1:11434/api/chat";
 
     pub fn recipe(&self, file: &str, body: &str) {
         let d = self.config_dir().join("recipes");

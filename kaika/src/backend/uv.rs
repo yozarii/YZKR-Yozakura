@@ -38,6 +38,12 @@ impl Backend for Uv {
             _ => vec![],
         }
     }
+    fn describe(&self, r: &dyn Runner, reference: &str) -> String {
+        let url = format!("https://pypi.org/pypi/{reference}/json");
+        let body = r.run(&argv(&["curl", "-sf", "--max-time", "10", &url])).map(|o| o.stdout).unwrap_or_default();
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
+        v["info"]["summary"].as_str().unwrap_or("").to_string()
+    }
     fn install_argv(&self, reference: &str) -> Vec<String> {
         argv(&["uv", "tool", "install", reference])
     }
@@ -55,6 +61,14 @@ impl Backend for Uv {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn describe_reads_the_pypi_summary() {
+        use crate::runner::Fake;
+        let r = Fake::default().with("curl -sf --max-time 10 https://pypi.org/pypi/black/json", r#"{"info":{"summary":"The uncompromising code formatter"}}"#);
+        assert_eq!(Uv.describe(&r, "black"), "The uncompromising code formatter");
+        assert_eq!(Uv.describe(&Fake::default(), "nope"), "");
+    }
 
     #[test]
     fn list_ignores_executable_lines_and_strips_v() {
