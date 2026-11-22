@@ -91,6 +91,7 @@ fn turn_on(ctx: &Ctx, at: &str, dry_run: bool) -> KResult {
         &file.display().to_string(),
     ]))?;
     if code != 0 {
+        let _ = std::fs::remove_file(&file); // `status` and `doctor` would claim a job that never loaded
         return Err(KErr::fail(format!(
             "launchctl could not load {} (exit {code})",
             file.display()

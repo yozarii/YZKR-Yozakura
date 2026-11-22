@@ -2190,6 +2190,15 @@ fn a_bad_time_is_a_usage_error_and_a_failed_load_is_reported() {
 }
 
 #[test]
+fn a_schedule_that_launchctl_would_not_load_is_not_left_behind_as_scheduled() {
+    let s = sandbox();
+    s.custom_stub("launchctl", "exit 5");
+    s.cmd().args(["schedule", "on"]).assert().code(1);
+    assert!(!agent(&s).exists(), "the plist must not stay if the job never loaded");
+    s.cmd().args(["schedule", "status"]).assert().success().stdout(predicate::str::contains("not scheduled"));
+}
+
+#[test]
 fn scheduling_works_offline_because_it_touches_no_network() {
     let s = sandbox();
     s.reply_code(Sandbox::PROBE, 7);
