@@ -1,8 +1,0 @@
-{
-  "name": "zen-pwa-shell",
-  "productName": "Zen PWA",
-  "version": "1.0.0",
-  "description": "Zen-style site-specific browser with Widevine support",
-  "main": "main.js",
-  "private": true
-}
