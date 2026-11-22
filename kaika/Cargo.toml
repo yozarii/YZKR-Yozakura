@@ -2,6 +2,15 @@
 name = "kaika"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+description = "Universal package manager for macOS (Apple silicon)"
+license = "MIT"
+publish = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
 
 [dependencies]
 anyhow = "1.0.104"
