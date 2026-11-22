@@ -1,14 +1,15 @@
-# TEMPLATE — not a working formula until the placeholders below are replaced.
-# See packaging/README.md for the release steps.
+# The formula for the tap (Formula/kaika.rb). See README.md in this folder for how a release is cut.
+# The URL exists once the v0.1.0 release has been published; the sha256 is that of the tarball attached to it
+# (README.md, step 3, replaces it with the published value).
 class Kaika < Formula
-  desc "Universal package manager for macOS (Apple silicon)"
+  desc "Universal package manager"
   homepage "https://github.com/yozarii/YZKR-Yozakura"
-  # PLACEHOLDER: replace with the release tarball URL for the tag being shipped.
-  url "https://example.invalid/kaika/v0.1.0.tar.gz"
-  # PLACEHOLDER: replace with `shasum -a 256` of that exact tarball.
+  url "https://github.com/yozarii/YZKR-Yozakura/releases/download/v0.1.0/kaika-0.1.0.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
 
+  depends_on arch: :arm64
+  depends_on :macos
   depends_on "rust" => :build
 
   def install
@@ -16,6 +17,7 @@ class Kaika < Formula
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/kaika --version")
+    assert_match "kaika #{version}", shell_output("#{bin}/kaika --version")
+    assert_match "kaika   #{version}", shell_output("#{bin}/kaika doctor", 0)
   end
 end
