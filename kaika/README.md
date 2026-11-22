@@ -44,6 +44,17 @@ unless `-y` is given.
 `install`, `upgrade`, `update`, `outdated` and `search` check the network first (a 2 second probe) and exit 69 before
 starting anything. `list`, `info`, `uninstall`, `cleanup`, `doctor` and `config` work offline. `KAIKA_OFFLINE=1` forces it.
 
+## Scheduled upgrades and the App Store
+
+```bash
+kaika schedule on --at 03:30   # a launchd job: kaika upgrade --all --yes, daily; log in ~/.kaika/logs/upgrade.log
+kaika schedule status
+kaika schedule off
+```
+
+App Store apps go through `mas`, which uses the Apple ID signed in to the App Store app and can only fetch apps that
+account has already obtained once; kaika never handles Apple ID credentials and explains this when `mas` fails.
+
 ## Where things live
 
 Everything kaika owns is in one folder, `~/.kaika` (move it with `KAIKA_HOME`):
@@ -71,6 +82,10 @@ scripts with bot challenges, so kaika does not scrape them). Or give the page's 
 download links (never plain HTTP, never unresolved `${version}` templates, never debug symbols or checksum files),
 follows a "download" page or a GitHub release feed if needed, and picks the macOS build by a deterministic score,
 which settles about nine downloads in ten with no model at all.
+
+If Wikidata has no site (or the site yields no download), kaika falls back to GitHub: a repository named exactly like the
+app, not a fork or archived, with at least 50 stars. A page with no links at all is rendered once in a headless Chromium
+browser if one is installed (never downloaded for this; `KAIKA_BROWSER=off` disables), then scanned like any page.
 
 **Where a model helps, and only there.** When several sites or downloads are plausible, a small local model
 (H2O-Lightning-4B, Apache-2.0) chooses among them. It is used only for third-party apps, never on a package-manager

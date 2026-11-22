@@ -22,7 +22,7 @@ The intelligence is deliberately narrow: deterministic tools do the work, and a 
 - Replacing Homebrew, npm or uv. kaika drives them; it does not reimplement them.
 - Buying or paying for apps. App Store purchases and paid licences stay with the user.
 - Linux or Windows support in v1. macOS on Apple silicon first. The design must not make other platforms impossible.
-- Scheduled background upgrades in v1 (a launchd job is a follow-up).
+- A resident background service. Scheduled upgrades are a plain launchd job that runs and exits (`kaika schedule`).
 - Managing system settings or anything that is not a package.
 
 ## Anti-goals
@@ -135,7 +135,9 @@ For a bare name, kaika asks every available backend whether it has it, comparing
 ### Vendor-site pipeline (the `direct` backend)
 
 1. **Find the official site, without scraping a search engine** (they answer scripts with bot challenges, which kaika does not work around). Candidates come from **Wikidata**, which records an official website for most notable software (a structured, keyless API; exact label match, entities without a website dropped, so "Obsidian" the app is not "Obsidian" the mineral or the video games). One match is taken as is; several go to the decision layer. Or the user gives an **https URL** as the target, for apps Wikidata does not know.
-2. **Find the download.** Fetch the page and list links: unresolved script placeholders (`${version}`) and plain-HTTP links are never candidates. If the page has none, follow at most two same-site "download" pages one level deep; if it only links to a GitHub project, use its release feed, which also names checksums. Close calls between links go to the decision layer. A plain fetch and parse is the default; driving a real browser is a later escalation for pages that need JavaScript.
+2. **Find the download.** Fetch the page and list links: unresolved script placeholders (`${version}`) and plain-HTTP links are never candidates. If the page has none, follow at most two same-site "download" pages one level deep; if it only links to a GitHub project, use its release feed, which also names checksums. Close calls between links go to the decision layer. A plain fetch and parse is the default. Only when a page has no links at all (it builds them with JavaScript) and a Chromium-family browser is already installed (Chrome, Chromium, Brave, Edge, Vivaldi, Arc; `KAIKA_BROWSER` chooses one, `off` disables), that browser renders the page headless with a throwaway profile and no extensions, and the resulting page goes through the same link scan and quarantine. No browser is ever downloaded for this; without one, the error says what would help. Recipes re-render the same way at upgrade time.
+
+   **Second source: GitHub.** When Wikidata knows no official site, or its site yields no download, kaika searches GitHub repositories by name. Only a repository whose own name equals the app's name, that is not a fork or archived and has at least 50 stars is offered (most-starred first, at most five); a lone one is taken, several go to the decision layer (which may refuse all), and descriptions pass the same quarantine. The release feed then supplies the download, and every normal verification applies.
 3. **Pick the asset** for macOS on Apple silicon by a deterministic score (formats: dmg, zip, pkg, tar.gz command-line packages).
 4. Download over HTTPS to `~/.kaika/cache/downloads/`, then verify (below).
 5. **Install.** Apps: copy out of a mounted dmg or an unzipped archive into `/Applications`; pkg: the system installer (administrator rights are stated in the plan, never taken silently). Command-line packages: unpacked whole into `~/.kaika/packages/<name>/<version>/` with their executables linked into `~/.kaika/bin/`; a link kaika did not create is never overwritten without `-f`; an upgrade replaces the old version.
@@ -170,7 +172,8 @@ All automated tests are hermetic: a temporary HOME and applications folder, stub
 - CLI integration tests on exit codes, plans and the manifest, including: no terminal, `-f`, every download format, trust-on-first-use upgrades; offline exits 69 before anything starts; **no model process on any package-manager path**; exactly one model start per discovery and it is gone afterwards; the model is killed even when kaika receives SIGKILL; missing prerequisites yield instructions, not crashes; the model installs, verifies and uninstalls like any package.
 - Corpus tests (`corpus/discovery.json`, 626 cases): well-formedness, the quarantine against 84 hostile and 1,390 clean candidates, a hostile candidate never reaches a decider or wins, and the deterministic download shortcut is never wrong.
 - Opt-in: `cargo test --test real_model -- --ignored --nocapture` runs the real model over the whole corpus (gates: no wrong answer on explicit injections or no-answer cases, at most 1% wrong overall, at least 95% correct overall); `cargo test -- --ignored` runs the real `codesign` and `spctl` on an installed app.
-- Not automated: a signed-in App Store through `mas`.
+- Not automated: a signed-in App Store through `mas` (tests cover command construction, parsing and the failure guidance with a stub; the real call needs the user's Apple ID).
+- Scheduled upgrades are tested with a stub `launchctl`; a real load and a real nightly run are not automated. The browser fallback is tested with a stub browser; a real Chrome is not driven.
 
 ## Decided by me (not by the user)
 
@@ -190,9 +193,10 @@ All automated tests are hermetic: a temporary HOME and applications folder, stub
 - **Trust on first use:** a recipe without a `team_id` shows the Team ID and records it; every later upgrade must match it.
 - **Verified against reality:** the `codesign`/`spctl` parsers were checked on an installed, notarized app; real discovery runs found a template-URL trap (`${version}`) and a bot-challenge wall on search engines, both handled; the decision model was measured on real macOS hardware.
 - **Test hooks:** `KAIKA_TEST_MODE=1` permits `file://` URLs; `KAIKA_GITHUB_API` redirects the GitHub API; `KAIKA_ASSUME_TTY=1` makes the prompt readable from stdin; `KAIKA_LLAMA_SERVER` names the server program; `KAIKA_OFFLINE`, `KAIKA_MODELS`, `KAIKA_HOME`, `KAIKA_APPS_DIR` configure the rest. None weakens a check on the normal path.
-- **Not done yet:** the App Store through `mas` against a signed-in Apple ID; scheduled upgrades (launchd); driving a real browser for pages that need JavaScript; GitHub repository search as a second discovery source; installing from a name when the vendor page only offers the App Store (kaika says so and installs nothing).
+- **App Store (`mas`):** `mas` uses the Apple ID signed in to the App Store app and can only fetch apps that account already obtained once. kaika never handles Apple ID credentials: a failed `mas` command explains the sign-in, and `doctor` says so.
+- **Scheduled upgrades:** `kaika schedule on [--at HH:MM]` writes `~/Library/LaunchAgents/io.kaika.upgrade.plist` (daily, default 03:00, runs `kaika upgrade --all --yes`, log in `~/.kaika/logs/upgrade.log`) and loads it with `launchctl bootstrap`; `off` unloads and removes it; `status` (default) reads it back. An unattended run is as careful as an attended one (verification still stops installs; offline exits 69).
+- **Not done yet:** a real run against a signed-in App Store; a real nightly launchd run; a real browser on a JavaScript-only vendor page (the three were built and tested against stubs); installing from a name when the vendor page only offers the App Store (kaika says so and installs nothing).
 
 ## Left to the builder
 
 - Which cases to add to the corpus next, and when to raise the gates.
-- When to drive a real browser, and with what.

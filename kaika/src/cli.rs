@@ -76,6 +76,17 @@ pub enum Cmd {
         #[arg(short = 'n', long)]
         dry_run: bool,
     },
+    /// Upgrade everything once a day in the background: `schedule on [--at HH:MM]`, `schedule off`, `schedule status`
+    Schedule {
+        /// on, off or status (default)
+        #[arg(value_parser = ["on", "off", "status"], default_value = "status")]
+        action: String,
+        /// Time of day for `on`, 24-hour
+        #[arg(long, default_value = "03:00")]
+        at: String,
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+    },
     /// Show or change configuration: `config`, `config get KEY`, `config set KEY VALUE`, `config path`
     Config { args: Vec<String> },
 }

@@ -140,6 +140,7 @@ esac"#,
             .env("HOME", &self.home)
             .env("KAIKA_APPS_DIR", &self.apps)
             .env("KAIKA_MODELS", "off")
+            .env("KAIKA_BROWSER", "off")
             .env("KAIKA_TEST_MODE", "1")
             .env("KAIKA_STUB_DIR", &self.resp)
             .env("KAIKA_STUB_LOG", &self.log);
@@ -166,7 +167,7 @@ esac"#,
 
     /// Standard stubs: package managers answer nothing; verification tools pass.
     pub fn standard(&self) -> &Sandbox {
-        for t in ["brew", "npm", "uv", "mas"] {
+        for t in ["brew", "npm", "uv", "mas", "launchctl"] {
             self.stub(t, 0, Match::Exact);
         }
         self.stub("curl", 22, Match::Exact);

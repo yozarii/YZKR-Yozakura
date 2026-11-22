@@ -263,9 +263,18 @@ pub fn latest(r: &dyn Runner, rec: &Recipe) -> Result<Asset> {
         return Ok(Asset { name: names[i].clone(), url: items[i].0.clone(), version: norm_version(&items[i].1), sha256: rec.sha256.clone() });
     }
     if let Some(page) = &rec.page {
-        let links = extract_links(&fetch(r, page)?, page);
-        let names: Vec<String> = links.iter().map(|l| file_name(l)).collect();
-        let i = pick_asset(&names, rec.asset_pattern.as_deref()).ok_or_else(|| anyhow!("no download link found on {page}"))?;
+        let mut links = extract_links(&fetch(r, page)?, page);
+        let mut names: Vec<String> = links.iter().map(|l| file_name(l)).collect();
+        let mut pick = pick_asset(&names, rec.asset_pattern.as_deref());
+        if pick.is_none() {
+            // The links may only exist after the page's scripts ran (see render.rs).
+            if let Some(shown) = crate::render::page(r, page) {
+                links = extract_links(&shown, page);
+                names = links.iter().map(|l| file_name(l)).collect();
+                pick = pick_asset(&names, rec.asset_pattern.as_deref());
+            }
+        }
+        let i = pick.ok_or_else(|| anyhow!("no download link found on {page}"))?;
         return Ok(Asset { name: names[i].clone(), url: links[i].clone(), version: String::new(), sha256: rec.sha256.clone() });
     }
     if let Some(url) = &rec.url {

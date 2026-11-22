@@ -16,6 +16,8 @@ pub mod net;
 pub mod paths;
 pub mod plan;
 pub mod quarantine;
+pub mod render;
+pub mod schedule;
 pub mod recipe;
 pub mod outcome;
 pub mod runner;

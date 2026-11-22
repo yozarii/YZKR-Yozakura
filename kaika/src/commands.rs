@@ -80,6 +80,7 @@ pub fn dispatch(ctx: &Ctx, cmd: Cmd) -> KResult {
         Cmd::Outdated => outdated(ctx),
         Cmd::Doctor => doctor(ctx),
         Cmd::Cleanup { dry_run } => cleanup(ctx, dry_run),
+        Cmd::Schedule { action, at, dry_run } => schedule(ctx, &action, &at, dry_run),
         Cmd::Config { args } => config(ctx, &args),
     }
 }
@@ -204,7 +205,8 @@ fn execute(ctx: &Ctx, plan: &Plan) -> KResult {
             Action::Cmd { argv, .. } => {
                 let code = ctx.r.run_live(argv)?;
                 if code != 0 {
-                    return Err(KErr::fail(format!("`{}` failed (exit {code})", argv.join(" "))));
+                    let hint = if backend::mas::is_mas(argv) { format!("; {}", backend::mas::SIGN_IN_HINT) } else { String::new() };
+                    return Err(KErr::fail(format!("`{}` failed (exit {code}){hint}", argv.join(" "))));
                 }
             }
             Action::Direct(job) => {
@@ -645,11 +647,77 @@ fn outdated(ctx: &Ctx) -> KResult {
     Ok(())
 }
 
+fn agent_path(ctx: &Ctx) -> std::path::PathBuf {
+    ctx.dirs.home.join("Library/LaunchAgents").join(format!("{}.plist", crate::schedule::LABEL))
+}
+
+fn schedule(ctx: &Ctx, action: &str, at: &str, dry_run: bool) -> KResult {
+    let file = agent_path(ctx);
+    match action {
+        "status" => {
+            match std::fs::read_to_string(&file) {
+                Ok(p) => {
+                    let (h, m) = crate::schedule::scheduled_time(&p).unwrap_or((0, 0));
+                    say(ctx, &format!("scheduled: kaika upgrade --all --yes every day at {h:02}:{m:02} (log: {})", ctx.dirs.root.join("logs/upgrade.log").display()));
+                }
+                Err(_) => say(ctx, "not scheduled (kaika schedule on [--at HH:MM])"),
+            }
+            Ok(())
+        }
+        "on" => {
+            let (h, m) = crate::schedule::parse_time(at).map_err(KErr::usage)?;
+            let exe = std::env::current_exe().map_err(anyhow::Error::from)?.display().to_string();
+            let log = ctx.dirs.root.join("logs/upgrade.log");
+            let path = format!("{}:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", ctx.dirs.bin.display());
+            let body = crate::schedule::plist(&exe, &log.display().to_string(), &path, h, m);
+            say(ctx, &format!("{}schedule: write {} and load it with launchctl; runs `kaika upgrade --all --yes` daily at {h:02}:{m:02}", if dry_run { "would " } else { "" }, file.display()));
+            if dry_run {
+                return Ok(());
+            }
+            std::fs::create_dir_all(file.parent().expect("has a parent")).map_err(anyhow::Error::from)?;
+            std::fs::create_dir_all(log.parent().expect("has a parent")).map_err(anyhow::Error::from)?;
+            // Reload cleanly: an older copy is unloaded first, and not being loaded is fine.
+            let target = launchd_target(ctx);
+            let _ = ctx.r.run(&argv(&["launchctl", "bootout", &format!("{target}/{}", crate::schedule::LABEL)]));
+            std::fs::write(&file, body).map_err(anyhow::Error::from)?;
+            let code = ctx.r.run_live(&argv(&["launchctl", "bootstrap", &target, &file.display().to_string()]))?;
+            if code != 0 {
+                return Err(KErr::fail(format!("launchctl could not load {} (exit {code})", file.display())));
+            }
+            say(ctx, &format!("scheduled daily at {h:02}:{m:02}"));
+            Ok(())
+        }
+        _ => {
+            if !file.exists() {
+                say(ctx, "not scheduled");
+                return Ok(());
+            }
+            say(ctx, &format!("{}schedule: unload and remove {}", if dry_run { "would " } else { "" }, file.display()));
+            if dry_run {
+                return Ok(());
+            }
+            let _ = ctx.r.run(&argv(&["launchctl", "bootout", &format!("{}/{}", launchd_target(ctx), crate::schedule::LABEL)]));
+            std::fs::remove_file(&file).map_err(anyhow::Error::from)?;
+            say(ctx, "schedule removed");
+            Ok(())
+        }
+    }
+}
+
+/// `gui/<uid>`: the per-user launchd domain.
+fn launchd_target(ctx: &Ctx) -> String {
+    let uid = ctx.r.run(&argv(&["id", "-u"])).map(|o| o.stdout.trim().to_string()).unwrap_or_default();
+    format!("gui/{}", if uid.is_empty() { "501" } else { &uid })
+}
+
 fn doctor(ctx: &Ctx) -> KResult {
     let mut bad = false;
     for b in backend::all() {
         let ok = ctx.r.exists(b.tool());
         println!("{:<8}{}", b.id(), if ok { format!("ok ({} found)", b.tool()) } else { format!("missing ({} not on PATH)", b.tool()) });
+        if b.id() == "mas" {
+            println!("{:<8}{}", "", if ok { "uses the Apple ID signed in to the App Store app; kaika never handles it" } else { "App Store apps need it: kaika install mas, then sign in to the App Store app" });
+        }
     }
     println!("{:<8}{}", "home", ctx.dirs.root.display());
     let on_path = std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d == ctx.dirs.bin));
@@ -663,6 +731,11 @@ fn doctor(ctx: &Ctx) -> KResult {
             println!("{:<8}error: {e:#}", "state");
         }
     }
+    match crate::render::browser() {
+        Some(b) => println!("{:<8}{} (only for vendor pages that need JavaScript; headless, no window)", "browser", b.display()),
+        None => println!("{:<8}none found: vendor pages that need JavaScript cannot be read (install Chrome, Brave, Edge or Chromium)", "browser"),
+    }
+    println!("{:<8}{}", "upgrade", if agent_path(ctx).exists() { "scheduled daily (kaika schedule status)" } else { "not scheduled (kaika schedule on)" });
     if !ctx.cfg.models_enabled() {
         println!("{:<8}off (no model decisions, no web discovery of vendor downloads)", "models");
     } else {

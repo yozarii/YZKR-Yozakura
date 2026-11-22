@@ -66,9 +66,32 @@ impl Backend for Mas {
     }
 }
 
+/// What to tell the user when a `mas` command fails. `mas` has no sign-in of its own on current macOS: it uses the
+/// Apple ID signed in to the App Store app, and it can only fetch apps that account has already obtained once.
+/// kaika never asks for or handles an Apple ID or its password.
+pub const SIGN_IN_HINT: &str = "the App Store needs to be signed in and the app obtained once: open the App Store app, sign in with your Apple ID, get the app there (kaika never handles Apple ID credentials), then run this again";
+
+/// True when this command line is a `mas` invocation (optionally under sudo).
+pub fn is_mas(argv: &[String]) -> bool {
+    let mut it = argv.iter().map(String::as_str);
+    match it.next() {
+        Some("sudo") => it.next() == Some("mas"),
+        first => first == Some("mas"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mas_invocations_are_recognised_with_and_without_sudo() {
+        assert!(is_mas(&argv(&["mas", "install", "1"])));
+        assert!(is_mas(&argv(&["sudo", "mas", "uninstall", "1"])));
+        assert!(!is_mas(&argv(&["brew", "install", "mas"])));
+        assert!(!is_mas(&argv(&["sudo", "rm"])));
+        assert!(!is_mas(&[]));
+    }
 
     #[test]
     fn parses_list_and_search_lines() {
