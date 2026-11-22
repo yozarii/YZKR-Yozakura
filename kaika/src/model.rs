@@ -311,6 +311,8 @@ pub struct LlamaDecider<'a> {
     dirs: Dirs,
     enabled: bool,
     state: RefCell<State>,
+    /// How long a started server may take to answer its health check.
+    ready_wait: Duration,
 }
 
 impl<'a> LlamaDecider<'a> {
@@ -321,7 +323,15 @@ impl<'a> LlamaDecider<'a> {
             dirs,
             enabled,
             state: RefCell::new(State::Idle),
+            ready_wait: Duration::from_secs(READY_SECS),
         }
+    }
+
+    /// Change how long to wait for the server (tests).
+    #[cfg(test)]
+    fn with_ready_wait(mut self, wait: Duration) -> Self {
+        self.ready_wait = wait;
+        self
     }
 
     /// Stop the model now (also happens when this value is dropped).
@@ -359,7 +369,8 @@ impl<'a> LlamaDecider<'a> {
         }
     }
 
-    /// Wait for a started server to answer its health check: up to [`READY_SECS`], or until it exits.
+    /// Wait for a started server to answer its health check: up to `ready_wait` ([`READY_SECS`]), or until it
+    /// exits. A server that does not answer in time counts as failed for the rest of the run.
     fn wait_until_ready(&self) -> Result<u16, String> {
         let mut st = self.state.borrow_mut();
         let server = match &mut *st {
@@ -368,7 +379,7 @@ impl<'a> LlamaDecider<'a> {
             State::Idle => return Err("not started".into()),
         };
         let port = server.port;
-        let deadline = Instant::now() + Duration::from_secs(READY_SECS);
+        let deadline = Instant::now() + self.ready_wait;
         loop {
             if !server.alive() {
                 *st = State::Failed("llama-server exited while loading the model".into());
@@ -384,9 +395,14 @@ impl<'a> LlamaDecider<'a> {
                 return Ok(port);
             }
             if Instant::now() > deadline {
-                return Err(format!(
-                    "the model did not become ready within {READY_SECS} s"
-                ));
+                // Remembered like any other failure: every later question answers at once instead of waiting
+                // the full time again, and dropping the state stops the stuck server.
+                let why = format!(
+                    "the model did not become ready within {} s",
+                    self.ready_wait.as_secs()
+                );
+                *st = State::Failed(why.clone());
+                return Err(why);
             }
             std::thread::sleep(Duration::from_millis(100));
         }
@@ -698,6 +714,37 @@ mod tests {
         assert!(!missing.is_running());
         assert!(
             matches!(missing.choose(Task::Site, "x", &cands()), Outcome::Unsure(m) if m.contains("kaika install"))
+        );
+    }
+
+    #[test]
+    fn a_model_that_never_answers_is_waited_for_once_not_on_every_question() {
+        let dirs = Dirs::from_lookup(|_| Some("/definitely/not/here".into()));
+        let fake = Fake::default();
+        let d = LlamaDecider::new(&fake, dirs, true).with_ready_wait(Duration::from_millis(300));
+        let child = Command::new("sleep")
+            .arg("30")
+            .process_group(0)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        *d.state.borrow_mut() = State::Running(Server { child, port: 1 });
+
+        let first = d.wait_until_ready().unwrap_err();
+        assert!(first.contains("did not become ready"), "{first}");
+        assert!(
+            !d.is_running(),
+            "the stuck server is stopped, not left running"
+        );
+
+        let started = Instant::now();
+        let again = d.wait_until_ready().unwrap_err();
+        assert_eq!(again, first, "the failure is remembered");
+        assert!(
+            started.elapsed() < Duration::from_millis(100),
+            "the second question does not wait again"
         );
     }
 }
