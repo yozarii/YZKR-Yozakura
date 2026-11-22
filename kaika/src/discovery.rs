@@ -197,6 +197,8 @@ pub fn download_links(page: &str, base: &str) -> Vec<Link> {
         .filter(|a| !a.href.is_empty())
         .map(|a| (recipe::resolve_url(base, &a.href), a.text))
         .filter(|(u, _)| ensure_https(u).is_ok() && !is_template(u))
+        .filter(|(_, t)| !recipe::not_for_mac(t))
+        .filter(|(u, _)| !u.contains("/archive/")) // a repository's source snapshot, not the app
         .filter_map(|(u, t)| recipe::asset_score(&recipe::file_name(&u)).map(|s| (s, u, t)))
         .collect();
     links.sort_by(|a, b| b.0.cmp(&a.0));
@@ -817,6 +819,27 @@ mod tests {
             o => panic!("{o:?}"),
         };
         assert!(m.contains("Wikidata") && m.contains("GitHub") && m.contains("https URL"), "{m}");
+    }
+
+    #[test]
+    fn a_link_that_says_it_is_for_another_system_is_not_a_mac_download() {
+        for t in ["Download for Windows", "Linux (x64)", "Windows 64-bit installer", "Ubuntu / Debian"] {
+            assert!(recipe::not_for_mac(t), "{t}");
+        }
+        for t in ["Download", "Download for macOS", "Windows, macOS and Linux", "Apple silicon", "Universal", ""] {
+            assert!(!recipe::not_for_mac(t), "{t}");
+        }
+        let page = r#"<a href="/putty-0.81.zip">Download for Windows</a><a href="/Ghost-1.0.zip">Download for Mac</a>"#;
+        let got: Vec<String> = download_links(page, "https://x.example/").into_iter().map(|l| l.1).collect();
+        assert_eq!(got, ["https://x.example/Ghost-1.0.zip"]);
+        assert!(download_links(r#"<a href="https://github.com/o/r/archive/v1.0.zip">Source</a>"#, "https://x.example/").is_empty(), "source snapshots are not apps");
+        for n in ["winmerge-2.16-exe.zip", "tool-win.zip", "Tool_win64.zip", "tool.msi.zip"] {
+            assert_eq!(recipe::asset_score(n), None, "{n}");
+        }
+        for n in ["Winamp-1.0.dmg", "Darwin-Tool.zip", "Swing-1.0.dmg"] {
+            assert!(recipe::asset_score(n).is_some(), "{n} only contains the letters, not the word");
+        }
+        assert!(download_links(r#"<a href="/putty-0.81.zip">Windows</a>"#, "https://x.example/").is_empty(), "a Windows-only page has no Mac download");
     }
 
     // ---------- links that name no file ----------

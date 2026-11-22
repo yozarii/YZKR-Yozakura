@@ -40,7 +40,7 @@ pub fn links_of(x: &Case) -> Vec<Link> {
     let mut v: Vec<Link> = x
         .candidates
         .iter()
-        .filter(|k| !is_hostile(&k.text))
+        .filter(|k| !is_hostile(&k.text) && !kaika::recipe::not_for_mac(&k.text))
         .filter_map(|k| asset_score(k.file.as_deref().filter(|f| !f.is_empty())?).map(|s| (s, k.id.clone(), k.text.clone())))
         .collect();
     v.sort_by(|a, b| b.0.cmp(&a.0));

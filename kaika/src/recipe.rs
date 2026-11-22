@@ -135,6 +135,10 @@ pub fn asset_score(name: &str) -> Option<i32> {
     if ["linux", "windows", "win32", "win64", ".exe", "freebsd", "-src", "source", "dsym", "symbols", "-debug", "_debug", ".debug", "-dbg"].iter().any(|w| n.contains(w)) {
         return None;
     }
+    // Whole words in the name that mean Windows ("winmerge-2.16-exe.zip", "app-win.zip"), unlike substrings of other words.
+    if n.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| ["exe", "msi", "win", "win32", "win64"].contains(&w)) {
+        return None;
+    }
     let mut s = ext;
     // Not the stable release: still installable when it is all there is, but never preferred.
     if ["nightly", "-beta", ".beta", "-alpha", ".alpha", "-rc", "-dev", "preview", "canary"].iter().any(|w| n.contains(w)) {
@@ -150,6 +154,16 @@ pub fn asset_score(name: &str) -> Option<i32> {
         s -= 50;
     }
     Some(s)
+}
+
+/// A link whose own words say it is for another system: "Download for Windows", "Linux (x64)". File names often carry
+/// no system at all (`putty-0.81.zip`), so the words around the link are the evidence. A text that also names the
+/// Mac ("Windows, macOS, Linux") is kept.
+pub fn not_for_mac(text: &str) -> bool {
+    let t = text.to_lowercase();
+    let other = ["windows", "win32", "win64", "for win", "linux", "ubuntu", "debian", "fedora", "android", "chromeos"].iter().any(|w| t.contains(w));
+    let mac = ["mac", "osx", "os x", "darwin", "apple silicon", "universal"].iter().any(|w| t.contains(w));
+    other && !mac
 }
 
 /// Links that name no file but say they are the macOS download (`/api/download?platform=osx`,
