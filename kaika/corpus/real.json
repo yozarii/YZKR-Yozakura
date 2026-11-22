@@ -1,0 +1,1435 @@
+[
+ {
+  "name": "download: Obsidian (Mac build among Windows/Linux)",
+  "kind": "download",
+  "category": "real-multi-os",
+  "query": "obsidian",
+  "expected": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/Obsidian-1.15.1.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/Obsidian-1.15.1.exe",
+    "text": "Download for Windows",
+    "file": "Obsidian-1.15.1.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/Obsidian-1.15.1.dmg",
+    "text": "Universal",
+    "file": "Obsidian-1.15.1.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/Obsidian-1.15.1.AppImage",
+    "text": "AppImage",
+    "file": "Obsidian-1.15.1.AppImage",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/obsidian_1.15.1_amd64.deb",
+    "text": "Deb",
+    "file": "obsidian_1.15.1_amd64.deb",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/Obsidian-1.15.1-arm64.AppImage",
+    "text": "AppImage (AArch64, ARM64)",
+    "file": "Obsidian-1.15.1-arm64.AppImage",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Rectangle (free vs Pro)",
+  "kind": "download",
+  "category": "real-wrong-product",
+  "query": "rectangle",
+  "expected": "https://download.rectangleapp.com/Rectangle2.0.5.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://download.rectangleapp.com/Rectangle2.0.5.dmg",
+    "text": "Download",
+    "file": "Rectangle2.0.5.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://rectangleapp.com/pro/downloads/Rectangle%20Pro%203.102.dmg",
+    "text": "Download Pro",
+    "file": "Rectangle Pro 3.102.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Arc (Mac vs Windows)",
+  "kind": "download",
+  "category": "real-multi-os",
+  "query": "arc",
+  "expected": "https://releases.arc.net/release/Arc-latest.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://releases.arc.net/windows/ArcInstaller.exe",
+    "text": "Download Arc for Windows",
+    "file": "ArcInstaller.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://releases.arc.net/release/Arc-latest.dmg",
+    "text": "Download Arc for Mac",
+    "file": "Arc-latest.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: VLC (universal vs Intel/Apple Silicon vs old builds)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "vlc",
+  "expected": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-universal.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-universal.dmg",
+    "text": "Download VLC",
+    "file": "vlc-3.0.24-universal.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-intel64.dmg",
+    "text": "VLC for Macs with Intel processors",
+    "file": "vlc-3.0.24-intel64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-arm64.dmg",
+    "text": "VLC for Macs with Apple Silicon chips",
+    "file": "vlc-3.0.24-arm64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://get.videolan.org/vlc/3.0.4/macosx/VLC-webplugin-3.0.4.dmg",
+    "text": "here",
+    "file": "VLC-webplugin-3.0.4.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://get.videolan.org/vlc/2.2.8/macosx/vlc-2.2.8.dmg",
+    "text": "here",
+    "file": "vlc-2.2.8.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://get.videolan.org/vlc/0.7.0/macosx/vlc-0.7.0.dmg",
+    "text": "PowerPC",
+    "file": "vlc-0.7.0.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Transmission (dmg vs Windows msi and source)",
+  "kind": "download",
+  "category": "real-multi-os",
+  "query": "transmission",
+  "expected": "https://github.com/transmission/transmission/releases/download/4.1.4/Transmission-4.1.4.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/transmission/transmission/releases/download/4.1.4/Transmission-4.1.4.dmg",
+    "text": "Transmission-4.1.4.dmg",
+    "file": "Transmission-4.1.4.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/transmission/transmission/releases/download/4.1.4/transmission-4.1.4-x64.msi",
+    "text": "transmission-4.1.4-x64.msi",
+    "file": "transmission-4.1.4-x64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/transmission/transmission/releases/download/4.1.4/transmission-4.1.4-x86.msi",
+    "text": "transmission-4.1.4-x86.msi",
+    "file": "transmission-4.1.4-x86.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/transmission/transmission/releases/download/4.1.4/transmission-4.1.4.tar.xz",
+    "text": "transmission-4.1.4.tar.xz",
+    "file": "transmission-4.1.4.tar.xz",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Docker Desktop (Apple Silicon vs Intel vs Windows)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "docker",
+  "expected": "https://desktop.docker.com/mac/main/arm64/Docker.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://desktop.docker.com/mac/main/arm64/Docker.dmg",
+    "text": "Download for Mac - Apple Silicon",
+    "file": "Docker.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://desktop.docker.com/mac/main/amd64/Docker.dmg",
+    "text": "Download for Mac - Intel Chip",
+    "file": "Docker.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe",
+    "text": "Download for Windows - AMD64",
+    "file": "Docker Desktop Installer.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://desktop.docker.com/win/main/arm64/Docker%20Desktop%20Installer.exe",
+    "text": "Download for Windows - ARM64",
+    "file": "Docker Desktop Installer.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Itsycal (current vs older macOS)",
+  "kind": "download",
+  "category": "real-old-version",
+  "query": "itsycal",
+  "expected": "https://itsycal.s3.amazonaws.com/Itsycal.zip",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://itsycal.s3.amazonaws.com/Itsycal.zip",
+    "text": "Download Itsycal for macOS 27+",
+    "file": "Itsycal.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://itsycal.s3.amazonaws.com/Itsycal-0.15.15.zip",
+    "text": "Download Itsycal for macOS 11+",
+    "file": "Itsycal-0.15.15.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: AppCleaner (newest vs older macOS builds)",
+  "kind": "download",
+  "category": "real-old-version",
+  "query": "appcleaner",
+  "expected": "https://freemacsoft.net/downloads/AppCleaner_3.7.zip",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://freemacsoft.net/downloads/AppCleaner_3.7.zip",
+    "text": "Version 3.7 For macOS 15 and later",
+    "file": "AppCleaner_3.7.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://freemacsoft.net/downloads/AppCleaner_3.6.8.zip",
+    "text": "Version 3.6.8 For macOS 10.14 up to 15.6",
+    "file": "AppCleaner_3.6.8.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://freemacsoft.net/downloads/AppCleaner_3.6.zip",
+    "text": "Version 3.6 For macOS 10.13",
+    "file": "AppCleaner_3.6.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://freemacsoft.net/downloads/AppCleaner_3.4.zip",
+    "text": "Version 3.4 For macOS 10.10 up to 10.12",
+    "file": "AppCleaner_3.4.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Audacity (universal vs arm64 vs x86_64, same label)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "audacity",
+  "expected": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.2/audacity-macOS-4.0.2-universal.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.2/audacity-macOS-4.0.2-universal.dmg",
+    "text": "Download",
+    "file": "audacity-macOS-4.0.2-universal.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.2/audacity-macOS-4.0.2-arm64.dmg",
+    "text": "Download",
+    "file": "audacity-macOS-4.0.2-arm64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.2/audacity-macOS-4.0.2-x86_64.dmg",
+    "text": "Download",
+    "file": "audacity-macOS-4.0.2-x86_64.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: KeePassXC (Apple Silicon vs Intel vs Windows/Linux)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "keepassxc",
+  "expected": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-1-arm64.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-1-arm64.dmg",
+    "text": "Download for macOS",
+    "file": "KeePassXC-2.8.0-1-arm64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-1-x86_64.dmg",
+    "text": "Download",
+    "file": "KeePassXC-2.8.0-1-x86_64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-x64.msi",
+    "text": "Download for Windows",
+    "file": "KeePassXC-2.8.0-x64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-ARM64.zip",
+    "text": "Download",
+    "file": "KeePassXC-2.8.0-ARM64.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-1-x86_64.AppImage",
+    "text": "Download",
+    "file": "KeePassXC-2.8.0-1-x86_64.AppImage",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/keepassxc-2.8.0-src.tar.xz",
+    "text": "Download Source Code",
+    "file": "keepassxc-2.8.0-src.tar.xz",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Element (stable vs nightly channel)",
+  "kind": "download",
+  "category": "real-channel",
+  "query": "element",
+  "expected": "https://packages.element.io/desktop/install/macos/Element.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://packages.element.io/desktop/install/macos/Element.dmg",
+    "text": "Mac",
+    "file": "Element.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://packages.element.io/desktop/install/win32/x64/Element%20Setup.exe",
+    "text": "Windows (64-bit)",
+    "file": "Element Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://packages.element.io/desktop/install/win32/arm64/Element%20Setup.exe",
+    "text": "Windows (ARM 64-bit)",
+    "file": "Element Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://packages.element.io/nightly/install/macos/Element%20Nightly.dmg",
+    "text": "Mac",
+    "file": "Element Nightly.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://packages.element.io/nightly/install/win32/x64/Element%20Nightly%20Setup.exe",
+    "text": "Windows",
+    "file": "Element Nightly Setup.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: 7-Zip (Mac tarball vs Windows/Linux/source)",
+  "kind": "download",
+  "category": "real-multi-os",
+  "query": "7-zip",
+  "expected": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-mac.tar.xz",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-mac.tar.xz",
+    "text": "Download",
+    "file": "7z2606-mac.tar.xz",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-mac-x64.tar.xz",
+    "text": "Download",
+    "file": "7z2606-mac-x64.tar.xz",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-x64.exe",
+    "text": "Download",
+    "file": "7z2606-x64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-x64.msi",
+    "text": "Download",
+    "file": "7z2606-x64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-linux-x64.tar.xz",
+    "text": "Download",
+    "file": "7z2606-linux-x64.tar.xz",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-src.7z",
+    "text": "Download",
+    "file": "7z2606-src.7z",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: OBS Studio (Apple Silicon vs Intel vs Windows)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "obs",
+  "expected": "https://cdn-fastly.obsproject.com/downloads/obs-studio-33.0.2-macos-apple.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://cdn-fastly.obsproject.com/downloads/OBS-Studio-33.0.3-Windows-x64-Installer.exe",
+    "text": "Download Installer",
+    "file": "OBS-Studio-33.0.3-Windows-x64-Installer.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://cdn-fastly.obsproject.com/downloads/OBS-Studio-33.0.3-Windows-x64.zip",
+    "text": "Download Zip",
+    "file": "OBS-Studio-33.0.3-Windows-x64.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://cdn-fastly.obsproject.com/downloads/obs-studio-33.0.2-macos-intel.dmg",
+    "text": "Download Installer (x86_64/Intel)",
+    "file": "obs-studio-33.0.2-macos-intel.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://cdn-fastly.obsproject.com/downloads/obs-studio-33.0.2-macos-apple.dmg",
+    "text": "Download Installer (arm64/Apple Silicon)",
+    "file": "obs-studio-33.0.2-macos-apple.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: GIMP (Apple Silicon vs Intel vs Linux/Windows)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "gimp",
+  "expected": "https://download.gimp.org/gimp/v3.2/macos/gimp-3.2.8-arm64.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://download.gimp.org/gimp/v3.2/linux/GIMP-3.2.8-x86_64.AppImage",
+    "text": "Download GIMP 3.2.8 AppImage for x86_64 directly",
+    "file": "GIMP-3.2.8-x86_64.AppImage",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.gimp.org/gimp/v3.2/linux/GIMP-3.2.8-aarch64.AppImage",
+    "text": "Download GIMP 3.2.8 AppImage for ARM64 directly",
+    "file": "GIMP-3.2.8-aarch64.AppImage",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.gimp.org/gimp/v3.2/macos/gimp-3.2.8-x86_64.dmg",
+    "text": "Download GIMP 3.2.8 for Intel directly",
+    "file": "gimp-3.2.8-x86_64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.gimp.org/gimp/v3.2/macos/gimp-3.2.8-arm64.dmg",
+    "text": "Download GIMP 3.2.8 for Apple Silicon directly",
+    "file": "gimp-3.2.8-arm64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.8-setup.exe",
+    "text": "Download GIMP 3.2.8 for x86_64 and ARM64 directly",
+    "file": "gimp-3.2.8-setup.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: calibre (newest vs older releases)",
+  "kind": "download",
+  "category": "real-old-version",
+  "query": "calibre",
+  "expected": "https://github.com/kovidgoyal/calibre/releases/download/v9.19.0/calibre-9.19.0.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/kovidgoyal/calibre/releases/download/v9.19.0/calibre-9.19.0.dmg",
+    "text": "Alternate download location",
+    "file": "calibre-9.19.0.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.calibre-ebook.com/7.26.0/calibre-7.26.0.dmg",
+    "text": "here",
+    "file": "calibre-7.26.0.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.calibre-ebook.com/6.29.0/calibre-6.29.0.dmg",
+    "text": "here",
+    "file": "calibre-6.29.0.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.calibre-ebook.com/5.44.0/calibre-5.44.0.dmg",
+    "text": "here",
+    "file": "calibre-5.44.0.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Wireshark (stable universal vs release candidate and Windows)",
+  "kind": "download",
+  "category": "real-channel",
+  "query": "wireshark",
+  "expected": "https://2.na.dl.wireshark.org/osx/Wireshark%204.6.10.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://2.na.dl.wireshark.org/osx/Wireshark%204.6.10.dmg",
+    "text": "macOS Universal Disk Image",
+    "file": "Wireshark 4.6.10.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/osx/Wireshark%204.4.20%20Arm%2064.dmg",
+    "text": "macOS Arm Disk Image",
+    "file": "Wireshark 4.4.20 Arm 64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/osx/Wireshark%204.4.20%20Intel%2064.dmg",
+    "text": "macOS Intel Disk Image",
+    "file": "Wireshark 4.4.20 Intel 64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/win64/Wireshark-4.6.10-x64.exe",
+    "text": "Windows x64 Installer",
+    "file": "Wireshark-4.6.10-x64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/win64/Wireshark-4.6.10-arm64.exe",
+    "text": "Windows Arm64 Installer",
+    "file": "Wireshark-4.6.10-arm64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/src/wireshark-4.6.10.tar.xz",
+    "text": "Source Code",
+    "file": "wireshark-4.6.10.tar.xz",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/win64/Wireshark-5.0.0rc2-x64.exe",
+    "text": "Windows x64 Installer",
+    "file": "Wireshark-5.0.0rc2-x64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://2.na.dl.wireshark.org/win64/WiresharkPortable64_4.6.10.paf.exe",
+    "text": "Windows x64 PortableApps®",
+    "file": "WiresharkPortable64_4.6.10.paf.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Anki (Apple Silicon vs Intel vs Windows)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "anki",
+  "expected": "https://github.com/ankitects/anki/releases/download/26.09.4/anki-26.09.4-mac-apple.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/ankitects/anki/releases/download/26.09.4/anki-26.09.4-win-x64.msi",
+    "text": "Windows 10+ (x64)",
+    "file": "anki-26.09.4-win-x64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ankitects/anki/releases/download/26.09.4/anki-26.09.4-win-arm64.msi",
+    "text": "Windows 11 (ARM)",
+    "file": "anki-26.09.4-win-arm64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ankitects/anki/releases/download/26.09.4/anki-26.09.4-mac-apple.dmg",
+    "text": "macOS 13+ (Apple Silicon)",
+    "file": "anki-26.09.4-mac-apple.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/ankitects/anki/releases/download/26.09.4/anki-26.09.4-mac-intel.dmg",
+    "text": "macOS 13+ (Intel)",
+    "file": "anki-26.09.4-mac-intel.dmg",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: WizTree (Mac DMG among Windows and Linux)",
+  "kind": "download",
+  "category": "real-multi-os",
+  "query": "wiztree",
+  "expected": "https://diskanalyzer.com/files/WizTreeMac_1_01.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://diskanalyzer.com/files/wiztree_4_34_setup.exe",
+    "text": "DOWNLOAD INSTALLER V 4.34 17 November 2026 [5.1MB]",
+    "file": "wiztree_4_34_setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://diskanalyzer.com/files/wiztree_4_34_portable.zip",
+    "text": "DOWNLOAD PORTABLE V 4.34 17 November 2026 [7.9MB]",
+    "file": "wiztree_4_34_portable.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://diskanalyzer.com/files/WizTreeMac_1_01.dmg",
+    "text": "DOWNLOAD MAC DMG V 1.01 17 November 2026 [3.4MB]",
+    "file": "WizTreeMac_1_01.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://diskanalyzer.com/files/WizTreeNix_1_01_x86_64.AppImage",
+    "text": "DOWNLOAD LINUX x86_64 V 1.01 17 November 2026 [13.2MB]",
+    "file": "WizTreeNix_1_01_x86_64.AppImage",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://diskanalyzer.com/files/WizTreeNix_1_01_aarch64.AppImage",
+    "text": "DOWNLOAD LINUX aarch64 V 1.01 17 November 2026 [12.7MB]",
+    "file": "WizTreeNix_1_01_aarch64.AppImage",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Typora (Mac dmg among Windows and Linux)",
+  "kind": "download",
+  "category": "real-multi-os",
+  "query": "typora",
+  "expected": "https://downloads.typora.io/mac/Typora.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://downloads.typora.io/mac/Typora.dmg",
+    "text": "macOS",
+    "file": "Typora.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.typora.io/windows/typora-setup-x64.exe",
+    "text": "Windows (64 bit)",
+    "file": "typora-setup-x64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.typora.io/windows/typora-setup-ia32.exe",
+    "text": "Windows (32 bit)",
+    "file": "typora-setup-ia32.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.typora.io/windows/typora-setup-arm64.exe",
+    "text": "Windows (ARM)",
+    "file": "typora-setup-arm64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.typora.io/linux/typora_1.14.9_amd64.deb",
+    "text": "Download Typora.deb",
+    "file": "typora_1.14.9_amd64.deb",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: LibreOffice (Apple Silicon vs Intel vs Windows/Linux)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "libreoffice",
+  "expected": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/mac/aarch64/LibreOffice_26.8.3_MacOS_aarch64.dmg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/mac/aarch64/LibreOffice_26.8.3_MacOS_aarch64.dmg",
+    "text": "26.8.3 macOS (Apple Silicon)",
+    "file": "LibreOffice_26.8.3_MacOS_aarch64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/mac/x86_64/LibreOffice_26.8.3_MacOS_x86-64.dmg",
+    "text": "26.8.3 macOS (Intel)",
+    "file": "LibreOffice_26.8.3_MacOS_x86-64.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/win/x86_64/LibreOffice_26.8.3_Win_x86-64.msi",
+    "text": "26.8.3 Windows (x86-64)",
+    "file": "LibreOffice_26.8.3_Win_x86-64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/win/aarch64/LibreOffice_26.8.3_Win_aarch64.msi",
+    "text": "26.8.3 Windows (ARM64)",
+    "file": "LibreOffice_26.8.3_Win_aarch64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/rpm/x86_64/LibreOffice_26.8.3_Linux_x86-64_rpm.tar.gz",
+    "text": "26.8.3 Linux (rpm)",
+    "file": "LibreOffice_26.8.3_Linux_x86-64_rpm.tar.gz",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://download.documentfoundation.org/libreoffice/stable/26.8.3/deb/x86_64/LibreOffice_26.8.3_Linux_x86-64_deb.tar.gz",
+    "text": "26.8.3 Linux (deb)",
+    "file": "LibreOffice_26.8.3_Linux_x86-64_deb.tar.gz",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: iTerm2 (newest vs older macOS builds)",
+  "kind": "download",
+  "category": "real-old-version",
+  "query": "iterm2",
+  "expected": "https://iterm2.com/downloads/stable/iTerm2-3_7_9.zip",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://iterm2.com/downloads/stable/iTerm2-3_7_9.zip",
+    "text": "iTerm2 3.7.9 (macOS 13+)",
+    "file": "iTerm2-3_7_9.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://iterm2.com/downloads/stable/iTerm2-3_7_8.zip",
+    "text": "iTerm2 3.7.8 (macOS 13+)",
+    "file": "iTerm2-3_7_8.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://iterm2.com/downloads/stable/iTerm2-3_6_11.zip",
+    "text": "iTerm2 3.6.11 (macOS 12.4+)",
+    "file": "iTerm2-3_6_11.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://iterm2.com/downloads/stable/iTerm2-3_6_10.zip",
+    "text": "iTerm2 3.6.10 (macOS 12.4+)",
+    "file": "iTerm2-3_6_10.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "download: Thonny (Apple Silicon pkg vs Intel pkg vs Windows)",
+  "kind": "download",
+  "category": "real-arch",
+  "query": "thonny",
+  "expected": "https://github.com/thonny/thonny/releases/download/v5.0.1/thonny-5.0.1-arm64.pkg",
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/thonny/thonny/releases/download/v5.0.1/thonny-5.0.1-x64.pkg",
+    "text": "thonny-5.0.1-x64.pkg (52 MB)",
+    "file": "thonny-5.0.1-x64.pkg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/thonny/thonny/releases/download/v5.0.1/thonny-5.0.1-arm64.pkg",
+    "text": "thonny-5.0.1-arm64.pkg (52 MB)",
+    "file": "thonny-5.0.1-arm64.pkg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/thonny/thonny/releases/download/v5.0.1/thonny-5.0.1-x64.exe",
+    "text": "thonny-5.0.1-x64.exe (30 MB)",
+    "file": "thonny-5.0.1-x64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/thonny/thonny/releases/download/v5.0.1/thonny-5.0.1-arm64.exe",
+    "text": "thonny-5.0.1-arm64.exe (28 MB)",
+    "file": "thonny-5.0.1-arm64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/thonny/thonny/releases/download/v5.0.1/thonny-5.0.1-windows-portable-x64.zip",
+    "text": "thonny-py38-5.0.1-windows-portable-x64.zip (44 MB)",
+    "file": "thonny-5.0.1-windows-portable-x64.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: Figma desktop app (page offers only a font installer)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "figma",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://desktop.figma.com/agent/mac/InstallFigmaAgent.dmg",
+    "text": "Figma Font installer for macOS",
+    "file": "InstallFigmaAgent.dmg",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://desktop.figma.com/agent/win/InstallFigmaAgent.exe",
+    "text": "Figma Font installer for Windows",
+    "file": "InstallFigmaAgent.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: WinMerge (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "winmerge",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/WinMerge-2.16.60-x64-Setup.exe",
+    "text": "WinMerge-2.16.60-x64-Setup.exe",
+    "file": "WinMerge-2.16.60-x64-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/WinMerge-2.16.60-x64-PerUser-Setup.exe",
+    "text": "WinMerge-2.16.60-x64-PerUser-Setup.exe",
+    "file": "WinMerge-2.16.60-x64-PerUser-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/WinMerge-2.16.60-ARM64-Setup.exe",
+    "text": "WinMerge-2.16.60-ARM64-Setup.exe",
+    "file": "WinMerge-2.16.60-ARM64-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/WinMerge-2.16.60-Setup.exe",
+    "text": "WinMerge-2.16.60-Setup.exe",
+    "file": "WinMerge-2.16.60-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/winmerge-2.16.60-x64-exe.zip",
+    "text": "winmerge-2.16.60-x64-exe.zip",
+    "file": "winmerge-2.16.60-x64-exe.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/winmerge-2.16.60-ARM64-exe.zip",
+    "text": "winmerge-2.16.60-ARM64-exe.zip",
+    "file": "winmerge-2.16.60-ARM64-exe.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/winmerge-2.16.60-exe.zip",
+    "text": "winmerge-2.16.60-exe.zip",
+    "file": "winmerge-2.16.60-exe.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.sourceforge.net/winmerge/winmerge-2.16.60-full-src.7z",
+    "text": "winmerge-2.16.60-full-src.7z",
+    "file": "winmerge-2.16.60-full-src.7z",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: Rufus (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "rufus",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://github.com/pbatard/rufus/releases/download/v4.16/rufus-4.16.exe",
+    "text": "rufus-4.16.exe",
+    "file": "rufus-4.16.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/pbatard/rufus/releases/download/v4.16/rufus-4.16p.exe",
+    "text": "rufus-4.16p.exe",
+    "file": "rufus-4.16p.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/pbatard/rufus/releases/download/v4.16/rufus-4.16_x86.exe",
+    "text": "rufus-4.16_x86.exe",
+    "file": "rufus-4.16_x86.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/pbatard/rufus/releases/download/v4.16/rufus-4.16_arm64.exe",
+    "text": "rufus-4.16_arm64.exe",
+    "file": "rufus-4.16_arm64.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/pbatard/rufus/releases/download/v4.16_BETA2/rufus-4.16_BETA2.exe",
+    "text": "rufus-4.16_BETA2.exe",
+    "file": "rufus-4.16_BETA2.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://github.com/pbatard/rufus/archive/v4.16.zip",
+    "text": "Rufus 4.16",
+    "file": "v4.16.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: Everything search (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "everything",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x86-Setup.exe",
+    "text": "Download Installer",
+    "file": "Everything-1.4.1.1032.x86-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x64-Setup.exe",
+    "text": "Download Installer 64-bit",
+    "file": "Everything-1.4.1.1032.x64-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x86.zip",
+    "text": "Download Portable ZIP",
+    "file": "Everything-1.4.1.1032.x86.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x64.zip",
+    "text": "Download Portable ZIP 64-bit",
+    "file": "Everything-1.4.1.1032.x64.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x86.Lite-Setup.exe",
+    "text": "Download Lite Installer",
+    "file": "Everything-1.4.1.1032.x86.Lite-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x64.Lite-Setup.exe",
+    "text": "Download Lite Installer 64-bit",
+    "file": "Everything-1.4.1.1032.x64.Lite-Setup.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.4.1.1032.x64.msi",
+    "text": "Everything-1.4.1.1032.x64.msi",
+    "file": "Everything-1.4.1.1032.x64.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.voidtools.com/Everything-1.5.0.1424b.x64-Setup.exe",
+    "text": "Download Installer 64-bit",
+    "file": "Everything-1.5.0.1424b.x64-Setup.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: Sumatra PDF (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "sumatra",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-64-install.exe",
+    "text": "Installer 10.56 MB",
+    "file": "SumatraPDF-3.6.1-64-install.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-64.zip",
+    "text": "Portable (.zip) 9.57 MB",
+    "file": "SumatraPDF-3.6.1-64.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-arm64-install.exe",
+    "text": "Installer 9.87 MB",
+    "file": "SumatraPDF-3.6.1-arm64-install.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-arm64.zip",
+    "text": "Portable (.zip) 8.89 MB",
+    "file": "SumatraPDF-3.6.1-arm64.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-install.exe",
+    "text": "Installer 9.75 MB",
+    "file": "SumatraPDF-3.6.1-install.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1.zip",
+    "text": "Portable (.zip) 8.94 MB",
+    "file": "SumatraPDF-3.6.1.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: PuTTY (no macOS build on the page)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "putty",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/w64/putty-64bit-0.85-installer.msi",
+    "text": "putty-64bit-0.85-installer.msi",
+    "file": "putty-64bit-0.85-installer.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/wa64/putty-arm64-0.85-installer.msi",
+    "text": "putty-arm64-0.85-installer.msi",
+    "file": "putty-arm64-0.85-installer.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/w32/putty-0.85-installer.msi",
+    "text": "putty-0.85-installer.msi",
+    "file": "putty-0.85-installer.msi",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/putty-0.85.tar.gz",
+    "text": "putty-0.85.tar.gz",
+    "file": "putty-0.85.tar.gz",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe",
+    "text": "putty.exe",
+    "file": "putty.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/wa64/putty.exe",
+    "text": "putty.exe",
+    "file": "putty.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/w32/putty.exe",
+    "text": "putty.exe",
+    "file": "putty.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe",
+    "text": "pscp.exe",
+    "file": "pscp.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: AutoHotkey v2 (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "autohotkey",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://www.autohotkey.com/download/ahk-v2.exe",
+    "text": "Download EXE",
+    "file": "ahk-v2.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.autohotkey.com/download/ahk-v2.zip",
+    "text": "Download ZIP",
+    "file": "ahk-v2.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: TreeSize Free (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "treesize",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://downloads.jam-software.de/treesize_free/TreeSizeFreeSetup_x86.exe",
+    "text": "Download TreeSize Free for 32-Bit systems",
+    "file": "TreeSizeFreeSetup_x86.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.jam-software.de/treesize_free/TreeSizeFreeSetup_XP.exe",
+    "text": "Download TreeSize Free for Windows XP",
+    "file": "TreeSizeFreeSetup_XP.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.jam-software.de/treesize_free/TreeSizeFreeSetup_2000.exe",
+    "text": "Download TreeSize Free for Windows 2000",
+    "file": "TreeSizeFreeSetup_2000.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://downloads.jam-software.de/treesize_free/TreeSizeFree_9x.zip",
+    "text": "Download TreeSize Free for Windows 9x / ME",
+    "file": "TreeSizeFree_9x.zip",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: CPU-Z (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "cpu-z",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_3.02-en.exe",
+    "text": "setup • english32 and 64-bit version",
+    "file": "cpu-z_3.02-en.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_3.02-en.zip",
+    "text": "zip • english 32 or 64-bit version",
+    "file": "cpu-z_3.02-en.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_3.02-cn.exe",
+    "text": "setup • chinese32 and 64-bit version",
+    "file": "cpu-z_3.02-cn.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_3.02-cn.zip",
+    "text": "zip • chinese 32 or 64-bit version",
+    "file": "cpu-z_3.02-cn.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_1.04-win9x.zip",
+    "text": "zip • english 32-bit version",
+    "file": "cpu-z_1.04-win9x.zip",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_3.01.3-rog-en.exe",
+    "text": "SETUP",
+    "file": "cpu-z_3.01.3-rog-en.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_2.20.2-msi-en.exe",
+    "text": "SETUP",
+    "file": "cpu-z_2.20.2-msi-en.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.cpuid.com/downloads/cpu-z/cpu-z_2.19-gbt-en.exe",
+    "text": "SETUP",
+    "file": "cpu-z_2.19-gbt-en.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ },
+ {
+  "name": "no-answer: WinRAR (Windows only)",
+  "kind": "download",
+  "category": "no-answer",
+  "query": "winrar",
+  "expected": null,
+  "injection": false,
+  "candidates": [
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-723.exe",
+    "text": "WinRAR 7.23 English 64 bit",
+    "file": "winrar-x64-723.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar-x64-730b2.exe",
+    "text": "WinRAR 7.30 Beta 2 64 bit",
+    "file": "winrar-x64-730b2.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar-x64-723ar.exe",
+    "text": "WinRAR 7.23 Arabic 64 bit",
+    "file": "winrar-x64-723ar.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar-x64-723am.exe",
+    "text": "WinRAR 7.23 Armenian 64 bit",
+    "file": "winrar-x64-723am.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar-x64-723az.exe",
+    "text": "WinRAR 7.23 Azerbaijani 64 bit",
+    "file": "winrar-x64-723az.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar-x64-723bg.exe",
+    "text": "WinRAR 7.23 Bulgarian 64 bit",
+    "file": "winrar-x64-723bg.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-723sc.exe",
+    "text": "WinRAR 7.23 Chinese Simplified 64 bit",
+    "file": "winrar-x64-723sc.exe",
+    "hostile": false,
+    "farm": false
+   },
+   {
+    "id": "https://www.win-rar.com/fileadmin/winrar-versions/winrar-x64-723cz.exe",
+    "text": "WinRAR 7.23 Czech 64 bit",
+    "file": "winrar-x64-723cz.exe",
+    "hostile": false,
+    "farm": false
+   }
+  ]
+ }
+]

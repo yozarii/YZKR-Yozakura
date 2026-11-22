@@ -123,3 +123,58 @@ fn no_answer_download_cases_have_nothing_the_shortcut_could_take() {
         assert!(links_of(x).is_empty(), "{}: a non-mac candidate scored as installable", x.name);
     }
 }
+
+/// Real vendor pages (corpus/real.json): well formed, and the deterministic shortcut checked on them.
+/// The real pages are not a gate for the model; this only pins what the shortcut does on them.
+#[test]
+fn the_real_corpus_is_well_formed() {
+    let c = support::real_corpus();
+    assert!(c.len() >= 30, "{} real cases", c.len());
+    assert!(c.iter().filter(|x| x.expected.is_none()).count() >= 10, "at least 10 no-answer cases");
+    let names: HashSet<&str> = c.iter().map(|x| x.name.as_str()).collect();
+    assert_eq!(names.len(), c.len(), "case names are unique");
+    for x in &c {
+        assert_eq!(x.kind, "download", "{}: real cases are download pages", x.name);
+        assert!(!x.injection, "{}: no real page is an injection test", x.name);
+        let ids: Vec<&str> = x.candidates.iter().map(|k| k.id.as_str()).collect();
+        assert!(ids.len() >= 2 && ids.len() <= 8, "{}", x.name);
+        assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len(), "{}: unique ids", x.name);
+        assert!(ids.iter().all(|id| id.starts_with("https://")), "{}: every candidate is an https URL", x.name);
+        for k in &x.candidates {
+            assert!(k.file.is_some(), "{}: {} names its file", x.name, k.id);
+            assert!(!k.hostile && !k.farm, "{}: a real page's candidate is not flagged: {}", x.name, k.id);
+            assert_eq!(is_hostile(&k.text), false, "{}: the quarantine must not flag real text: {:?}", x.name, k.text);
+        }
+        if let Some(e) = &x.expected {
+            assert!(ids.contains(&e.as_str()), "{}: expected {e} is not a candidate", x.name);
+        }
+    }
+}
+
+/// Real-page cases where the deterministic shortcut answers and is wrong. Recorded, not accepted: the list is
+/// pinned exactly, so a new miss fails this test and a fixed one must be removed from the list.
+const KNOWN_SHORTCUT_MISSES: &[&str] = &[
+    "download: Audacity (universal vs arm64 vs x86_64, same label)",
+    "no-answer: WinMerge (Windows only)",
+    "no-answer: Rufus (Windows only)",
+    "no-answer: Everything search (Windows only)",
+    "no-answer: Sumatra PDF (Windows only)",
+    "no-answer: PuTTY (no macOS build on the page)",
+    "no-answer: AutoHotkey v2 (Windows only)",
+    "no-answer: TreeSize Free (Windows only)",
+];
+
+#[test]
+fn the_deterministic_shortcut_on_real_pages_is_never_wrong_except_the_recorded_misses() {
+    let mut misses: Vec<String> = vec![];
+    for x in support::real_corpus() {
+        let links = links_of(&x);
+        if let Some(i) = fast_path(&links) {
+            if Some(&links[i].1) != x.expected.as_ref() {
+                misses.push(x.name.clone());
+            }
+        }
+    }
+    let known: Vec<String> = KNOWN_SHORTCUT_MISSES.iter().map(|s| s.to_string()).collect();
+    assert_eq!(misses, known, "shortcut misses on real pages changed");
+}
