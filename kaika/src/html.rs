@@ -1,4 +1,4 @@
-//! Just enough HTML and URL handling to read a search results page: anchors, percent-encoding.
+//! Just enough HTML and URL handling to read a vendor's page: anchors, URL encoding, hosts.
 
 /// A link on a page: where it points and the text it shows.
 #[derive(Debug, Clone, PartialEq)]
