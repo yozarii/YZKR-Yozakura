@@ -1,7 +1,7 @@
 //! The App Store through `mas`. Purchases are out of scope; it only handles apps the Apple ID can get.
 
-use super::{out, Backend, Candidate, Pkg};
-use crate::runner::{argv, Runner};
+use super::{Backend, Candidate, Pkg, out};
+use crate::runner::{Runner, argv};
 
 pub struct Mas;
 
@@ -14,7 +14,11 @@ pub fn parse_line(line: &str) -> Option<(String, String, String)> {
     }
     let rest = rest.trim();
     match (rest.rfind('('), rest.rfind(')')) {
-        (Some(o), Some(c)) if o < c => Some((id.into(), rest[..o].trim().into(), rest[o + 1..c].trim().into())),
+        (Some(o), Some(c)) if o < c => Some((
+            id.into(),
+            rest[..o].trim().into(),
+            rest[o + 1..c].trim().into(),
+        )),
         _ => Some((id.into(), rest.into(), String::new())),
     }
 }
@@ -30,14 +34,23 @@ impl Backend for Mas {
         out(r, &["mas", "list"])
             .lines()
             .filter_map(parse_line)
-            .map(|(id, name, version)| Pkg { name, version, reference: id })
+            .map(|(id, name, version)| Pkg {
+                name,
+                version,
+                reference: id,
+            })
             .collect()
     }
     fn search(&self, r: &dyn Runner, query: &str) -> Vec<Candidate> {
         out(r, &["mas", "search", query])
             .lines()
             .filter_map(parse_line)
-            .map(|(id, name, _)| Candidate { source: "mas".into(), name, reference: id, desc: "App Store".into() })
+            .map(|(id, name, _)| Candidate {
+                source: "mas".into(),
+                name,
+                reference: id,
+                desc: "App Store".into(),
+            })
             .collect()
     }
     fn install_argv(&self, reference: &str) -> Vec<String> {
@@ -58,7 +71,11 @@ impl Backend for Mas {
         out(r, &["mas", "outdated"])
             .lines()
             .filter_map(parse_line)
-            .map(|(id, name, v)| Pkg { name, version: v.rsplit("->").next().unwrap_or("").trim().into(), reference: id })
+            .map(|(id, name, v)| Pkg {
+                name,
+                version: v.rsplit("->").next().unwrap_or("").trim().into(),
+                reference: id,
+            })
             .collect()
     }
     fn needs_admin(&self) -> bool {
@@ -96,8 +113,16 @@ mod tests {
 
     #[test]
     fn parses_list_and_search_lines() {
-        assert_eq!(parse_line("497799835   Xcode  (15.0)"), Some(("497799835".into(), "Xcode".into(), "15.0".into())));
-        assert_eq!(parse_line("1444383602  GoodNotes 5  (5.9.13)  $9.99").unwrap().1, "GoodNotes 5");
+        assert_eq!(
+            parse_line("497799835   Xcode  (15.0)"),
+            Some(("497799835".into(), "Xcode".into(), "15.0".into()))
+        );
+        assert_eq!(
+            parse_line("1444383602  GoodNotes 5  (5.9.13)  $9.99")
+                .unwrap()
+                .1,
+            "GoodNotes 5"
+        );
         assert_eq!(parse_line("not a line"), None);
         assert_eq!(parse_line("123  NoVersion").unwrap().2, "");
     }

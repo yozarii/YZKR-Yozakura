@@ -37,8 +37,12 @@ impl Dirs {
 
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Dirs {
         let home = PathBuf::from(get("HOME").unwrap_or_else(|| ".".into()));
-        let root = get("KAIKA_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".kaika"));
-        let apps = get("KAIKA_APPS_DIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/Applications"));
+        let root = get("KAIKA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".kaika"));
+        let apps = get("KAIKA_APPS_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("/Applications"));
         Dirs {
             config: root.clone(),
             data: root.clone(),
@@ -58,7 +62,10 @@ mod tests {
     use std::collections::HashMap;
 
     fn dirs(pairs: &[(&str, &str)]) -> Dirs {
-        let m: HashMap<String, String> = pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let m: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         Dirs::from_lookup(|k| m.get(k).cloned())
     }
 

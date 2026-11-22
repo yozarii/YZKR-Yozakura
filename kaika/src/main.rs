@@ -18,7 +18,15 @@ fn main() {
     };
     let runner = RealRunner;
     let decider = LlamaDecider::new(&runner, dirs.clone(), cfg.models_enabled());
-    let ctx = Ctx { dirs, r: &runner, decider: &decider, cfg, json: cli.json, quiet: cli.quiet, verbose: cli.verbose };
+    let ctx = Ctx {
+        dirs,
+        r: &runner,
+        decider: &decider,
+        cfg,
+        json: cli.json,
+        quiet: cli.quiet,
+        verbose: cli.verbose,
+    };
     let result = commands::dispatch(&ctx, cli.cmd);
     decider.shutdown(); // std::process::exit skips destructors, so stop the model explicitly
     if let Err(e) = result {

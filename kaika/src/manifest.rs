@@ -27,7 +27,10 @@ pub struct Entry {
 }
 
 pub fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -42,7 +45,8 @@ impl Manifest {
     pub fn load(dirs: &Dirs) -> Result<Manifest> {
         let path = dirs.data.join("manifest.toml");
         let mut m = match std::fs::read_to_string(&path) {
-            Ok(text) => toml::from_str::<Manifest>(&text).with_context(|| format!("reading {}", path.display()))?,
+            Ok(text) => toml::from_str::<Manifest>(&text)
+                .with_context(|| format!("reading {}", path.display()))?,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Manifest::default(),
             Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
         };
@@ -61,15 +65,24 @@ impl Manifest {
     }
 
     pub fn get(&self, source: &str, name: &str) -> Option<&Entry> {
-        self.packages.iter().find(|e| e.source == source && e.name == name)
+        self.packages
+            .iter()
+            .find(|e| e.source == source && e.name == name)
     }
 
     pub fn find_name(&self, name: &str) -> Vec<&Entry> {
-        self.packages.iter().filter(|e| e.name.eq_ignore_ascii_case(name)).collect()
+        self.packages
+            .iter()
+            .filter(|e| e.name.eq_ignore_ascii_case(name))
+            .collect()
     }
 
     pub fn upsert(&mut self, e: Entry) {
-        match self.packages.iter_mut().find(|x| x.source == e.source && x.name == e.name) {
+        match self
+            .packages
+            .iter_mut()
+            .find(|x| x.source == e.source && x.name == e.name)
+        {
             Some(slot) => *slot = e,
             None => self.packages.push(e),
         }
@@ -77,7 +90,8 @@ impl Manifest {
 
     pub fn remove(&mut self, source: &str, name: &str) -> bool {
         let before = self.packages.len();
-        self.packages.retain(|e| !(e.source == source && e.name == name));
+        self.packages
+            .retain(|e| !(e.source == source && e.name == name));
         self.packages.len() != before
     }
 }
@@ -96,7 +110,12 @@ mod tests {
     }
 
     fn entry(src: &str, name: &str, ver: &str) -> Entry {
-        Entry { name: name.into(), source: src.into(), version: ver.into(), ..Default::default() }
+        Entry {
+            name: name.into(),
+            source: src.into(),
+            version: ver.into(),
+            ..Default::default()
+        }
     }
 
     #[test]

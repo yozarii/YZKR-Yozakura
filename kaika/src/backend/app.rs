@@ -4,17 +4,23 @@ use std::collections::HashSet;
 use std::path::Path;
 
 pub fn norm(s: &str) -> String {
-    s.chars().filter(|c| c.is_ascii_alphanumeric()).map(|c| c.to_ascii_lowercase()).collect()
+    s.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
 }
 
 /// `.app` bundle names (without the extension) in `dir`, minus those whose normalised name is in `owned`.
 pub fn unowned(dir: &Path, owned: &HashSet<String>) -> Vec<String> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return vec![] };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return vec![];
+    };
     let mut v: Vec<String> = rd
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let p = e.path();
-            (p.extension().and_then(|x| x.to_str()) == Some("app")).then(|| p.file_stem()?.to_str().map(String::from))?
+            (p.extension().and_then(|x| x.to_str()) == Some("app"))
+                .then(|| p.file_stem()?.to_str().map(String::from))?
         })
         .filter(|n| !owned.contains(&norm(n)))
         .collect();

@@ -5,27 +5,61 @@ use crate::manifest::Entry;
 use serde_json::json;
 
 pub enum Action {
-    Cmd { argv: Vec<String>, admin: bool },
+    Cmd {
+        argv: Vec<String>,
+        admin: bool,
+    },
     Direct(Box<Job>),
     /// After a backend install: look the version up and write the manifest.
-    Record { source: String, name: String, reference: String, resolved_by: String },
-    Unrecord { source: String, name: String },
-    RemoveDirect { entry: Entry, zap: bool },
+    Record {
+        source: String,
+        name: String,
+        reference: String,
+        resolved_by: String,
+    },
+    Unrecord {
+        source: String,
+        name: String,
+    },
+    RemoveDirect {
+        entry: Entry,
+        zap: bool,
+    },
 }
 
 impl Action {
     pub fn describe(&self) -> String {
         match self {
             Action::Cmd { argv, admin } => {
-                format!("run: {}{}", argv.join(" "), if *admin { "   (needs administrator rights)" } else { "" })
+                format!(
+                    "run: {}{}",
+                    argv.join(" "),
+                    if *admin {
+                        "   (needs administrator rights)"
+                    } else {
+                        ""
+                    }
+                )
             }
             Action::Direct(j) => j.describe(),
-            Action::Record { source, name, .. } => format!("record {source}:{name} in the manifest"),
-            Action::Unrecord { source, name } => format!("remove {source}:{name} from the manifest"),
+            Action::Record { source, name, .. } => {
+                format!("record {source}:{name} in the manifest")
+            }
+            Action::Unrecord { source, name } => {
+                format!("remove {source}:{name} from the manifest")
+            }
             Action::RemoveDirect { entry, zap } => format!(
                 "move {} to the Trash{}",
-                if entry.path.is_empty() { &entry.name } else { &entry.path },
-                if *zap { " and remove its support files" } else { "" }
+                if entry.path.is_empty() {
+                    &entry.name
+                } else {
+                    &entry.path
+                },
+                if *zap {
+                    " and remove its support files"
+                } else {
+                    ""
+                }
             ),
         }
     }
@@ -93,12 +127,18 @@ mod tests {
 
     #[test]
     fn yes_skips_the_prompt() {
-        assert_eq!(decide(false, true, false, || panic!("must not ask")), Decision::Run);
+        assert_eq!(
+            decide(false, true, false, || panic!("must not ask")),
+            Decision::Run
+        );
     }
 
     #[test]
     fn no_terminal_and_no_yes_never_runs() {
-        assert_eq!(decide(false, false, false, || true), Decision::NeedsConfirmation);
+        assert_eq!(
+            decide(false, false, false, || true),
+            Decision::NeedsConfirmation
+        );
     }
 
     #[test]
@@ -111,10 +151,17 @@ mod tests {
     fn render_lists_actions_and_warnings() {
         let p = Plan {
             title: "install jq".into(),
-            actions: vec![Action::Cmd { argv: vec!["brew".into(), "install".into(), "jq".into()], admin: false }],
+            actions: vec![Action::Cmd {
+                argv: vec!["brew".into(), "install".into(), "jq".into()],
+                admin: false,
+            }],
             warnings: vec!["w".into()],
         };
         let t = p.render();
-        assert!(t.contains("plan: install jq") && t.contains("run: brew install jq") && t.contains("warning: w"));
+        assert!(
+            t.contains("plan: install jq")
+                && t.contains("run: brew install jq")
+                && t.contains("warning: w")
+        );
     }
 }

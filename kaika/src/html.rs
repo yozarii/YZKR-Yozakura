@@ -13,7 +13,9 @@ fn attr(tag: &str, name: &str) -> String {
     let mut rest = tag;
     loop {
         rest = rest.trim_start_matches(|c: char| c.is_ascii_whitespace() || c == '/');
-        let end = rest.find(|c: char| c.is_ascii_whitespace() || c == '=' || c == '/').unwrap_or(rest.len());
+        let end = rest
+            .find(|c: char| c.is_ascii_whitespace() || c == '=' || c == '/')
+            .unwrap_or(rest.len());
         let (key, after) = rest.split_at(end);
         if key.is_empty() {
             return String::new();
@@ -26,7 +28,11 @@ fn attr(tag: &str, name: &str) -> String {
         let value = value.trim_start();
         let (text, remainder) = match value.chars().next() {
             Some(q @ ('"' | '\'')) => value[1..].split_once(q).unwrap_or((&value[1..], "")),
-            _ => value.split_at(value.find(|c: char| c.is_ascii_whitespace()).unwrap_or(value.len())),
+            _ => value.split_at(
+                value
+                    .find(|c: char| c.is_ascii_whitespace())
+                    .unwrap_or(value.len()),
+            ),
         };
         if key.eq_ignore_ascii_case(name) {
             return text.to_string();
@@ -46,7 +52,13 @@ fn strip_tags(s: &str) -> String {
             _ => {}
         }
     }
-    let out = out.replace("&amp;", "&").replace("&quot;", "\"").replace("&#x27;", "'").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">");
+    let out = out
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#x27;", "'")
+        .replace("&#39;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">");
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -57,15 +69,25 @@ pub fn anchors(html: &str) -> Vec<Anchor> {
     while let Some(p) = lower[i..].find("<a") {
         let start = i + p;
         // `<a` must be followed by whitespace: `<abbr>` and `<article>` are other tags.
-        if !lower.as_bytes().get(start + 2).is_some_and(u8::is_ascii_whitespace) {
+        if !lower
+            .as_bytes()
+            .get(start + 2)
+            .is_some_and(u8::is_ascii_whitespace)
+        {
             i = start + 2;
             continue;
         }
-        let Some(gt) = html[start..].find('>') else { break };
+        let Some(gt) = html[start..].find('>') else {
+            break;
+        };
         let tag = &html[start + 3..start + gt];
         let body = &html[start + gt + 1..];
         let end = lower[start + gt + 1..].find("</a>").unwrap_or(body.len());
-        out.push(Anchor { href: attr(tag, "href"), class: attr(tag, "class"), text: strip_tags(&body[..end]) });
+        out.push(Anchor {
+            href: attr(tag, "href"),
+            class: attr(tag, "class"),
+            text: strip_tags(&body[..end]),
+        });
         i = start + gt + 1 + end;
     }
     out
@@ -98,7 +120,9 @@ pub fn percent_decode(s: &str) -> String {
 pub fn url_encode(s: &str) -> String {
     s.bytes()
         .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
             b' ' => "+".to_string(),
             _ => format!("%{b:02X}"),
         })
@@ -109,7 +133,13 @@ pub fn url_encode(s: &str) -> String {
 pub fn host(url: &str) -> String {
     let rest = url.split_once("://").map(|x| x.1).unwrap_or(url);
     let h = rest.split(['/', '?', '#']).next().unwrap_or("");
-    let h = h.rsplit('@').next().unwrap_or(h).split(':').next().unwrap_or(h);
+    let h = h
+        .rsplit('@')
+        .next()
+        .unwrap_or(h)
+        .split(':')
+        .next()
+        .unwrap_or(h);
     h.strip_prefix("www.").unwrap_or(h).to_lowercase()
 }
 
@@ -119,9 +149,14 @@ mod tests {
 
     #[test]
     fn anchors_carry_href_class_and_clean_text() {
-        let a = anchors(r#"<p>x</p><A HREF="/a" class="result__a big">Rect<b>angle</b> &amp; co</A><a href='/b'>B</a>"#);
+        let a = anchors(
+            r#"<p>x</p><A HREF="/a" class="result__a big">Rect<b>angle</b> &amp; co</A><a href='/b'>B</a>"#,
+        );
         assert_eq!(a.len(), 2);
-        assert_eq!((a[0].href.as_str(), a[0].class.as_str(), a[0].text.as_str()), ("/a", "result__a big", "Rectangle & co"));
+        assert_eq!(
+            (a[0].href.as_str(), a[0].class.as_str(), a[0].text.as_str()),
+            ("/a", "result__a big", "Rectangle & co")
+        );
         assert_eq!(a[1].href, "/b");
     }
 
@@ -134,7 +169,10 @@ mod tests {
 
     #[test]
     fn a_data_href_is_not_an_href() {
-        assert_eq!(anchors(r#"<a data-href="/no" href="/yes">x</a>"#)[0].href, "/yes");
+        assert_eq!(
+            anchors(r#"<a data-href="/no" href="/yes">x</a>"#)[0].href,
+            "/yes"
+        );
     }
 
     #[test]
@@ -146,7 +184,10 @@ mod tests {
 
     #[test]
     fn percent_coding_round_trips() {
-        assert_eq!(percent_decode("https%3A%2F%2Fghost.example%2Fa%20b+c"), "https://ghost.example/a b c");
+        assert_eq!(
+            percent_decode("https%3A%2F%2Fghost.example%2Fa%20b+c"),
+            "https://ghost.example/a b c"
+        );
         assert_eq!(percent_decode("100%"), "100%");
         assert_eq!(percent_decode("%zz"), "%zz");
         assert_eq!(percent_decode("%é%4"), "%é%4");
@@ -156,7 +197,10 @@ mod tests {
 
     #[test]
     fn hosts_drop_www_port_and_credentials() {
-        assert_eq!(host("https://www.Ghost.example:8080/x?y#z"), "ghost.example");
+        assert_eq!(
+            host("https://www.Ghost.example:8080/x?y#z"),
+            "ghost.example"
+        );
         assert_eq!(host("https://user@a.example/"), "a.example");
         assert_eq!(host("github.com/o/r"), "github.com");
     }

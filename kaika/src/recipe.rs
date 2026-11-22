@@ -2,8 +2,8 @@
 
 use crate::direct::ensure_https;
 use crate::paths::Dirs;
-use crate::runner::{argv, Runner};
-use anyhow::{anyhow, bail, Context, Result};
+use crate::runner::{Runner, argv};
+use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -47,17 +47,33 @@ pub struct Asset {
     pub sha256: Option<String>,
 }
 
-const EMBEDDED: &[&str] = &[include_str!("../recipes/rectangle.toml"), include_str!("../recipes/h2o-lightning.toml")];
+const EMBEDDED: &[&str] = &[
+    include_str!("../recipes/rectangle.toml"),
+    include_str!("../recipes/h2o-lightning.toml"),
+];
 
 pub fn embedded() -> Vec<Recipe> {
-    EMBEDDED.iter().filter_map(|t| toml::from_str(t).ok()).collect()
+    EMBEDDED
+        .iter()
+        .filter_map(|t| toml::from_str(t).ok())
+        .collect()
 }
 
 fn load_dir(dir: &Path) -> Vec<Recipe> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return vec![] };
-    let mut files: Vec<_> = rd.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "toml")).collect();
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return vec![];
+    };
+    let mut files: Vec<_> = rd
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "toml"))
+        .collect();
     files.sort();
-    files.iter().filter_map(|p| std::fs::read_to_string(p).ok()).filter_map(|t| toml::from_str(&t).ok()).collect()
+    files
+        .iter()
+        .filter_map(|p| std::fs::read_to_string(p).ok())
+        .filter_map(|t| toml::from_str(&t).ok())
+        .collect()
 }
 
 /// Embedded recipes, overridden by recipes in the user's config directory.
@@ -73,13 +89,25 @@ pub fn all(dirs: &Dirs) -> Vec<Recipe> {
 }
 
 pub fn find(dirs: &Dirs, name: &str) -> Option<Recipe> {
-    all(dirs).into_iter().find(|r| r.name.eq_ignore_ascii_case(name))
+    all(dirs)
+        .into_iter()
+        .find(|r| r.name.eq_ignore_ascii_case(name))
 }
 
 pub fn save_learned(dirs: &Dirs, r: &Recipe) -> Result<()> {
     let dir = dirs.config.join("recipes");
     std::fs::create_dir_all(&dir)?;
-    let stem: String = r.name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' }).collect();
+    let stem: String = r
+        .name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
     std::fs::write(dir.join(format!("{stem}.toml")), toml::to_string_pretty(r)?)?;
     Ok(())
 }
@@ -129,30 +157,56 @@ pub fn asset_score(name: &str) -> Option<i32> {
         return None;
     };
     // Other operating systems, source, and files that are not the app itself (debug symbols, builds, helpers).
-    if ["uninstall", "updater", "agent", "helper"].iter().any(|w| n.contains(w)) {
+    if ["uninstall", "updater", "agent", "helper"]
+        .iter()
+        .any(|w| n.contains(w))
+    {
         return None;
     }
-    if ["linux", "windows", "win32", "win64", ".exe", "freebsd", "-src", "source", "dsym", "symbols", "-debug", "_debug", ".debug", "-dbg"].iter().any(|w| n.contains(w)) {
+    if [
+        "linux", "windows", "win32", "win64", ".exe", "freebsd", "-src", "source", "dsym",
+        "symbols", "-debug", "_debug", ".debug", "-dbg",
+    ]
+    .iter()
+    .any(|w| n.contains(w))
+    {
         return None;
     }
     // Whole words in the name that mean Windows ("winmerge-2.16-exe.zip", "app-win.zip"), unlike substrings of other words.
-    if n.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| ["exe", "msi", "win", "win32", "win64"].contains(&w)) {
+    if n.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|w| ["exe", "msi", "win", "win32", "win64"].contains(&w))
+    {
         return None;
     }
     let mut s = ext;
     // Not the stable release: still installable when it is all there is, but never preferred.
-    if ["nightly", "-beta", ".beta", "-alpha", ".alpha", "-rc", "-dev", "preview", "canary"].iter().any(|w| n.contains(w)) {
+    if [
+        "nightly", "-beta", ".beta", "-alpha", ".alpha", "-rc", "-dev", "preview", "canary",
+    ]
+    .iter()
+    .any(|w| n.contains(w))
+    {
         s -= 12;
     }
-    if ["arm64", "aarch64", "apple-silicon", "applesilicon"].iter().any(|w| n.contains(w)) {
+    if ["arm64", "aarch64", "apple-silicon", "applesilicon"]
+        .iter()
+        .any(|w| n.contains(w))
+    {
         s += 8;
     }
     if n.contains("universal") {
         s += 16; // runs natively on both; preferred over a single-architecture build of the same release
-    } else if ["macos", "mac", "darwin", "osx"].iter().any(|w| n.contains(w)) {
+    } else if ["macos", "mac", "darwin", "osx"]
+        .iter()
+        .any(|w| n.contains(w))
+    {
         s += 4;
     }
-    if ["x86_64", "x64", "intel", "amd64", "i386"].iter().any(|w| n.contains(w)) && !n.contains("universal") {
+    if ["x86_64", "x64", "intel", "amd64", "i386"]
+        .iter()
+        .any(|w| n.contains(w))
+        && !n.contains("universal")
+    {
         s -= 50;
     }
     Some(s)
@@ -163,8 +217,15 @@ pub fn asset_score(name: &str) -> Option<i32> {
 /// Mac ("Windows, macOS, Linux") is kept.
 pub fn not_for_mac(text: &str) -> bool {
     let t = text.to_lowercase();
-    let other = ["windows", "win32", "win64", "for win", "linux", "ubuntu", "debian", "fedora", "android", "chromeos"].iter().any(|w| t.contains(w));
-    let mac = ["mac", "osx", "os x", "darwin", "apple silicon", "universal"].iter().any(|w| t.contains(w));
+    let other = [
+        "windows", "win32", "win64", "for win", "linux", "ubuntu", "debian", "fedora", "android",
+        "chromeos",
+    ]
+    .iter()
+    .any(|w| t.contains(w));
+    let mac = ["mac", "osx", "os x", "darwin", "apple silicon", "universal"]
+        .iter()
+        .any(|w| t.contains(w));
     other && !mac
 }
 
@@ -174,21 +235,41 @@ pub fn extensionless_candidates(page: &str, base: &str) -> Vec<(String, String)>
     let mut out: Vec<(String, String)> = vec![];
     for a in crate::html::anchors(page) {
         let url = resolve_url(base, &a.href.replace("&amp;", "&"));
-        if a.href.is_empty() || ensure_https(&url).is_err() || asset_score(&file_name(&url)).is_some() {
+        if a.href.is_empty()
+            || ensure_https(&url).is_err()
+            || asset_score(&file_name(&url)).is_some()
+        {
             continue;
         }
         let (u, t) = (url.to_lowercase(), a.text.to_lowercase());
-        if ["ptb", "canary", "beta", "nightly", "insider", "preview"].iter().any(|w| u.contains(&format!("={w}")) || u.contains(&format!("/{w}"))) {
+        if ["ptb", "canary", "beta", "nightly", "insider", "preview"]
+            .iter()
+            .any(|w| u.contains(&format!("={w}")) || u.contains(&format!("/{w}")))
+        {
             continue; // test channels are never the default download
         }
         let says_download = u.contains("download") || t.contains("download");
-        let says_mac = ["darwin", "osx", "macos", "/mac", "mac-", "mac_", "=mac", "apple silicon", "for mac"].iter().any(|w| u.contains(w) || t.contains(w));
+        let says_mac = [
+            "darwin",
+            "osx",
+            "macos",
+            "/mac",
+            "mac-",
+            "mac_",
+            "=mac",
+            "apple silicon",
+            "for mac",
+        ]
+        .iter()
+        .any(|w| u.contains(w) || t.contains(w));
         if says_download && says_mac && !out.iter().any(|(x, _)| *x == url) {
             out.push((url, a.text));
         }
     }
     // The Apple-silicon build first: the four slots go to the likeliest links.
-    out.sort_by_key(|(u, _)| !(u.contains("arm64") || u.contains("aarch64") || u.contains("universal")));
+    out.sort_by_key(|(u, _)| {
+        !(u.contains("arm64") || u.contains("aarch64") || u.contains("universal"))
+    });
     out.truncate(4);
     out
 }
@@ -197,13 +278,36 @@ pub fn extensionless_candidates(page: &str, base: &str) -> Vec<(String, String)>
 /// (some servers refuse HEAD requests).
 pub fn final_url(r: &dyn Runner, url: &str) -> Option<String> {
     ensure_https(url).ok()?;
-    let o = r.run(&argv(&["curl", "-sL", "--proto-redir", "=https", "-r", "0-0", "-o", "/dev/null", "-w", "%{url_effective}", "--max-time", "20", "-A", USER_AGENT, url])).ok().filter(|o| o.ok())?;
+    let o = r
+        .run(&argv(&[
+            "curl",
+            "-sL",
+            "--proto-redir",
+            "=https",
+            "-r",
+            "0-0",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{url_effective}",
+            "--max-time",
+            "20",
+            "-A",
+            USER_AGENT,
+            url,
+        ]))
+        .ok()
+        .filter(|o| o.ok())?;
     let last = o.stdout.trim().to_string();
     (ensure_https(&last).is_ok() && asset_score(&file_name(&last)).is_some()).then_some(last)
 }
 
 /// `extensionless_candidates` followed to the real files: (final url, link text).
-pub fn resolve_redirected_downloads(r: &dyn Runner, page: &str, base: &str) -> Vec<(String, String)> {
+pub fn resolve_redirected_downloads(
+    r: &dyn Runner,
+    page: &str,
+    base: &str,
+) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = vec![];
     for (u, t) in extensionless_candidates(page, base) {
         if let Some(f) = final_url(r, &u) {
@@ -226,7 +330,10 @@ pub fn version_of(name: &str) -> Option<Vec<u32>> {
             continue;
         }
         let mut j = i;
-        while j < b.len() && (b[j].is_ascii_digit() || (b[j] == b'.' && j + 1 < b.len() && b[j + 1].is_ascii_digit())) {
+        while j < b.len()
+            && (b[j].is_ascii_digit()
+                || (b[j] == b'.' && j + 1 < b.len() && b[j + 1].is_ascii_digit()))
+        {
             j += 1;
         }
         let run = &name[i..j];
@@ -245,14 +352,37 @@ pub fn version_of(name: &str) -> Option<Vec<u32>> {
 /// `Foo 4.4 Arm 64.dmg` are the same product while `Foo Pro 3.1.dmg` is another one.
 pub fn product_stem(name: &str) -> String {
     let lower = name.to_lowercase();
-    let no_ext = [".tar.gz", ".dmg", ".zip", ".pkg", ".tgz"].iter().find_map(|e| lower.strip_suffix(e)).unwrap_or(&lower);
+    let no_ext = [".tar.gz", ".dmg", ".zip", ".pkg", ".tgz"]
+        .iter()
+        .find_map(|e| lower.strip_suffix(e))
+        .unwrap_or(&lower);
     let mut text = no_ext.to_string();
     if let Some(v) = version_of(name) {
         let run: String = v.iter().map(u32::to_string).collect::<Vec<_>>().join(".");
         text = text.replacen(&run, " ", 1);
     }
-    const PLATFORM: [&str; 16] = ["arm64", "arm", "aarch64", "x86", "x64", "64", "amd64", "intel", "silicon", "apple", "universal", "mac", "macos", "osx", "darwin", "x86_64"];
-    text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty() && !PLATFORM.contains(w)).collect::<Vec<_>>().join("-")
+    const PLATFORM: [&str; 16] = [
+        "arm64",
+        "arm",
+        "aarch64",
+        "x86",
+        "x64",
+        "64",
+        "amd64",
+        "intel",
+        "silicon",
+        "apple",
+        "universal",
+        "mac",
+        "macos",
+        "osx",
+        "darwin",
+        "x86_64",
+    ];
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty() && !PLATFORM.contains(w))
+        .collect::<Vec<_>>()
+        .join("-")
 }
 
 /// Index of the best download among `names`, honouring an optional glob. First wins ties.
@@ -273,7 +403,10 @@ pub fn pick_asset(names: &[String], pattern: Option<&str>) -> Option<usize> {
 /// Generalise a download's file name so the next version still matches: `Ghost-1.2-arm64.dmg` becomes `Ghost-*.dmg`.
 pub fn link_pattern(filename: &str) -> String {
     let lower = filename.to_lowercase();
-    let ext = [".tar.gz", ".dmg", ".zip", ".pkg", ".tgz"].into_iter().find(|e| lower.ends_with(e)).unwrap_or("");
+    let ext = [".tar.gz", ".dmg", ".zip", ".pkg", ".tgz"]
+        .into_iter()
+        .find(|e| lower.ends_with(e))
+        .unwrap_or("");
     let stem = &filename[..filename.len() - ext.len()];
     let head: String = stem.chars().take_while(|c| !c.is_ascii_digit()).collect();
     format!("{head}*{ext}")
@@ -281,7 +414,11 @@ pub fn link_pattern(filename: &str) -> String {
 
 pub fn file_name(url: &str) -> String {
     let no_query = url.split(['?', '#']).next().unwrap_or(url);
-    no_query.rsplit('/').next().unwrap_or("download").to_string()
+    no_query
+        .rsplit('/')
+        .next()
+        .unwrap_or("download")
+        .to_string()
 }
 
 /// How kaika identifies itself to every site it reads.
@@ -290,7 +427,17 @@ pub const USER_AGENT: &str = "kaika/0.1 (package manager)";
 /// Read a page or feed over HTTPS: the one place kaika fetches text from the web.
 pub fn fetch(r: &dyn Runner, url: &str) -> Result<String> {
     ensure_https(url)?;
-    let o = r.run(&argv(&["curl", "-fsSL", "--proto-redir", "=https", "--max-time", "30", "-A", USER_AGENT, url]))?;
+    let o = r.run(&argv(&[
+        "curl",
+        "-fsSL",
+        "--proto-redir",
+        "=https",
+        "--max-time",
+        "30",
+        "-A",
+        USER_AGENT,
+        url,
+    ]))?;
     if !o.ok() {
         bail!("could not fetch {url}: {}", o.stderr.trim());
     }
@@ -302,7 +449,9 @@ pub fn extract_links(html: &str, base: &str) -> Vec<String> {
     let mut rest = html;
     while let Some(i) = rest.find("href=") {
         rest = &rest[i + 5..];
-        let Some(q) = rest.chars().next().filter(|c| *c == '"' || *c == '\'') else { continue };
+        let Some(q) = rest.chars().next().filter(|c| *c == '"' || *c == '\'') else {
+            continue;
+        };
         let Some(end) = rest[1..].find(q) else { break };
         out.push(resolve_url(base, &rest[1..1 + end]));
         rest = &rest[1 + end..];
@@ -340,7 +489,9 @@ pub fn parse_appcast(xml: &str) -> Vec<(String, String)> {
     for chunk in xml.split("<enclosure").skip(1) {
         let tag = chunk.split('>').next().unwrap_or("");
         if let Some(url) = attr(tag, "url") {
-            let ver = attr(tag, "sparkle:shortVersionString").or_else(|| attr(tag, "sparkle:version")).unwrap_or_default();
+            let ver = attr(tag, "sparkle:shortVersionString")
+                .or_else(|| attr(tag, "sparkle:version"))
+                .unwrap_or_default();
             v.push((url, ver));
         }
     }
@@ -350,23 +501,49 @@ pub fn parse_appcast(xml: &str) -> Vec<(String, String)> {
 /// Work out the newest download for a recipe.
 pub fn latest(r: &dyn Runner, rec: &Recipe) -> Result<Asset> {
     if let Some(repo) = &rec.github {
-        let base = std::env::var("KAIKA_GITHUB_API").unwrap_or_else(|_| "https://api.github.com".into());
+        let base =
+            std::env::var("KAIKA_GITHUB_API").unwrap_or_else(|_| "https://api.github.com".into());
         let body = fetch(r, &format!("{base}/repos/{repo}/releases/latest"))?;
-        let v: serde_json::Value = serde_json::from_str(&body).context("GitHub release response was not JSON")?;
+        let v: serde_json::Value =
+            serde_json::from_str(&body).context("GitHub release response was not JSON")?;
         let tag = v["tag_name"].as_str().unwrap_or("").to_string();
         let assets = v["assets"].as_array().cloned().unwrap_or_default();
-        let names: Vec<String> = assets.iter().map(|a| a["name"].as_str().unwrap_or("").to_string()).collect();
-        let i = pick_asset(&names, rec.asset_pattern.as_deref())
-            .ok_or_else(|| anyhow!("{repo} release {tag} has no macOS download matching {:?}", rec.asset_pattern))?;
-        let url = assets[i]["browser_download_url"].as_str().ok_or_else(|| anyhow!("asset has no download URL"))?.to_string();
-        let sha = assets[i]["digest"].as_str().and_then(|d| d.strip_prefix("sha256:")).map(String::from);
-        return Ok(Asset { name: names[i].clone(), url, version: norm_version(&tag), sha256: sha.or(rec.sha256.clone()) });
+        let names: Vec<String> = assets
+            .iter()
+            .map(|a| a["name"].as_str().unwrap_or("").to_string())
+            .collect();
+        let i = pick_asset(&names, rec.asset_pattern.as_deref()).ok_or_else(|| {
+            anyhow!(
+                "{repo} release {tag} has no macOS download matching {:?}",
+                rec.asset_pattern
+            )
+        })?;
+        let url = assets[i]["browser_download_url"]
+            .as_str()
+            .ok_or_else(|| anyhow!("asset has no download URL"))?
+            .to_string();
+        let sha = assets[i]["digest"]
+            .as_str()
+            .and_then(|d| d.strip_prefix("sha256:"))
+            .map(String::from);
+        return Ok(Asset {
+            name: names[i].clone(),
+            url,
+            version: norm_version(&tag),
+            sha256: sha.or(rec.sha256.clone()),
+        });
     }
     if let Some(feed) = &rec.appcast {
         let items = parse_appcast(&fetch(r, feed)?);
         let names: Vec<String> = items.iter().map(|(u, _)| file_name(u)).collect();
-        let i = pick_asset(&names, rec.asset_pattern.as_deref()).ok_or_else(|| anyhow!("appcast {feed} lists no macOS download"))?;
-        return Ok(Asset { name: names[i].clone(), url: items[i].0.clone(), version: norm_version(&items[i].1), sha256: rec.sha256.clone() });
+        let i = pick_asset(&names, rec.asset_pattern.as_deref())
+            .ok_or_else(|| anyhow!("appcast {feed} lists no macOS download"))?;
+        return Ok(Asset {
+            name: names[i].clone(),
+            url: items[i].0.clone(),
+            version: norm_version(&items[i].1),
+            sha256: rec.sha256.clone(),
+        });
     }
     if let Some(page) = &rec.page {
         let mut links = extract_links(&fetch(r, page)?, page);
@@ -375,7 +552,10 @@ pub fn latest(r: &dyn Runner, rec: &Recipe) -> Result<Asset> {
         if pick.is_none() {
             // Links that only reach the file through a redirect (`/download?platform=osx`).
             let page_html = fetch(r, page)?;
-            let redirected: Vec<String> = resolve_redirected_downloads(r, &page_html, page).into_iter().map(|x| x.0).collect();
+            let redirected: Vec<String> = resolve_redirected_downloads(r, &page_html, page)
+                .into_iter()
+                .map(|x| x.0)
+                .collect();
             if !redirected.is_empty() {
                 links = redirected;
                 names = links.iter().map(|l| file_name(l)).collect();
@@ -391,12 +571,25 @@ pub fn latest(r: &dyn Runner, rec: &Recipe) -> Result<Asset> {
             }
         }
         let i = pick.ok_or_else(|| anyhow!("no download link found on {page}"))?;
-        return Ok(Asset { name: names[i].clone(), url: links[i].clone(), version: String::new(), sha256: rec.sha256.clone() });
+        return Ok(Asset {
+            name: names[i].clone(),
+            url: links[i].clone(),
+            version: String::new(),
+            sha256: rec.sha256.clone(),
+        });
     }
     if let Some(url) = &rec.url {
-        return Ok(Asset { name: file_name(url), url: url.clone(), version: String::new(), sha256: rec.sha256.clone() });
+        return Ok(Asset {
+            name: file_name(url),
+            url: url.clone(),
+            version: String::new(),
+            sha256: rec.sha256.clone(),
+        });
     }
-    bail!("recipe '{}' has no github, appcast, page or url source", rec.name)
+    bail!(
+        "recipe '{}' has no github, appcast, page or url source",
+        rec.name
+    )
 }
 
 #[cfg(test)]
@@ -417,13 +610,26 @@ mod tests {
 
     #[test]
     fn prefers_arm64_dmg_over_intel_and_other_oses() {
-        let names = s(&["app-linux-x64.tar.gz", "App-x86_64.dmg", "App-arm64.dmg", "App-arm64.zip", "App.exe", "checksums.txt"]);
+        let names = s(&[
+            "app-linux-x64.tar.gz",
+            "App-x86_64.dmg",
+            "App-arm64.dmg",
+            "App-arm64.zip",
+            "App.exe",
+            "checksums.txt",
+        ]);
         assert_eq!(pick_asset(&names, None), Some(2));
     }
 
     #[test]
     fn debug_symbols_and_debug_builds_are_not_the_app() {
-        for n in ["Ghost-3.0-arm64-dSYM.zip", "Ghost-3.0-symbols.zip", "Ghost-3.0-arm64-debug.zip", "ghost_debug.dmg", "Ghost-3.0.debug.tar.gz"] {
+        for n in [
+            "Ghost-3.0-arm64-dSYM.zip",
+            "Ghost-3.0-symbols.zip",
+            "Ghost-3.0-arm64-debug.zip",
+            "ghost_debug.dmg",
+            "Ghost-3.0.debug.tar.gz",
+        ] {
             assert_eq!(asset_score(n), None, "{n}");
         }
         assert!(asset_score("Ghost-3.0-arm64.zip").is_some());
@@ -432,11 +638,20 @@ mod tests {
     #[test]
     fn nightly_and_beta_builds_never_beat_the_stable_one_but_are_usable_alone() {
         let stable = asset_score("Ghost-3.0.2-arm64.dmg").unwrap();
-        for n in ["Ghost-nightly-arm64.dmg", "Ghost-3.1.0-beta1-arm64.dmg", "Ghost-3.1-rc1-arm64.dmg", "Ghost-canary-arm64.dmg", "Ghost-preview-arm64.dmg"] {
+        for n in [
+            "Ghost-nightly-arm64.dmg",
+            "Ghost-3.1.0-beta1-arm64.dmg",
+            "Ghost-3.1-rc1-arm64.dmg",
+            "Ghost-canary-arm64.dmg",
+            "Ghost-preview-arm64.dmg",
+        ] {
             let s = asset_score(n).unwrap();
             assert!(stable - s >= 8, "{n}: {s} vs {stable}");
         }
-        assert_eq!(pick_asset(&["Ghost-nightly-arm64.dmg".to_string()], None), Some(0));
+        assert_eq!(
+            pick_asset(&["Ghost-nightly-arm64.dmg".to_string()], None),
+            Some(0)
+        );
     }
 
     #[test]
@@ -457,14 +672,27 @@ mod tests {
     fn links_resolve_against_the_page() {
         let html = r#"<a href="/dl/App.dmg">x</a><a href='rel/App2.zip'>y</a><a href="https://cdn.x.com/a.pkg">z</a>"#;
         let l = extract_links(html, "https://x.com/get/page.html");
-        assert_eq!(l, ["https://x.com/dl/App.dmg", "https://x.com/get/rel/App2.zip", "https://cdn.x.com/a.pkg"]);
+        assert_eq!(
+            l,
+            [
+                "https://x.com/dl/App.dmg",
+                "https://x.com/get/rel/App2.zip",
+                "https://cdn.x.com/a.pkg"
+            ]
+        );
     }
 
     #[test]
     fn appcast_reads_enclosures() {
         let xml = r#"<item><enclosure url="https://x.com/A-2.zip" sparkle:shortVersionString="2.0" length="1"/></item>
                      <item><enclosure url="https://x.com/A-1.zip" sparkle:version="1" /></item>"#;
-        assert_eq!(parse_appcast(xml), vec![("https://x.com/A-2.zip".into(), "2.0".into()), ("https://x.com/A-1.zip".into(), "1".into())]);
+        assert_eq!(
+            parse_appcast(xml),
+            vec![
+                ("https://x.com/A-2.zip".into(), "2.0".into()),
+                ("https://x.com/A-1.zip".into(), "1".into())
+            ]
+        );
     }
 
     #[test]
@@ -472,7 +700,10 @@ mod tests {
         assert_eq!(link_pattern("Ghost-1.2.3-arm64.dmg"), "Ghost-*.dmg");
         assert_eq!(link_pattern("Ghost.zip"), "Ghost*.zip");
         assert_eq!(link_pattern("tool-1.0.tar.gz"), "tool-*.tar.gz");
-        assert!(glob_match(&link_pattern("Ghost-1.2.3-arm64.dmg"), "Ghost-9.9-universal.dmg"));
+        assert!(glob_match(
+            &link_pattern("Ghost-1.2.3-arm64.dmg"),
+            "Ghost-9.9-universal.dmg"
+        ));
     }
 
     #[test]
@@ -483,17 +714,35 @@ mod tests {
     #[test]
     fn user_recipes_override_embedded_ones() {
         let t = tempfile::tempdir().unwrap();
-        let d = Dirs::from_lookup(|k| (k == "KAIKA_HOME").then(|| t.path().display().to_string()).or(Some("/h".into())));
-        let mine = Recipe { name: "rectangle".into(), url: Some("https://x/y.dmg".into()), ..Default::default() };
+        let d = Dirs::from_lookup(|k| {
+            (k == "KAIKA_HOME")
+                .then(|| t.path().display().to_string())
+                .or(Some("/h".into()))
+        });
+        let mine = Recipe {
+            name: "rectangle".into(),
+            url: Some("https://x/y.dmg".into()),
+            ..Default::default()
+        };
         save_learned(&d, &mine).unwrap();
-        assert_eq!(find(&d, "Rectangle").unwrap().url.as_deref(), Some("https://x/y.dmg"));
+        assert_eq!(
+            find(&d, "Rectangle").unwrap().url.as_deref(),
+            Some("https://x/y.dmg")
+        );
     }
 
     #[test]
     fn the_embedded_model_recipe_is_pinned_to_one_exact_file() {
-        let r = embedded().into_iter().find(|r| r.name == crate::model::MODEL_NAME).expect("the model recipe is embedded");
+        let r = embedded()
+            .into_iter()
+            .find(|r| r.name == crate::model::MODEL_NAME)
+            .expect("the model recipe is embedded");
         let url = r.url.unwrap();
-        assert!(url.starts_with("https://huggingface.co/h2oai/h2o-lightning-4b-gguf/") && url.ends_with(crate::model::MODEL_FILE), "{url}");
+        assert!(
+            url.starts_with("https://huggingface.co/h2oai/h2o-lightning-4b-gguf/")
+                && url.ends_with(crate::model::MODEL_FILE),
+            "{url}"
+        );
         let sum = r.sha256.expect("a model download must carry its checksum");
         assert!(sum.len() == 64 && sum.chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -506,7 +755,10 @@ mod tests {
         let _ = final_url(&r, "https://x.example/dl");
         let log = r.log.borrow();
         assert_eq!(log.len(), 2);
-        assert!(log.iter().all(|c| c.contains("--proto-redir =https")), "{log:?}");
+        assert!(
+            log.iter().all(|c| c.contains("--proto-redir =https")),
+            "{log:?}"
+        );
     }
 
     #[test]

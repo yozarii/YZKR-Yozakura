@@ -1,7 +1,7 @@
 //! User configuration: the backend preference order, and whether models may be used at all.
 
 use crate::paths::Dirs;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_ORDER: [&str; 6] = ["brew", "cask", "uv", "npm", "mas", "direct"];
@@ -28,25 +28,44 @@ impl Config {
 
     pub fn save(&self, dirs: &Dirs) -> Result<()> {
         std::fs::create_dir_all(&dirs.config)?;
-        std::fs::write(dirs.config.join("kaika.toml"), toml::to_string_pretty(self)?)?;
+        std::fs::write(
+            dirs.config.join("kaika.toml"),
+            toml::to_string_pretty(self)?,
+        )?;
         Ok(())
     }
 
     pub fn order(&self) -> Vec<String> {
-        if self.order.is_empty() { DEFAULT_ORDER.iter().map(|s| s.to_string()).collect() } else { self.order.clone() }
+        if self.order.is_empty() {
+            DEFAULT_ORDER.iter().map(|s| s.to_string()).collect()
+        } else {
+            self.order.clone()
+        }
     }
 
     pub fn get(&self, key: &str) -> Result<String> {
         Ok(match key {
             "order" => self.order().join(","),
-            "models" => if self.models_enabled() { "on".into() } else { "off".into() },
+            "models" => {
+                if self.models_enabled() {
+                    "on".into()
+                } else {
+                    "off".into()
+                }
+            }
             _ => bail!("unknown key '{key}' (keys: {})", KEYS.join(", ")),
         })
     }
 
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
-            "order" => self.order = value.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+            "order" => {
+                self.order = value
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            }
             "models" => match value {
                 "on" | "off" => self.models = Some(value.into()),
                 _ => bail!("models must be 'on' or 'off'"),
@@ -58,7 +77,8 @@ impl Config {
 
     /// Models, and web discovery of vendor downloads, can be switched off: `KAIKA_MODELS=off`, or `kaika config set models off`.
     pub fn models_enabled(&self) -> bool {
-        std::env::var("KAIKA_MODELS").as_deref() != Ok("off") && self.models.as_deref() != Some("off")
+        std::env::var("KAIKA_MODELS").as_deref() != Ok("off")
+            && self.models.as_deref() != Some("off")
     }
 }
 
@@ -68,7 +88,10 @@ mod tests {
 
     #[test]
     fn default_order_matches_the_design() {
-        assert_eq!(Config::default().order(), ["brew", "cask", "uv", "npm", "mas", "direct"]);
+        assert_eq!(
+            Config::default().order(),
+            ["brew", "cask", "uv", "npm", "mas", "direct"]
+        );
     }
 
     #[test]
@@ -88,7 +111,10 @@ mod tests {
     fn the_retired_settings_are_gone() {
         let mut c = Config::default();
         for k in ["model", "escalation", "resolver"] {
-            assert!(c.set(k, "x").is_err() && c.get(k).is_err(), "{k} must not exist any more");
+            assert!(
+                c.set(k, "x").is_err() && c.get(k).is_err(),
+                "{k} must not exist any more"
+            );
         }
     }
 }
