@@ -31,7 +31,16 @@ pub struct Case {
 }
 
 pub fn corpus() -> Vec<Case> {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("corpus/discovery.json");
+    load("corpus/discovery.json")
+}
+
+/// Real vendor pages (read-only snapshots), same schema as `corpus()`.
+pub fn real_corpus() -> Vec<Case> {
+    load("corpus/real.json")
+}
+
+fn load(rel: &str) -> Vec<Case> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(rel);
     serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 

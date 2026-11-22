@@ -1,4 +1,6 @@
-//! The real model, over the whole corpus, through the same code path discovery uses.
+//! The real model, over both corpora, through the same code path discovery uses.
+//!
+//! corpus/discovery.json is gated (below). corpus/real.json (real vendor pages) is measured and reported only.
 //!
 //!     cargo test --test real_model -- --ignored --nocapture
 //!
@@ -15,22 +17,15 @@ use std::collections::BTreeMap;
 use std::time::Instant;
 
 mod support;
-use support::{corpus, links_of};
+use support::{corpus, links_of, real_corpus, Case};
 
-#[test]
-#[ignore = "needs llama-server and the model; run: cargo test --test real_model -- --ignored --nocapture"]
-fn the_real_model_over_the_whole_corpus() {
-    let dirs = Dirs::from_env();
-    let r = RealRunner;
-    let problems = model::problems(&model::status(&r, &dirs));
-    assert!(problems.is_empty(), "set up first: {problems:?}");
-    let decider = LlamaDecider::new(&r, dirs, true);
-    let cases = corpus();
+/// Runs the model over one corpus. Returns the table and the wrong cases.
+fn measure(cases: &[Case], decider: &LlamaDecider, label: &str) -> (usize, usize, usize, BTreeMap<String, (usize, usize, usize)>) {
     let (mut asked, mut by_shortcut, mut elapsed) = (0usize, 0usize, 0.0f64);
     // category -> (correct, wrong, abstained)
     let mut table: BTreeMap<String, (usize, usize, usize)> = BTreeMap::new();
     let mut wrong_cases = vec![];
-    for x in &cases {
+    for x in cases {
         let t = Instant::now();
         let answer: Option<String> = {
             let links = if x.kind == "download" { links_of(x) } else { vec![] };
@@ -40,7 +35,7 @@ fn the_real_model_over_the_whole_corpus() {
             } else {
                 asked += 1;
                 let cands = x.candidates.iter().map(|k| Cand::new(k.id.clone(), k.text.clone())).collect();
-                match decide(&decider, if x.kind == "site" { Task::Site } else { Task::Download }, &x.query, cands).outcome {
+                match decide(decider, if x.kind == "site" { Task::Site } else { Task::Download }, &x.query, cands).outcome {
                     Outcome::Picked(p) => Some(p.id),
                     Outcome::Unsure(_) => None,
                 }
@@ -58,9 +53,9 @@ fn the_real_model_over_the_whole_corpus() {
             }
         }
     }
-    decider.shutdown();
 
-    println!("\n{:28}{:>6}{:>9}{:>7}{:>10}", "category", "n", "correct", "wrong", "abstained");
+    println!("\n== {label}");
+    println!("{:28}{:>6}{:>9}{:>7}{:>10}", "category", "n", "correct", "wrong", "abstained");
     for (k, (c, w, a)) in &table {
         println!("{k:28}{:>6}{c:>9}{w:>7}{a:>10}", c + w + a);
     }
@@ -69,6 +64,25 @@ fn the_real_model_over_the_whole_corpus() {
     for m in wrong_cases.iter().take(15) {
         println!("  WRONG {m}");
     }
+    (c, w, a, table)
+}
+
+#[test]
+#[ignore = "needs llama-server and the model; run: cargo test --test real_model -- --ignored --nocapture"]
+fn the_real_model_over_the_whole_corpus() {
+    let dirs = Dirs::from_env();
+    let r = RealRunner;
+    let problems = model::problems(&model::status(&r, &dirs));
+    assert!(problems.is_empty(), "set up first: {problems:?}");
+    let decider = LlamaDecider::new(&r, dirs, true);
+
+    // Real pages first: reported, not gated.
+    let real = real_corpus();
+    measure(&real, &decider, "corpus/real.json (real vendor pages, reported, not gated)");
+
+    let cases = corpus();
+    let (c, w, a, table) = measure(&cases, &decider, "corpus/discovery.json (gated)");
+    decider.shutdown();
 
     // Gates, fixed before the first run.
     let hard = |cat: &str| table.get(cat).map(|t| t.1).unwrap_or(0);
