@@ -297,10 +297,10 @@ fn the_deterministic_shortcut_on_real_pages_is_never_wrong_except_the_recorded_m
     let mut misses: Vec<String> = vec![];
     for x in support::real_corpus() {
         let links = links_of(&x);
-        if let Some(i) = fast_path(&links) {
-            if Some(&links[i].1) != x.expected.as_ref() {
-                misses.push(x.name.clone());
-            }
+        if let Some(i) = fast_path(&links)
+            && Some(&links[i].1) != x.expected.as_ref()
+        {
+            misses.push(x.name.clone());
         }
     }
     let known: Vec<String> = KNOWN_SHORTCUT_MISSES

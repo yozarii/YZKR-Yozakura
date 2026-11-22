@@ -2,9 +2,13 @@
 name = "kaika"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 description = "Universal package manager for macOS (Apple silicon)"
 license = "MIT"
+repository = "https://github.com/yozarii/YZKR-Yozakura"
+readme = "README.md"
+keywords = ["package-manager", "macos", "homebrew", "cli"]
+categories = ["command-line-utilities"]
 publish = false
 
 [profile.release]

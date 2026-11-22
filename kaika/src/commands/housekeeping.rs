@@ -18,6 +18,7 @@ fn line(label: &str, text: impl Display) {
 /// Check this machine: backends present, the state files readable, the decision layer ready. Only a corrupt
 /// manifest makes it fail; everything else is information. Nothing is started, not even the model.
 pub(super) fn doctor(ctx: &Ctx) -> KResult {
+    line("kaika", env!("CARGO_PKG_VERSION"));
     print_backends(ctx);
     line("home", ctx.dirs.root.display());
     let on_path = std::env::var_os("PATH")

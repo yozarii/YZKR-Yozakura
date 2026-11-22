@@ -13,8 +13,23 @@ kaika install rectangle -n             # print the plan only
 kaika install ghost -y                 # no prompt (needed when there is no terminal)
 kaika upgrade --all                    # every backend, plus vendor-site apps via their release feeds
 kaika uninstall zen --zap              # also remove support files, caches and preferences
-kaika list | search | info | outdated | doctor | cleanup | config
+kaika list | search | info | update | outdated | doctor | cleanup | config
+kaika --version                        # doctor prints the version too
 ```
+
+Release notes and the known limits of this version are in [CHANGELOG.md](CHANGELOG.md).
+
+## Install
+
+kaika is a Rust program for Apple-silicon Macs (Rust 1.88 or newer to build it). From a checkout:
+
+```bash
+cd kaika
+cargo install --path .       # puts kaika in ~/.cargo/bin
+kaika doctor                 # backends, state, browser, decision model
+```
+
+`packaging/` has the Homebrew formula and the release steps.
 
 ## Flags and exit codes
 
@@ -49,7 +64,7 @@ starting anything. `list`, `info`, `uninstall`, `cleanup`, `doctor` and `config`
 Like macOS Software Update, kaika only suggests; it never upgrades by itself.
 
 ```bash
-kaika schedule on --at 03:30   # a launchd job: refresh indexes, then notify if there are new updates
+kaika schedule on --at 03:30   # (default 03:00; -n prints what it would write) a launchd job: refresh indexes, then notify if there are new updates
 kaika schedule status
 kaika schedule off
 kaika outdated --notify        # what the job runs; posts one notification per new set of updates
@@ -146,12 +161,13 @@ recipes/                             curated recipes, including the pinned model
 corpus/discovery.json                626 labelled third-party-app decisions; real.json: 32 real vendor pages
 tests/                               hermetic integration tests (cli.rs), corpus-driven tests, one opt-in real-model test
 packaging/                           the Homebrew formula and release steps
+CHANGELOG.md                         what a release does, and its known limits
 ```
 
 ## Build and test
 
 ```bash
-cargo build --release                                      # bin/kaika launches this build
+cargo build --release                                      # target/release/kaika
 cargo test                                                 # unit, integration and corpus tests
 cargo test --test real_model -- --ignored --nocapture      # the real model over the whole corpus (needs llama-server and the model)
 cargo test -- --ignored                                    # also: real codesign/spctl on an installed app (read-only)
