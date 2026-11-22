@@ -155,13 +155,11 @@ fn the_real_corpus_is_well_formed() {
 /// pinned exactly, so a new miss fails this test and a fixed one must be removed from the list.
 const KNOWN_SHORTCUT_MISSES: &[&str] = &[
     "download: Audacity (universal vs arm64 vs x86_64, same label)",
-    "no-answer: WinMerge (Windows only)",
     "no-answer: Rufus (Windows only)",
     "no-answer: Everything search (Windows only)",
     "no-answer: Sumatra PDF (Windows only)",
     "no-answer: PuTTY (no macOS build on the page)",
     "no-answer: AutoHotkey v2 (Windows only)",
-    "no-answer: TreeSize Free (Windows only)",
 ];
 
 #[test]
