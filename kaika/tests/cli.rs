@@ -97,7 +97,7 @@ fn an_interactive_no_cancels_and_a_yes_proceeds() {
 fn an_unknown_name_fails_and_changes_nothing() {
     let s = sandbox();
     s.cmd().args(["install", "zzzznothing", "-y"]).assert().code(1).stderr(predicate::str::contains("no package named"));
-    assert!(!s.calls().contains("install"));
+    assert!(!s.calls().contains("brew install") && !s.calls().contains("npm install") && !s.calls().contains("mas install"));
 }
 
 #[test]
@@ -1156,7 +1156,8 @@ fn a_page_without_links_is_rendered_in_a_headless_browser_when_one_is_installed(
     s.cmd().env("KAIKA_BROWSER", browser_path(&s)).args(["install", "https://ghost.example/", "-n"]).assert().success().stdout(predicate::str::contains("Ghost-arm64.dmg").and(predicate::str::contains("headless browser")));
     let calls = s.calls();
     assert!(calls.contains("--headless=new") && calls.contains("--dump-dom https://ghost.example/"), "{calls}");
-    assert!(!std::fs::read_dir(std::env::temp_dir()).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().starts_with("kaika-render-")), "the throwaway profile is removed");
+    let profile = calls.split("--user-data-dir=").nth(1).and_then(|r| r.split_whitespace().next()).expect("the browser got a profile folder");
+    assert!(!std::path::Path::new(profile).exists(), "the throwaway profile {profile} is removed");
 }
 
 #[test]
@@ -1229,4 +1230,67 @@ fn a_short_name_that_only_a_registry_has_exactly_is_never_guessed_when_a_reviewe
     s.cmd().args(["install", "chrome", "-y"]).assert().code(1).stderr(predicate::str::contains("npm:chrome").and(predicate::str::contains("cask:google-chrome")).and(predicate::str::contains("nothing was installed")));
     assert!(!s.calls().contains("npm install"), "{}", s.calls());
     s.cmd().args(["install", "npm:chrome", "-n"]).assert().success().stdout(predicate::str::contains("npm install -g chrome"));
+}
+
+// ---------- plain-text names ----------
+
+const CASK_COUNTS: &str = "https://formulae.brew.sh/api/analytics/cask-install/365d.json";
+const FORMULA_COUNTS: &str = "https://formulae.brew.sh/api/analytics/install-on-request/365d.json";
+
+fn popularity(s: &Sandbox) {
+    s.reply(&api(CASK_COUNTS), r#"{"items":[{"cask":"google-chrome","count":"1,200,000"},{"cask":"visual-studio-code","count":"900,000"},{"cask":"chrome-remote-desktop-host","count":"20,000"},{"cask":"firefox","count":"800,000"}]}"#)
+        .reply(&api(FORMULA_COUNTS), r#"{"items":[{"formula":"chrome-cli","count":"9,000"},{"formula":"jq","count":"2,000,000"}]}"#);
+}
+
+#[test]
+fn a_short_name_installs_the_app_people_mean() {
+    let s = sandbox();
+    popularity(&s);
+    s.reply("npm view chrome name", "chrome\n");
+    s.cmd().args(["install", "chrome", "-n"]).assert().success().stdout(predicate::str::contains("brew install --cask google-chrome").and(predicate::str::contains("read as cask:google-chrome")));
+    s.cmd().args(["install", "vscode", "-n"]).assert().success().stdout(predicate::str::contains("brew install --cask visual-studio-code").and(predicate::str::contains("its usual abbreviation")));
+}
+
+#[test]
+fn a_typo_installs_the_app_and_the_plan_says_so() {
+    let s = sandbox();
+    popularity(&s);
+    s.cmd().args(["install", "chome", "-n"]).assert().success().stdout(predicate::str::contains("brew install --cask google-chrome").and(predicate::str::contains("a likely typo")));
+}
+
+#[test]
+fn counts_are_cached_so_the_second_lookup_is_offline_fast() {
+    let s = sandbox();
+    popularity(&s);
+    s.cmd().args(["install", "chome", "-n"]).assert().success();
+    let first = s.calls().matches("formulae.brew.sh").count();
+    assert_eq!(first, 2);
+    s.cmd().args(["install", "chome", "-n"]).assert().success();
+    assert_eq!(s.calls().matches("formulae.brew.sh").count(), 2, "the cache served the second run");
+    assert!(s.home.join(".kaika/cache/popularity.tsv").exists());
+}
+
+#[test]
+fn an_exact_package_is_never_reinterpreted() {
+    let s = sandbox();
+    popularity(&s);
+    s.reply("brew search --cask firefox", "firefox\n");
+    s.cmd().args(["install", "firefox", "-n"]).assert().success().stdout(predicate::str::contains("brew install --cask firefox").and(predicate::str::contains("read as").not()));
+    assert!(!s.calls().contains("formulae.brew.sh"), "no lookup when the name is exact");
+}
+
+#[test]
+fn no_counts_and_no_clear_winner_fall_back_to_the_old_behaviour() {
+    let s = sandbox(); // curl fails: nothing is known about popularity
+    s.reply("npm view chrome name", "chrome\n").reply("brew search --cask chrome", "google-chrome\n");
+    s.cmd().args(["install", "chrome", "-y"]).assert().code(1).stderr(predicate::str::contains("nothing was installed"));
+}
+
+#[test]
+fn a_script_built_button_that_redirects_to_the_file_is_rendered_then_followed() {
+    let s = sandbox();
+    s.reply(&api("https://ghost.example/"), "<div id=app></div>");
+    s.custom_stub("fakebrowser", "echo '<a href=\"/api/dl?platform=osx&amp;download=1\">Download for macOS</a>'");
+    s.reply("curl -sL -r 0-0 -o /dev/null -w %{url_effective} --max-time 20 -A kaika/0.1 (package manager) https://ghost.example/api/dl?platform=osx&download=1", "https://cdn.ghost.example/Ghost.dmg");
+    s.cmd().env("KAIKA_BROWSER", browser_path(&s)).args(["install", "https://ghost.example/", "-n"]).assert().success().stdout(predicate::str::contains("cdn.ghost.example").and(predicate::str::contains("download and install ghost")));
 }

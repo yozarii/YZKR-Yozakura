@@ -259,6 +259,16 @@ fn from_site(r: &dyn Runner, d: &dyn Decider, query: &str, site_url: &str, sourc
 
     let Some(home) = get(r, site_url) else { return Outcome::Unsure(format!("could not read {site_url}")) };
     let (mut links, mut dropped) = quarantine_links(download_links(&home, site_url));
+    if links.is_empty() {
+        // Buttons whose address names no file but redirects to it ("Download for macOS").
+        let redirected: Vec<Link> = recipe::resolve_redirected_downloads(r, &home, site_url)
+            .into_iter()
+            .filter_map(|(u, t)| recipe::asset_score(&recipe::file_name(&u)).map(|s| (s, u, t)))
+            .collect();
+        let (found, bad) = quarantine_links(redirected);
+        dropped.extend(bad);
+        links = found;
+    }
     let mut page_url = site_url.to_string();
     let mut how_extra = "";
     if links.is_empty() {
@@ -278,8 +288,14 @@ fn from_site(r: &dyn Runner, d: &dyn Decider, query: &str, site_url: &str, sourc
     if links.is_empty() {
         // A page that builds its links with JavaScript has none in the plain text: render it, if a browser is installed.
         if let Some(shown) = render::page(r, site_url) {
-            let (found, bad) = quarantine_links(download_links(&shown, site_url));
+            let (mut found, bad) = quarantine_links(download_links(&shown, site_url));
             dropped.extend(bad);
+            if found.is_empty() {
+                let redirected: Vec<Link> = recipe::resolve_redirected_downloads(r, &shown, site_url).into_iter().filter_map(|(u, t)| recipe::asset_score(&recipe::file_name(&u)).map(|s| (s, u, t))).collect();
+                let (f, bad) = quarantine_links(redirected);
+                dropped.extend(bad);
+                found = f;
+            }
             if !found.is_empty() {
                 links = found;
                 how_extra = "; the page builds its links with JavaScript, so it was rendered in a headless browser";
@@ -801,5 +817,54 @@ mod tests {
             o => panic!("{o:?}"),
         };
         assert!(m.contains("Wikidata") && m.contains("GitHub") && m.contains("https URL"), "{m}");
+    }
+
+    // ---------- links that name no file ----------
+
+    fn head(url: &str) -> String {
+        format!("curl -sL -r 0-0 -o /dev/null -w %{{url_effective}} --max-time 20 -A {} {url}", recipe::USER_AGENT)
+    }
+
+    #[test]
+    fn a_download_button_that_redirects_to_the_file_is_followed_without_downloading_it() {
+        let r = Fake::default()
+            .with(&api("https://ghost.example/"), r#"<a href="/api/download?platform=osx">Download for macOS</a><a href="/api/download?platform=win">Windows</a><a href="/about">About</a>"#)
+            .with(&head("https://ghost.example/api/download?platform=osx"), "https://cdn.ghost.example/Ghost-2.1-universal.dmg");
+        match from_url(&r, &nm(), "ghost", "https://ghost.example/") {
+            Outcome::Picked(d) => assert_eq!((d.url.as_str(), d.domain.as_str()), ("https://cdn.ghost.example/Ghost-2.1-universal.dmg", "ghost.example")),
+            o => panic!("{o:?}"),
+        }
+    }
+
+    #[test]
+    fn a_redirect_that_does_not_end_at_a_file_is_not_a_download() {
+        let r = Fake::default()
+            .with(&api("https://ghost.example/"), r#"<a href="/download/mac">Download</a>"#)
+            .with(&head("https://ghost.example/download/mac"), "https://ghost.example/thanks.html");
+        assert!(matches!(from_url(&r, &nm(), "ghost", "https://ghost.example/"), Outcome::Unsure(_)));
+        let r = Fake::default().with(&api("https://ghost.example/"), r#"<a href="/download/mac">Download</a>"#).with(&head("https://ghost.example/download/mac"), "http://ghost.example/Ghost.dmg");
+        assert!(matches!(from_url(&r, &nm(), "ghost", "https://ghost.example/"), Outcome::Unsure(_)), "a redirect to plain http is refused");
+    }
+
+    #[test]
+    fn only_links_that_say_download_and_mac_are_followed() {
+        let page = r#"<a href="/download/mac">x</a><a href="/blog/macos-tips">Read more</a><a href="/dl?os=darwin-arm64&download=1">y</a><a href="/download/windows">Windows</a><a href="http://x.example/download/mac">plain</a>"#;
+        let got: Vec<String> = recipe::extensionless_candidates(page, "https://ghost.example/").into_iter().map(|x| x.0).collect();
+        assert_eq!(got, ["https://ghost.example/dl?os=darwin-arm64&download=1", "https://ghost.example/download/mac"], "the Apple-silicon link goes first");
+    }
+
+    #[test]
+    fn entity_escaped_addresses_test_channels_and_the_apple_silicon_build_are_handled() {
+        let page = r#"<a href="/api/dl?channel=ptb&amp;platform=osx&amp;download=1">PTB</a><a href="/api/dl?channel=stable&amp;platform=osx&amp;arch=x64&amp;download=1">Intel</a><a href="/api/dl?channel=stable&amp;platform=osx&amp;arch=arm64&amp;download=1">Apple silicon</a>"#;
+        let got: Vec<String> = recipe::extensionless_candidates(page, "https://ghost.example/").into_iter().map(|x| x.0).collect();
+        assert_eq!(got, ["https://ghost.example/api/dl?channel=stable&platform=osx&arch=arm64&download=1", "https://ghost.example/api/dl?channel=stable&platform=osx&arch=x64&download=1"]);
+    }
+
+    #[test]
+    fn helpers_updaters_and_uninstallers_are_not_the_app() {
+        for n in ["InstallFigmaAgent.dmg", "Ghost-Updater.zip", "Uninstall-Ghost.dmg", "Ghost-Helper.pkg"] {
+            assert_eq!(recipe::asset_score(n), None, "{n}");
+        }
+        assert!(recipe::asset_score("Ghost-1.0-arm64.dmg").is_some());
     }
 }

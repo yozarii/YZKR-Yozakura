@@ -6,6 +6,7 @@ use crate::config::Config;
 use crate::decision::{self, Decider};
 use crate::discovery;
 use crate::model;
+use crate::names;
 use crate::net;
 use crate::direct::{self, DErr, Job};
 use crate::manifest::{now, Entry, Manifest};
@@ -393,6 +394,13 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
         Choice::Several { chosen, .. } => decision::tier(&format!("{}:{}", chosen.source, chosen.name)) == 2,
         Choice::None => false,
     };
+    if matches!(choice, Choice::None) || open_only {
+        // Plain text: "chrome", "chome" and "vscode" mean google-chrome and visual-studio-code (names.rs).
+        if let Ok(f) = names::best(&t.name, &names::popular(ctx.r, &ctx.dirs)) {
+            let cand = Candidate { source: f.entry.source.into(), name: f.entry.name.clone(), reference: f.entry.name.clone(), desc: String::new() };
+            return pick(cand, Some(f.why(&t.name)));
+        }
+    }
     if open_only {
         let mut near = select::near(&t.name, &hits);
         near.sort_by_key(|c| (c.source != "cask", c.name.len())); // apps (casks) first: what a short name usually means

@@ -72,6 +72,10 @@ Apps go to `/Applications`.
 
 ## How it decides
 
+**Plain text works.** `kaika install chrome`, `chome`, `vscode`, `discord`, `obsidian`: an exact package is used as is;
+otherwise the name is matched, as a word, abbreviation or typo, against reviewed Homebrew formulae and casks and taken
+only if it is by far the most installed match. The plan says how it was read (`'chome' is read as cask:google-chrome`).
+
 **Which source?** Never a model. Curated sources (brew, cask, App Store, recipes) always come before open registries
 (npm, uv), whose names can be squatted. A name that is both a formula and a cask, or a tie between open registries,
 keeps the preference order and the plan shows each tied candidate with a one-line description, so you decide

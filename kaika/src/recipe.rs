@@ -128,7 +128,10 @@ pub fn asset_score(name: &str) -> Option<i32> {
     } else {
         return None;
     };
-    // Other operating systems, source, and files that are not the app itself (debug symbols and builds).
+    // Other operating systems, source, and files that are not the app itself (debug symbols, builds, helpers).
+    if ["uninstall", "updater", "agent", "helper"].iter().any(|w| n.contains(w)) {
+        return None;
+    }
     if ["linux", "windows", "win32", "win64", ".exe", "freebsd", "-src", "source", "dsym", "symbols", "-debug", "_debug", ".debug", "-dbg"].iter().any(|w| n.contains(w)) {
         return None;
     }
@@ -147,6 +150,53 @@ pub fn asset_score(name: &str) -> Option<i32> {
         s -= 50;
     }
     Some(s)
+}
+
+/// Links that name no file but say they are the macOS download (`/api/download?platform=osx`,
+/// `/updates/download/darwin-arm64/app`, a button "Download for macOS"): at most four, in page order.
+pub fn extensionless_candidates(page: &str, base: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = vec![];
+    for a in crate::html::anchors(page) {
+        let url = resolve_url(base, &a.href.replace("&amp;", "&"));
+        if a.href.is_empty() || ensure_https(&url).is_err() || asset_score(&file_name(&url)).is_some() {
+            continue;
+        }
+        let (u, t) = (url.to_lowercase(), a.text.to_lowercase());
+        if ["ptb", "canary", "beta", "nightly", "insider", "preview"].iter().any(|w| u.contains(&format!("={w}")) || u.contains(&format!("/{w}"))) {
+            continue; // test channels are never the default download
+        }
+        let says_download = u.contains("download") || t.contains("download");
+        let says_mac = ["darwin", "osx", "macos", "/mac", "mac-", "mac_", "=mac", "apple silicon", "for mac"].iter().any(|w| u.contains(w) || t.contains(w));
+        if says_download && says_mac && !out.iter().any(|(x, _)| *x == url) {
+            out.push((url, a.text));
+        }
+    }
+    // The Apple-silicon build first: the four slots go to the likeliest links.
+    out.sort_by_key(|(u, _)| !(u.contains("arm64") || u.contains("aarch64") || u.contains("universal")));
+    out.truncate(4);
+    out
+}
+
+/// Where a download link really leads: the final URL after redirects, fetching one byte of the file at most
+/// (some servers refuse HEAD requests).
+pub fn final_url(r: &dyn Runner, url: &str) -> Option<String> {
+    ensure_https(url).ok()?;
+    let o = r.run(&argv(&["curl", "-sL", "-r", "0-0", "-o", "/dev/null", "-w", "%{url_effective}", "--max-time", "20", "-A", USER_AGENT, url])).ok().filter(|o| o.ok())?;
+    let last = o.stdout.trim().to_string();
+    (ensure_https(&last).is_ok() && asset_score(&file_name(&last)).is_some()).then_some(last)
+}
+
+/// `extensionless_candidates` followed to the real files: (final url, link text).
+pub fn resolve_redirected_downloads(r: &dyn Runner, page: &str, base: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = vec![];
+    for (u, t) in extensionless_candidates(page, base) {
+        if let Some(f) = final_url(r, &u) {
+            if !out.iter().any(|(x, _)| *x == f) {
+                out.push((f, t));
+            }
+        }
+    }
+    out
 }
 
 /// Index of the best download among `names`, honouring an optional glob. First wins ties.
@@ -266,6 +316,16 @@ pub fn latest(r: &dyn Runner, rec: &Recipe) -> Result<Asset> {
         let mut links = extract_links(&fetch(r, page)?, page);
         let mut names: Vec<String> = links.iter().map(|l| file_name(l)).collect();
         let mut pick = pick_asset(&names, rec.asset_pattern.as_deref());
+        if pick.is_none() {
+            // Links that only reach the file through a redirect (`/download?platform=osx`).
+            let page_html = fetch(r, page)?;
+            let redirected: Vec<String> = resolve_redirected_downloads(r, &page_html, page).into_iter().map(|x| x.0).collect();
+            if !redirected.is_empty() {
+                links = redirected;
+                names = links.iter().map(|l| file_name(l)).collect();
+                pick = pick_asset(&names, rec.asset_pattern.as_deref());
+            }
+        }
         if pick.is_none() {
             // The links may only exist after the page's scripts ran (see render.rs).
             if let Some(shown) = crate::render::page(r, page) {

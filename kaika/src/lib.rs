@@ -12,6 +12,7 @@ pub mod discovery;
 pub mod html;
 pub mod manifest;
 pub mod model;
+pub mod names;
 pub mod net;
 pub mod paths;
 pub mod plan;
