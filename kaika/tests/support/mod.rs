@@ -1,9 +1,9 @@
 //! Shared by the corpus tests and the opt-in real-model test.
 #![allow(dead_code)]
 
-use kaika::discovery::Link;
+use kaika::asset::asset_score;
+use kaika::links::Link;
 use kaika::quarantine::is_hostile;
-use kaika::recipe::asset_score;
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
@@ -49,10 +49,12 @@ pub fn links_of(x: &Case) -> Vec<Link> {
     let mut v: Vec<Link> = x
         .candidates
         .iter()
-        .filter(|k| !is_hostile(&k.text) && !kaika::recipe::not_for_mac(&k.text))
-        .filter_map(|k| asset_score(k.file.as_deref().filter(|f| !f.is_empty())?).map(|s| (s, k.id.clone(), k.text.clone())))
+        .filter(|k| !is_hostile(&k.text) && !kaika::asset::not_for_mac(&k.text))
+        .filter_map(|k| {
+            asset_score(k.file.as_deref().filter(|f| !f.is_empty())?)
+                .map(|s| (s, k.id.clone(), k.text.clone()))
+        })
         .collect();
-    kaika::discovery::demote_older_versions(&mut v);
+    kaika::links::demote_older_versions(&mut v);
     v
 }
-

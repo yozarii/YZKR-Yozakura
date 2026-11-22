@@ -1,3 +1,5 @@
+//! The `kaika` binary: parse the command line, build the context, run one command, exit with its code.
+
 use clap::Parser;
 use kaika::cli::Cli;
 use kaika::commands::{self, Ctx};
@@ -18,7 +20,15 @@ fn main() {
     };
     let runner = RealRunner;
     let decider = LlamaDecider::new(&runner, dirs.clone(), cfg.models_enabled());
-    let ctx = Ctx { dirs, r: &runner, decider: &decider, cfg, json: cli.json, quiet: cli.quiet, verbose: cli.verbose };
+    let ctx = Ctx {
+        dirs,
+        r: &runner,
+        decider: &decider,
+        cfg,
+        json: cli.json,
+        quiet: cli.quiet,
+        verbose: cli.verbose,
+    };
     let result = commands::dispatch(&ctx, cli.cmd);
     decider.shutdown(); // std::process::exit skips destructors, so stop the model explicitly
     if let Err(e) = result {

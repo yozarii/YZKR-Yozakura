@@ -25,14 +25,23 @@ pub enum Match {
 }
 
 pub fn key(text: &str) -> String {
-    text.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect()
+    text.chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect()
 }
 
 impl Sandbox {
     pub fn new() -> Sandbox {
         let root = tempfile::tempdir().unwrap();
         let p = root.path().to_path_buf();
-        let s = Sandbox { stubs: p.join("stubs"), resp: p.join("resp"), log: p.join("calls.log"), home: p.join("home"), apps: p.join("Applications"), root };
+        let s = Sandbox {
+            stubs: p.join("stubs"),
+            resp: p.join("resp"),
+            log: p.join("calls.log"),
+            home: p.join("home"),
+            apps: p.join("Applications"),
+            root,
+        };
         for d in [&s.stubs, &s.resp, &s.home, &s.apps] {
             fs::create_dir_all(d).unwrap();
         }
@@ -83,7 +92,11 @@ exit {default_code}
     /// Install a hand-written stub script (for tools whose behaviour depends on their arguments).
     pub fn custom_stub(&self, tool: &str, body: &str) -> &Sandbox {
         let path = self.stubs.join(tool);
-        fs::write(&path, format!("#!/bin/sh\necho \"{tool} $*\" >> \"$KAIKA_STUB_LOG\"\n{body}\n")).unwrap();
+        fs::write(
+            &path,
+            format!("#!/bin/sh\necho \"{tool} $*\" >> \"$KAIKA_STUB_LOG\"\n{body}\n"),
+        )
+        .unwrap();
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
         self
@@ -100,7 +113,11 @@ attach)
   /usr/bin/ditto "{src}" "$mnt/Fixture.app" ;;
 detach) exit 0 ;;
 esac"#,
-            fail = if attach_ok { "" } else { "echo 'image not recognized' >&2; exit 1" },
+            fail = if attach_ok {
+                ""
+            } else {
+                "echo 'image not recognized' >&2; exit 1"
+            },
             src = app_src.display()
         );
         self.custom_stub("hdiutil", &body)
@@ -129,7 +146,11 @@ esac"#,
         self
     }
     pub fn reply_code(&self, text: &str, code: i32) -> &Sandbox {
-        fs::write(self.resp.join(format!("{}.code", key(text))), code.to_string()).unwrap();
+        fs::write(
+            self.resp.join(format!("{}.code", key(text))),
+            code.to_string(),
+        )
+        .unwrap();
         self
     }
 
@@ -182,7 +203,10 @@ esac"#,
     }
 
     pub fn good_signature(&self, team: &str) -> &Sandbox {
-        self.reply_err("codesign -dv --verbose=4", &format!("Identifier=com.fixture.app\nTeamIdentifier={team}\n"));
+        self.reply_err(
+            "codesign -dv --verbose=4",
+            &format!("Identifier=com.fixture.app\nTeamIdentifier={team}\n"),
+        );
         self.reply_err("spctl -a -vv", "accepted\nsource=Notarized Developer ID\n");
         self
     }
@@ -208,14 +232,19 @@ esac"#,
     /// What llama-server answers on /v1/systemone: the probabilities of each option.
     pub fn systemone(probs: &[(&str, f64)]) -> String {
         let p: Vec<String> = probs.iter().map(|(k, v)| format!("{k:?}: {v}")).collect();
-        format!(r#"{{"model":"h2oai/h2o-lightning-4b","answers":{{"q":{{"type":"choice","choice":"{}","probabilities":{{{}}}}}}}}}"#, probs[0].0, p.join(","))
+        format!(
+            r#"{{"model":"h2oai/h2o-lightning-4b","answers":{{"q":{{"type":"choice","choice":"{}","probabilities":{{{}}}}}}}}}"#,
+            probs[0].0,
+            p.join(",")
+        )
     }
 
     /// The (port-normalised) curl invocations kaika makes against its own model server.
     pub const ASK: &'static str = "curl -s --max-time 60 -H Content-Type: application/json -d @- http://127.0.0.1:PORT/v1/systemone";
     pub const HEALTH: &'static str = "curl -sf --max-time 1 http://127.0.0.1:PORT/health";
     /// What the connectivity probe runs (answering it means "online").
-    pub const PROBE: &'static str = "curl -s -o /dev/null -I --connect-timeout 2 --max-time 3 https://www.wikidata.org/";
+    pub const PROBE: &'static str =
+        "curl -s -o /dev/null -I --connect-timeout 2 --max-time 3 https://www.wikidata.org/";
 
     /// A stand-in `llama-server`: `--version` prints a build number; started as a server it records its pid and
     /// its arguments, then sleeps until it is killed.
@@ -233,11 +262,18 @@ exec sleep 600"#,
     }
 
     pub fn llama_pid(&self) -> Option<u32> {
-        fs::read_to_string(self.resp.join("llama.pid")).ok().and_then(|t| t.trim().parse().ok())
+        fs::read_to_string(self.resp.join("llama.pid"))
+            .ok()
+            .and_then(|t| t.trim().parse().ok())
     }
 
     pub fn pid_alive(pid: u32) -> bool {
-        std::process::Command::new("kill").args(["-0", &pid.to_string()]).stderr(std::process::Stdio::null()).status().map(|s| s.success()).unwrap_or(false)
+        std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
     }
 
     /// Wait up to `secs` for a process to be gone.
@@ -261,7 +297,9 @@ exec sleep 600"#,
 
     /// Everything the model needs: llama-server, the model file, and a server that answers `health`.
     pub fn model_ready(&self) -> &Sandbox {
-        self.stub_llama(12359).put_model().reply(Sandbox::HEALTH, r#"{"status":"ok"}"#)
+        self.stub_llama(12359)
+            .put_model()
+            .reply(Sandbox::HEALTH, r#"{"status":"ok"}"#)
     }
 
     pub fn recipe(&self, file: &str, body: &str) {

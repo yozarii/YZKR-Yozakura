@@ -118,12 +118,35 @@ install; only `-f` overrides it. A found app is saved as a recipe, so next time 
 
 ## Layout of the code
 
-- `src/` Rust: CLI, backends, manifest, verification, recipes, discovery, the model manager (`model.rs`), the decision
-  rules (`decision.rs`, `quarantine.rs`), the offline check (`net.rs`)
-- `recipes/` curated recipes, including the pinned model
-- `corpus/discovery.json` 626 labelled third-party-app decisions: official site and right download, with lookalikes,
-  typosquats, nightly/beta/checksum/debug files, localized builds and injections
-- `tests/` hermetic integration tests, corpus-driven tests, and one opt-in test against the real model
+`src/lib.rs` is the library; `src/main.rs` only parses the command line, builds the context and exits with the
+command's exit code. Every external tool runs through `runner::Runner`, so tests substitute stubs; every network fetch
+goes through `net`.
+
+```
+src/
+  main.rs  lib.rs  cli.rs            the binary, the module map, flags and commands
+  commands/                          one handler per command; mod.rs has Ctx, the exit-code error and dispatch
+    install.rs  uninstall.rs  upgrade.rs  query.rs (search, info)  outdated.rs (and --notify)
+    schedule.rs (the launchd job)  housekeeping.rs (doctor, cleanup, config)
+    rows.rs (what is installed)  run.rs (confirm and execute a plan)
+  backend/                           brew + cask, npm, uv, mas behind one trait; app.rs lists unmanaged apps
+  select.rs  names.rs  config.rs     which source carries a name, plain-text names ("chrome", "chome"), config
+  recipe.rs                          recipes: embedded, user and learned; latest(): how to find a download
+  discovery/                         finding an app no backend carries
+    wikidata.rs  github.rs  site.rs  the two sources, and a vendor page or release feed to its download
+  links.rs  asset.rs  html.rs        reading a page's links, scoring file names, tiny HTML parser
+  render.rs                          a headless browser for pages that build their links with JavaScript
+  direct/                            download, verify, install and remove (mod.rs); app.rs, package.rs, remove.rs
+  verify.rs                          signature, notarization, Team ID, checksum
+  decision.rs  quarantine.rs  model.rs  outcome.rs
+                                     rules around a decider, hostile-text filter, the local model, decided/unsure
+  manifest.rs  paths.rs  plan.rs     what kaika installed, ~/.kaika layout, the plan shown before a change
+  net.rs  runner.rs                  HTTPS-only fetching and the connectivity probe; running external tools
+recipes/                             curated recipes, including the pinned model
+corpus/discovery.json                626 labelled third-party-app decisions; real.json: 32 real vendor pages
+tests/                               hermetic integration tests (cli.rs), corpus-driven tests, one opt-in real-model test
+packaging/                           the Homebrew formula and release steps
+```
 
 ## Build and test
 
@@ -132,6 +155,7 @@ cargo build --release                                      # bin/kaika launches 
 cargo test                                                 # unit, integration and corpus tests
 cargo test --test real_model -- --ignored --nocapture      # the real model over the whole corpus (needs llama-server and the model)
 cargo test -- --ignored                                    # also: real codesign/spctl on an installed app (read-only)
+cargo fmt --check && cargo clippy --all-targets            # style: default rustfmt, no clippy warnings
 ```
 
 The automated tests are hermetic: a temporary HOME and apps folder, stub executables for brew/npm/uv/mas/curl/codesign/

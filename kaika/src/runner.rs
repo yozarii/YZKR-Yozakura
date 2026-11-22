@@ -1,11 +1,10 @@
 //! Every external tool runs through a `Runner`, so tests can substitute stubs.
 
-use anyhow::{anyhow, Result};
-use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use anyhow::{Result, anyhow};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
+/// What a finished program printed and how it exited.
 #[derive(Debug, Clone, Default)]
 pub struct Out {
     pub code: i32,
@@ -14,15 +13,18 @@ pub struct Out {
 }
 
 impl Out {
+    /// Did it exit with status 0?
     pub fn ok(&self) -> bool {
         self.code == 0
     }
 }
 
+/// A command line from string slices.
 pub fn argv(a: &[&str]) -> Vec<String> {
     a.iter().map(|s| s.to_string()).collect()
 }
 
+/// Runs external tools. Every tool kaika uses goes through one, so tests can substitute stubs.
 pub trait Runner {
     /// Run to completion, capturing output. Err only when the program could not start.
     fn run(&self, argv: &[String]) -> Result<Out>;
@@ -34,6 +36,7 @@ pub trait Runner {
     fn exists(&self, prog: &str) -> bool;
 }
 
+/// Runs programs for real.
 pub struct RealRunner;
 
 fn split(argv: &[String]) -> Result<(&String, &[String])> {
@@ -51,7 +54,11 @@ fn collect(o: std::process::Output) -> Out {
 impl Runner for RealRunner {
     fn run(&self, argv: &[String]) -> Result<Out> {
         let (p, a) = split(argv)?;
-        let o = Command::new(p).args(a).stdin(Stdio::null()).output().map_err(|e| anyhow!("{p}: {e}"))?;
+        let o = Command::new(p)
+            .args(a)
+            .stdin(Stdio::null())
+            .output()
+            .map_err(|e| anyhow!("{p}: {e}"))?;
         Ok(collect(o))
     }
 
@@ -73,41 +80,71 @@ impl Runner for RealRunner {
 
     fn run_live(&self, argv: &[String]) -> Result<i32> {
         let (p, a) = split(argv)?;
-        let s = Command::new(p).args(a).status().map_err(|e| anyhow!("{p}: {e}"))?;
+        let s = Command::new(p)
+            .args(a)
+            .status()
+            .map_err(|e| anyhow!("{p}: {e}"))?;
         Ok(s.code().unwrap_or(-1))
     }
 
     fn exists(&self, prog: &str) -> bool {
         use std::os::unix::fs::PermissionsExt;
-        let Some(path) = std::env::var_os("PATH") else { return false };
+        let Some(path) = std::env::var_os("PATH") else {
+            return false;
+        };
         std::env::split_paths(&path).any(|d| {
-            std::fs::metadata(d.join(prog)).map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+            std::fs::metadata(d.join(prog))
+                .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false)
         })
     }
 }
 
 /// A scripted runner for unit tests: responses keyed by the space-joined argv.
+#[cfg(test)]
 #[derive(Default)]
 pub struct Fake {
-    pub responses: HashMap<String, Out>,
+    pub responses: std::collections::HashMap<String, Out>,
     /// Successive answers to the same command (a decision asks twice, in two candidate orders).
-    pub sequences: RefCell<HashMap<String, VecDeque<Out>>>,
+    pub sequences:
+        std::cell::RefCell<std::collections::HashMap<String, std::collections::VecDeque<Out>>>,
     pub tools: Vec<String>,
-    pub log: RefCell<Vec<String>>,
+    pub log: std::cell::RefCell<Vec<String>>,
 }
 
+#[cfg(test)]
 impl Fake {
     pub fn with(mut self, cmd: &str, stdout: &str) -> Self {
-        self.responses.insert(cmd.into(), Out { code: 0, stdout: stdout.into(), stderr: String::new() });
+        self.responses.insert(
+            cmd.into(),
+            Out {
+                code: 0,
+                stdout: stdout.into(),
+                stderr: String::new(),
+            },
+        );
         self
     }
     pub fn then(self, cmd: &str, outputs: &[&str]) -> Self {
-        let q = outputs.iter().map(|o| Out { code: 0, stdout: o.to_string(), stderr: String::new() }).collect();
+        let q = outputs
+            .iter()
+            .map(|o| Out {
+                code: 0,
+                stdout: o.to_string(),
+                stderr: String::new(),
+            })
+            .collect();
         self.sequences.borrow_mut().insert(cmd.into(), q);
         self
     }
     pub fn failing(mut self, cmd: &str) -> Self {
-        self.responses.insert(cmd.into(), Out { code: 1, ..Default::default() });
+        self.responses.insert(
+            cmd.into(),
+            Out {
+                code: 1,
+                ..Default::default()
+            },
+        );
         self
     }
     pub fn tool(mut self, t: &str) -> Self {
@@ -116,14 +153,23 @@ impl Fake {
     }
 }
 
+#[cfg(test)]
 impl Runner for Fake {
     fn run(&self, argv: &[String]) -> Result<Out> {
         let key = argv.join(" ");
         self.log.borrow_mut().push(key.clone());
-        if let Some(next) = self.sequences.borrow_mut().get_mut(&key).and_then(|q| q.pop_front()) {
+        if let Some(next) = self
+            .sequences
+            .borrow_mut()
+            .get_mut(&key)
+            .and_then(|q| q.pop_front())
+        {
             return Ok(next);
         }
-        Ok(self.responses.get(&key).cloned().unwrap_or(Out { code: 1, ..Default::default() }))
+        Ok(self.responses.get(&key).cloned().unwrap_or(Out {
+            code: 1,
+            ..Default::default()
+        }))
     }
     fn run_stdin(&self, argv: &[String], _input: &str) -> Result<Out> {
         self.run(argv)

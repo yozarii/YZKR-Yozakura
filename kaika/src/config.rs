@@ -1,12 +1,15 @@
 //! User configuration: the backend preference order, and whether models may be used at all.
 
 use crate::paths::Dirs;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
+/// The preference order among backends when a name is carried by several (the user can change it with `config set order`).
 pub const DEFAULT_ORDER: [&str; 6] = ["brew", "cask", "uv", "npm", "mas", "direct"];
+/// The settings `kaika config` knows.
 pub const KEYS: [&str; 2] = ["order", "models"];
 
+/// The contents of `~/.kaika/kaika.toml`.
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Config {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -17,8 +20,9 @@ pub struct Config {
 }
 
 impl Config {
+    /// Read the config; a missing file is the default, an unreadable or malformed one is an error (never silently ignored).
     pub fn load(dirs: &Dirs) -> Result<Config> {
-        let path = dirs.config.join("kaika.toml");
+        let path = dirs.root.join("kaika.toml");
         match std::fs::read_to_string(&path) {
             Ok(t) => toml::from_str(&t).with_context(|| format!("reading {}", path.display())),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
@@ -26,27 +30,47 @@ impl Config {
         }
     }
 
+    /// Write the config.
     pub fn save(&self, dirs: &Dirs) -> Result<()> {
-        std::fs::create_dir_all(&dirs.config)?;
-        std::fs::write(dirs.config.join("kaika.toml"), toml::to_string_pretty(self)?)?;
+        std::fs::create_dir_all(&dirs.root)?;
+        std::fs::write(dirs.root.join("kaika.toml"), toml::to_string_pretty(self)?)?;
         Ok(())
     }
 
+    /// The backend preference order: the configured one, else [`DEFAULT_ORDER`].
     pub fn order(&self) -> Vec<String> {
-        if self.order.is_empty() { DEFAULT_ORDER.iter().map(|s| s.to_string()).collect() } else { self.order.clone() }
+        if self.order.is_empty() {
+            DEFAULT_ORDER.iter().map(|s| s.to_string()).collect()
+        } else {
+            self.order.clone()
+        }
     }
 
+    /// The value of a setting, as text.
     pub fn get(&self, key: &str) -> Result<String> {
         Ok(match key {
             "order" => self.order().join(","),
-            "models" => if self.models_enabled() { "on".into() } else { "off".into() },
+            "models" => {
+                if self.models_enabled() {
+                    "on".into()
+                } else {
+                    "off".into()
+                }
+            }
             _ => bail!("unknown key '{key}' (keys: {})", KEYS.join(", ")),
         })
     }
 
+    /// Change a setting; unknown keys and bad values are errors.
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
-            "order" => self.order = value.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+            "order" => {
+                self.order = value
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            }
             "models" => match value {
                 "on" | "off" => self.models = Some(value.into()),
                 _ => bail!("models must be 'on' or 'off'"),
@@ -58,7 +82,8 @@ impl Config {
 
     /// Models, and web discovery of vendor downloads, can be switched off: `KAIKA_MODELS=off`, or `kaika config set models off`.
     pub fn models_enabled(&self) -> bool {
-        std::env::var("KAIKA_MODELS").as_deref() != Ok("off") && self.models.as_deref() != Some("off")
+        std::env::var("KAIKA_MODELS").as_deref() != Ok("off")
+            && self.models.as_deref() != Some("off")
     }
 }
 
@@ -68,7 +93,10 @@ mod tests {
 
     #[test]
     fn default_order_matches_the_design() {
-        assert_eq!(Config::default().order(), ["brew", "cask", "uv", "npm", "mas", "direct"]);
+        assert_eq!(
+            Config::default().order(),
+            ["brew", "cask", "uv", "npm", "mas", "direct"]
+        );
     }
 
     #[test]
@@ -88,7 +116,10 @@ mod tests {
     fn the_retired_settings_are_gone() {
         let mut c = Config::default();
         for k in ["model", "escalation", "resolver"] {
-            assert!(c.set(k, "x").is_err() && c.get(k).is_err(), "{k} must not exist any more");
+            assert!(
+                c.set(k, "x").is_err() && c.get(k).is_err(),
+                "{k} must not exist any more"
+            );
         }
     }
 }

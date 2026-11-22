@@ -2,6 +2,7 @@
 
 use clap::{Args, Parser, Subcommand};
 
+/// kaika's command line: the global flags, then one command.
 #[derive(Parser)]
 #[command(name = "kaika", version, about = "The universal package manager")]
 pub struct Cli {
@@ -18,6 +19,7 @@ pub struct Cli {
     pub cmd: Cmd,
 }
 
+/// The flags of commands that change something. `-f` alone never skips the confirmation prompt.
 #[derive(Args, Clone, Copy, Debug, Default)]
 pub struct Act {
     /// Print the plan and change nothing
@@ -31,6 +33,7 @@ pub struct Act {
     pub force: bool,
 }
 
+/// The commands. Names and flags keep their established meanings from brew, apt, npm and uv.
 #[derive(Subcommand)]
 pub enum Cmd {
     /// Install packages (name, or source:name to force a backend)

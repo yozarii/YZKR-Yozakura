@@ -5,8 +5,8 @@
 //! is overwhelmingly the most-installed one (Homebrew's public install counts). Nothing here is a model: it is a
 //! word, typo or acronym match plus a popularity rule, so the answer is the same every time and the plan says why.
 
+use crate::net::fetch;
 use crate::paths::Dirs;
-use crate::recipe;
 use crate::runner::Runner;
 use serde_json::Value;
 use std::path::Path;
@@ -19,6 +19,7 @@ const FRESH: Duration = Duration::from_secs(7 * 24 * 3600);
 /// A package installed fewer times than this in a year is too obscure to be guessed.
 pub const MIN_INSTALLS: u64 = 1000;
 
+/// A reviewed package and how many times it was installed in a year.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     /// `cask` or `brew`: the kaika source.
@@ -27,6 +28,7 @@ pub struct Entry {
     pub installs: u64,
 }
 
+/// How a typed name could be a way of writing a package's name.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum How {
     /// The query is a whole word of the name: `chrome` in `google-chrome`.
@@ -38,6 +40,7 @@ pub enum How {
 }
 
 impl How {
+    /// For the plan: how the name was read.
     pub fn describe(self) -> &'static str {
         match self {
             How::Word => "a word of its name",
@@ -54,6 +57,7 @@ impl How {
     }
 }
 
+/// The one package a plain-text name was read as.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Found {
     pub entry: Entry,
@@ -62,9 +66,26 @@ pub struct Found {
 }
 
 impl Found {
+    /// For the plan: "'chrome' is read as cask:google-chrome (...)".
     pub fn why(&self, query: &str) -> String {
-        let ratio = self.runner_up.as_ref().map(|r| format!(", {}x the next match {}", self.entry.installs / r.installs.max(1), r.name)).unwrap_or_default();
-        format!("'{query}' is read as {}:{} ({}; {} installs a year{ratio})", self.entry.source, self.entry.name, self.how.describe(), self.entry.installs)
+        let ratio = self
+            .runner_up
+            .as_ref()
+            .map(|r| {
+                format!(
+                    ", {}x the next match {}",
+                    self.entry.installs / r.installs.max(1),
+                    r.name
+                )
+            })
+            .unwrap_or_default();
+        format!(
+            "'{query}' is read as {}:{} ({}; {} installs a year{ratio})",
+            self.entry.source,
+            self.entry.name,
+            self.how.describe(),
+            self.entry.installs
+        )
     }
 }
 
@@ -73,7 +94,10 @@ fn norm(s: &str) -> String {
 }
 
 fn words(name: &str) -> Vec<String> {
-    name.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(norm).collect()
+    name.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(norm)
+        .collect()
 }
 
 fn distance(a: &str, b: &str, limit: usize) -> usize {
@@ -100,7 +124,7 @@ pub fn how(query: &str, name: &str) -> Option<How> {
         return None;
     }
     let w = words(name);
-    if w.iter().any(|x| *x == q) {
+    if w.contains(&q) {
         return Some(How::Word);
     }
     for k in 1..w.len() {
@@ -110,7 +134,12 @@ pub fn how(query: &str, name: &str) -> Option<How> {
         }
     }
     let limit = if q.chars().count() >= 8 { 2 } else { 1 };
-    if q.chars().count() >= 5 && (w.iter().any(|x| x.chars().count() >= 5 && distance(&q, x, limit) <= limit) || distance(&q, &norm(name), limit) <= limit) {
+    if q.chars().count() >= 5
+        && (w
+            .iter()
+            .any(|x| x.chars().count() >= 5 && distance(&q, x, limit) <= limit)
+            || distance(&q, &norm(name), limit) <= limit)
+    {
         return Some(How::Typo);
     }
     None
@@ -118,18 +147,37 @@ pub fn how(query: &str, name: &str) -> Option<How> {
 
 /// The one overwhelmingly most-installed match, or the best few when there is no clear winner.
 pub fn best(query: &str, entries: &[Entry]) -> Result<Found, Vec<Entry>> {
-    let mut m: Vec<(Entry, How)> = entries.iter().filter(|e| e.installs >= MIN_INSTALLS).filter_map(|e| how(query, &e.name).map(|h| (e.clone(), h))).collect();
-    m.sort_by(|a, b| b.0.installs.cmp(&a.0.installs).then(a.0.name.cmp(&b.0.name)));
-    let Some((top, h)) = m.first().cloned() else { return Err(vec![]) };
+    let mut m: Vec<(Entry, How)> = entries
+        .iter()
+        .filter(|e| e.installs >= MIN_INSTALLS)
+        .filter_map(|e| how(query, &e.name).map(|h| (e.clone(), h)))
+        .collect();
+    m.sort_by(|a, b| {
+        b.0.installs
+            .cmp(&a.0.installs)
+            .then(a.0.name.cmp(&b.0.name))
+    });
+    let Some((top, h)) = m.first().cloned() else {
+        return Err(vec![]);
+    };
     let runner_up = m.get(1).map(|x| x.0.clone());
     match &runner_up {
-        Some(r) if top.installs < r.installs.saturating_mul(h.dominance()) => Err(m.into_iter().take(5).map(|x| x.0).collect()),
-        _ => Ok(Found { entry: top, how: h, runner_up }),
+        Some(r) if top.installs < r.installs.saturating_mul(h.dominance()) => {
+            Err(m.into_iter().take(5).map(|x| x.0).collect())
+        }
+        _ => Ok(Found {
+            entry: top,
+            how: h,
+            runner_up,
+        }),
     }
 }
 
+/// Homebrew's public install counts, from its analytics JSON.
 pub fn parse_analytics(json: &str, key: &str, source: &'static str) -> Vec<Entry> {
-    let Ok(v) = serde_json::from_str::<Value>(json) else { return vec![] };
+    let Ok(v) = serde_json::from_str::<Value>(json) else {
+        return vec![];
+    };
     v["items"]
         .as_array()
         .map(|a| a.as_slice())
@@ -138,14 +186,20 @@ pub fn parse_analytics(json: &str, key: &str, source: &'static str) -> Vec<Entry
         .filter_map(|i| {
             let name = i[key].as_str()?.to_string();
             let installs = i["count"].as_str()?.replace(',', "").parse().ok()?;
-            Some(Entry { source, name, installs })
+            Some(Entry {
+                source,
+                name,
+                installs,
+            })
         })
         .take(KEEP)
         .collect()
 }
 
 fn to_tsv(es: &[Entry]) -> String {
-    es.iter().map(|e| format!("{}\t{}\t{}\n", e.source, e.name, e.installs)).collect()
+    es.iter()
+        .map(|e| format!("{}\t{}\t{}\n", e.source, e.name, e.installs))
+        .collect()
 }
 
 fn from_tsv(t: &str) -> Vec<Entry> {
@@ -157,13 +211,21 @@ fn from_tsv(t: &str) -> Vec<Entry> {
                 "brew" => "brew",
                 _ => return None,
             };
-            Some(Entry { source, name: p.next()?.to_string(), installs: p.next()?.parse().ok()? })
+            Some(Entry {
+                source,
+                name: p.next()?.to_string(),
+                installs: p.next()?.parse().ok()?,
+            })
         })
         .collect()
 }
 
 fn fresh(p: &Path) -> bool {
-    std::fs::metadata(p).and_then(|m| m.modified()).ok().and_then(|t| SystemTime::now().duration_since(t).ok()).is_some_and(|age| age < FRESH)
+    std::fs::metadata(p)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| SystemTime::now().duration_since(t).ok())
+        .is_some_and(|age| age < FRESH)
 }
 
 /// Install counts for the reviewed packages: from the week-old cache when there is one, otherwise fetched and
@@ -178,12 +240,14 @@ pub fn popular(r: &dyn Runner, dirs: &Dirs) -> Vec<Entry> {
     }
     let mut all = vec![];
     for (url, key, source) in [(CASKS, "cask", "cask"), (FORMULAE, "formula", "brew")] {
-        if let Ok(body) = recipe::fetch(r, url) {
+        if let Ok(body) = fetch(r, url) {
             all.extend(parse_analytics(&body, key, source));
         }
     }
     if all.is_empty() {
-        return std::fs::read_to_string(&file).map(|t| from_tsv(&t)).unwrap_or_default();
+        return std::fs::read_to_string(&file)
+            .map(|t| from_tsv(&t))
+            .unwrap_or_default();
     }
     let _ = std::fs::create_dir_all(&dirs.cache);
     let _ = std::fs::write(&file, to_tsv(&all));
@@ -195,7 +259,11 @@ mod tests {
     use super::*;
 
     fn e(source: &'static str, name: &str, installs: u64) -> Entry {
-        Entry { source, name: name.into(), installs }
+        Entry {
+            source,
+            name: name.into(),
+            installs,
+        }
     }
 
     #[test]
@@ -214,21 +282,37 @@ mod tests {
         assert_eq!(how("ghost", "ghostty"), None);
         assert_eq!(how("git", "github"), None, "too short to guess from");
         assert_eq!(how("zen", "zed"), None);
-        assert_eq!(how("chrome", "chrome"), None, "exact names are not fuzzy matches");
+        assert_eq!(
+            how("chrome", "chrome"),
+            None,
+            "exact names are not fuzzy matches"
+        );
         assert_eq!(how("spotify", "spotty"), None);
     }
 
     #[test]
     fn the_overwhelmingly_most_installed_match_wins() {
-        let es = [e("cask", "google-chrome", 1_200_000), e("cask", "chrome-remote-desktop-host", 20_000), e("brew", "chrome-cli", 9_000), e("cask", "chromium", 80_000)];
+        let es = [
+            e("cask", "google-chrome", 1_200_000),
+            e("cask", "chrome-remote-desktop-host", 20_000),
+            e("brew", "chrome-cli", 9_000),
+            e("cask", "chromium", 80_000),
+        ];
         let f = best("chrome", &es).unwrap();
         assert_eq!((f.entry.name.as_str(), f.how), ("google-chrome", How::Word));
-        assert!(f.why("chrome").contains("cask:google-chrome") && f.why("chrome").contains("60x"), "{}", f.why("chrome"));
+        assert!(
+            f.why("chrome").contains("cask:google-chrome") && f.why("chrome").contains("60x"),
+            "{}",
+            f.why("chrome")
+        );
     }
 
     #[test]
     fn no_clear_winner_means_no_guess() {
-        let es = [e("cask", "foo-studio", 50_000), e("cask", "studio-bar", 30_000)];
+        let es = [
+            e("cask", "foo-studio", 50_000),
+            e("cask", "studio-bar", 30_000),
+        ];
         let list = best("studio", &es).unwrap_err();
         assert_eq!(list.len(), 2);
         assert!(best("nothingmatches", &es).unwrap_err().is_empty());
@@ -237,7 +321,10 @@ mod tests {
     #[test]
     fn typos_need_a_bigger_lead_than_words() {
         let es = [e("cask", "firefox", 90_000), e("cask", "firefix", 20_000)];
-        assert!(best("firefx", &es).is_err(), "4.5x is not enough for a typo");
+        assert!(
+            best("firefx", &es).is_err(),
+            "4.5x is not enough for a typo"
+        );
         let es = [e("cask", "firefox", 900_000), e("cask", "firefix", 20_000)];
         assert_eq!(best("firefx", &es).unwrap().entry.name, "firefox");
     }
@@ -250,7 +337,10 @@ mod tests {
     #[test]
     fn analytics_json_is_parsed_with_thousands_separators() {
         let j = r#"{"items":[{"number":1,"cask":"google-chrome","count":"1,200,000","percent":"1"},{"number":2,"cask":"x","count":"bad"}]}"#;
-        assert_eq!(parse_analytics(j, "cask", "cask"), vec![e("cask", "google-chrome", 1_200_000)]);
+        assert_eq!(
+            parse_analytics(j, "cask", "cask"),
+            vec![e("cask", "google-chrome", 1_200_000)]
+        );
         assert!(parse_analytics("not json", "cask", "cask").is_empty());
     }
 

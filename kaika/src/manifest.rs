@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// What kaika installed: one package, where it came from, and how to update it.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct Entry {
     pub name: String,
@@ -26,10 +27,15 @@ pub struct Entry {
     pub installed_at: u64,
 }
 
+/// Seconds since the epoch.
 pub fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
+/// Everything kaika installed, in `~/.kaika/manifest.toml`.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Manifest {
     #[serde(default, rename = "package")]
@@ -39,10 +45,12 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    /// Read the manifest; a missing file is empty, a corrupt one is an error (never silently empty).
     pub fn load(dirs: &Dirs) -> Result<Manifest> {
-        let path = dirs.data.join("manifest.toml");
+        let path = dirs.root.join("manifest.toml");
         let mut m = match std::fs::read_to_string(&path) {
-            Ok(text) => toml::from_str::<Manifest>(&text).with_context(|| format!("reading {}", path.display()))?,
+            Ok(text) => toml::from_str::<Manifest>(&text)
+                .with_context(|| format!("reading {}", path.display()))?,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Manifest::default(),
             Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
         };
@@ -50,6 +58,7 @@ impl Manifest {
         Ok(m)
     }
 
+    /// Write the manifest atomically (a temporary file, then a rename).
     pub fn save(&self) -> Result<()> {
         if let Some(dir) = self.path.parent() {
             std::fs::create_dir_all(dir)?;
@@ -60,24 +69,38 @@ impl Manifest {
         Ok(())
     }
 
+    /// The entry for this source and name.
     pub fn get(&self, source: &str, name: &str) -> Option<&Entry> {
-        self.packages.iter().find(|e| e.source == source && e.name == name)
+        self.packages
+            .iter()
+            .find(|e| e.source == source && e.name == name)
     }
 
+    /// Every entry with this name, whatever the source.
     pub fn find_name(&self, name: &str) -> Vec<&Entry> {
-        self.packages.iter().filter(|e| e.name.eq_ignore_ascii_case(name)).collect()
+        self.packages
+            .iter()
+            .filter(|e| e.name.eq_ignore_ascii_case(name))
+            .collect()
     }
 
+    /// Add the entry, or replace the one with the same source and name.
     pub fn upsert(&mut self, e: Entry) {
-        match self.packages.iter_mut().find(|x| x.source == e.source && x.name == e.name) {
+        match self
+            .packages
+            .iter_mut()
+            .find(|x| x.source == e.source && x.name == e.name)
+        {
             Some(slot) => *slot = e,
             None => self.packages.push(e),
         }
     }
 
+    /// Forget an entry; says whether there was one.
     pub fn remove(&mut self, source: &str, name: &str) -> bool {
         let before = self.packages.len();
-        self.packages.retain(|e| !(e.source == source && e.name == name));
+        self.packages
+            .retain(|e| !(e.source == source && e.name == name));
         self.packages.len() != before
     }
 }
@@ -96,7 +119,12 @@ mod tests {
     }
 
     fn entry(src: &str, name: &str, ver: &str) -> Entry {
-        Entry { name: name.into(), source: src.into(), version: ver.into(), ..Default::default() }
+        Entry {
+            name: name.into(),
+            source: src.into(),
+            version: ver.into(),
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -147,8 +175,8 @@ mod tests {
     fn corrupt_manifest_is_an_error_not_silently_empty() {
         let t = tempfile::tempdir().unwrap();
         let d = dirs(t.path());
-        std::fs::create_dir_all(&d.data).unwrap();
-        std::fs::write(d.data.join("manifest.toml"), "package = [[[").unwrap();
+        std::fs::create_dir_all(&d.root).unwrap();
+        std::fs::write(d.root.join("manifest.toml"), "package = [[[").unwrap();
         assert!(Manifest::load(&d).is_err());
     }
 }

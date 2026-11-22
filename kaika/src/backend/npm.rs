@@ -1,30 +1,43 @@
 //! npm global packages.
 
-use super::{out, Backend, Candidate, Pkg};
-use crate::runner::{argv, Runner};
+use super::{Backend, Candidate, Pkg, out};
+use crate::runner::{Runner, argv};
 
+/// npm global packages.
 pub struct Npm;
 
-pub fn parse_ls(json: &str) -> Vec<Pkg> {
+fn parse_ls(json: &str) -> Vec<Pkg> {
     let v: serde_json::Value = serde_json::from_str(json).unwrap_or_default();
-    let Some(deps) = v.get("dependencies").and_then(|d| d.as_object()) else { return vec![] };
+    let Some(deps) = v.get("dependencies").and_then(|d| d.as_object()) else {
+        return vec![];
+    };
     deps.iter()
         .filter(|(n, _)| !matches!(n.as_str(), "npm" | "corepack"))
         .map(|(n, d)| Pkg {
             name: n.clone(),
-            version: d.get("version").and_then(|x| x.as_str()).unwrap_or("").into(),
+            version: d
+                .get("version")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .into(),
             reference: n.clone(),
         })
         .collect()
 }
 
-pub fn parse_outdated(json: &str) -> Vec<Pkg> {
+fn parse_outdated(json: &str) -> Vec<Pkg> {
     let v: serde_json::Value = serde_json::from_str(json).unwrap_or_default();
-    let Some(m) = v.as_object() else { return vec![] };
+    let Some(m) = v.as_object() else {
+        return vec![];
+    };
     m.iter()
         .map(|(n, d)| Pkg {
             name: n.clone(),
-            version: d.get("latest").and_then(|x| x.as_str()).unwrap_or("").into(),
+            version: d
+                .get("latest")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .into(),
             reference: n.clone(),
         })
         .collect()
@@ -47,10 +60,17 @@ impl Backend for Npm {
         if found.is_empty() {
             return vec![];
         }
-        vec![Candidate { source: "npm".into(), name: found.into(), reference: found.into(), desc: String::new() }]
+        vec![Candidate {
+            source: "npm".into(),
+            name: found.into(),
+            reference: found.into(),
+            desc: String::new(),
+        }]
     }
     fn describe(&self, r: &dyn Runner, reference: &str) -> String {
-        out(r, &["npm", "view", reference, "description"]).trim().to_string()
+        out(r, &["npm", "view", reference, "description"])
+            .trim()
+            .to_string()
     }
     fn install_argv(&self, reference: &str) -> Vec<String> {
         argv(&["npm", "install", "-g", reference])
@@ -79,7 +99,10 @@ mod tests {
         let j = r#"{"dependencies":{"npm":{"version":"10"},"corepack":{"version":"1"},"typescript":{"version":"5.4.0"}}}"#;
         let p = parse_ls(j);
         assert_eq!(p.len(), 1);
-        assert_eq!((p[0].name.as_str(), p[0].version.as_str()), ("typescript", "5.4.0"));
+        assert_eq!(
+            (p[0].name.as_str(), p[0].version.as_str()),
+            ("typescript", "5.4.0")
+        );
     }
 
     #[test]
