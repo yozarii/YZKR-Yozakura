@@ -265,9 +265,8 @@ fn the_real_corpus_is_well_formed() {
                 x.name,
                 k.id
             );
-            assert_eq!(
-                is_hostile(&k.text),
-                false,
+            assert!(
+                !is_hostile(&k.text),
                 "{}: the quarantine must not flag real text: {:?}",
                 x.name,
                 k.text

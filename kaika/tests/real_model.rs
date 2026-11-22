@@ -19,15 +19,14 @@ use std::time::Instant;
 mod support;
 use support::{Case, corpus, links_of, real_corpus};
 
+/// Per category: (correct, wrong, abstained).
+type Table = BTreeMap<String, (usize, usize, usize)>;
+
 /// Runs the model over one corpus. Returns the table and the wrong cases.
-fn measure(
-    cases: &[Case],
-    decider: &LlamaDecider,
-    label: &str,
-) -> (usize, usize, usize, BTreeMap<String, (usize, usize, usize)>) {
+fn measure(cases: &[Case], decider: &LlamaDecider, label: &str) -> (usize, usize, usize, Table) {
     let (mut asked, mut by_shortcut, mut elapsed) = (0usize, 0usize, 0.0f64);
     // category -> (correct, wrong, abstained)
-    let mut table: BTreeMap<String, (usize, usize, usize)> = BTreeMap::new();
+    let mut table = Table::new();
     let mut wrong_cases = vec![];
     for x in cases {
         let t = Instant::now();

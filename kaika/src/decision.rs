@@ -143,10 +143,14 @@ pub fn decide_backend(cands: &[(String, String)]) -> Outcome<Pick> {
     ))
 }
 
+/// How a scripted decider answers.
+#[cfg(test)]
+type Answer = Box<dyn Fn(Task, &[Cand]) -> Outcome<Pick>>;
+
 /// A scripted decider for tests: answers from a function, and records what it was asked.
 #[cfg(test)]
 pub struct Scripted {
-    pub answer: Box<dyn Fn(Task, &[Cand]) -> Outcome<Pick>>,
+    pub answer: Answer,
     pub asked: std::cell::RefCell<Vec<(Task, Vec<String>)>>,
 }
 

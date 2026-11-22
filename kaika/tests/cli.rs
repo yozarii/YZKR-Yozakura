@@ -1444,14 +1444,13 @@ fn if_kaika_is_killed_the_model_is_killed_too() {
     let s = sandbox();
     // The model request hangs, so kaika is still running (with the model up) when it is killed.
     s.model_ready();
-    s.custom_stub("curl", &format!(
-        r#"case "$*" in
+    s.custom_stub("curl", r#"case "$*" in
 *wikidata*) exit 0;;
-*"/health"*) echo '{{"status":"ok"}}'; exit 0;;
+*"/health"*) echo '{"status":"ok"}'; exit 0;;
 *systemone*) sleep 60;;
 *ghost.example*) printf '%s' '<a href="/a/Ghost-1.dmg">Ghost</a><a href="/b/Ghost-Lite-1.dmg">Ghost Lite</a>'; exit 0;;
 *) exit 22;;
-esac"#));
+esac"#);
     let mut kaika = std::process::Command::new(env!("CARGO_BIN_EXE_kaika"))
         .args(["install", "https://ghost.example/", "-y"])
         .env_clear()

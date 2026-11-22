@@ -85,11 +85,13 @@ fn team_check(report: &mut Report, expect: &Expect) {
 
 pub fn check_app(r: &dyn Runner, app: &Path, expect: &Expect) -> Report {
     let p = app.to_string_lossy().to_string();
-    let mut rep = Report::default();
-    rep.signature = r
-        .run(&argv(&["codesign", "--verify", "--deep", "--strict", &p]))
-        .map(|o| o.ok())
-        .unwrap_or(false);
+    let mut rep = Report {
+        signature: r
+            .run(&argv(&["codesign", "--verify", "--deep", "--strict", &p]))
+            .map(|o| o.ok())
+            .unwrap_or(false),
+        ..Default::default()
+    };
     if !rep.signature {
         rep.failures
             .push("code signature is missing or invalid".into());

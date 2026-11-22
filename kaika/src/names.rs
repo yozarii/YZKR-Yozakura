@@ -119,7 +119,7 @@ pub fn how(query: &str, name: &str) -> Option<How> {
         return None;
     }
     let w = words(name);
-    if w.iter().any(|x| *x == q) {
+    if w.contains(&q) {
         return Some(How::Word);
     }
     for k in 1..w.len() {

@@ -65,7 +65,7 @@ pub fn demote_older_versions(links: &mut [Link]) {
             l.0 -= 20;
         }
     }
-    links.sort_by(|a, b| b.0.cmp(&a.0));
+    links.sort_by_key(|l| std::cmp::Reverse(l.0));
 }
 
 /// Links that probably lead to a download page, on the same site, for sites that keep the file one click away.

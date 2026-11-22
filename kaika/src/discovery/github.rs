@@ -46,7 +46,7 @@ pub(super) fn parse_repos(v: &Value, query: &str) -> Vec<Repo> {
         })
         .filter(|r| r.stars >= MIN_STARS && r.full_name.matches('/').count() == 1)
         .collect();
-    out.sort_by(|a, b| b.stars.cmp(&a.stars));
+    out.sort_by_key(|r| std::cmp::Reverse(r.stars));
     out.truncate(MAX_REPOS);
     out
 }
