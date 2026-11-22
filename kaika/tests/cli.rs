@@ -64,7 +64,8 @@ fn search_with_no_results_fails() {
         .cmd()
         .args(["search", "zzzznothing"])
         .assert()
-        .code(1);
+        .code(1)
+        .stderr(predicate::str::contains("no results for 'zzzznothing'"));
 }
 
 #[test]
@@ -211,7 +212,8 @@ fn a_bad_source_prefix_is_a_usage_error() {
         .cmd()
         .args(["install", "pip:requests", "-n"])
         .assert()
-        .code(2);
+        .code(2)
+        .stderr(predicate::str::contains("unknown source 'pip'"));
 }
 
 #[test]
@@ -322,7 +324,12 @@ fn a_name_in_two_sources_needs_source_prefix() {
 
 #[test]
 fn upgrade_needs_names_or_all() {
-    sandbox().cmd().args(["upgrade"]).assert().code(2);
+    sandbox()
+        .cmd()
+        .args(["upgrade"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("--all"));
 }
 
 #[test]
@@ -1900,7 +1907,12 @@ fn doctor_fails_on_a_corrupt_manifest() {
     let s = sandbox();
     std::fs::create_dir_all(s.data()).unwrap();
     std::fs::write(s.data().join("manifest.toml"), "package = [[[").unwrap();
-    s.cmd().arg("doctor").assert().code(1);
+    s.cmd()
+        .arg("doctor")
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("error:"))
+        .stderr(predicate::str::contains("doctor found problems"));
 }
 
 #[test]

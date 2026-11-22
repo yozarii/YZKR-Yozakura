@@ -344,6 +344,12 @@ impl<'a> LlamaDecider<'a> {
         if !issues.is_empty() {
             return Err(issues.join("; "));
         }
+        self.ensure_started();
+        self.wait_until_ready()
+    }
+
+    /// Start the server unless that has been tried already. A failure to start is remembered, not retried.
+    fn ensure_started(&self) {
         let mut st = self.state.borrow_mut();
         if matches!(*st, State::Idle) {
             *st = match Server::start(&self.dirs) {
@@ -351,39 +357,38 @@ impl<'a> LlamaDecider<'a> {
                 Err(e) => State::Failed(format!("could not start llama-server: {e}")),
             };
         }
-        match &mut *st {
-            State::Failed(why) => Err(why.clone()),
-            State::Running(s) => {
-                let port = s.port;
-                let deadline = Instant::now() + Duration::from_secs(READY_SECS);
-                loop {
-                    if !s.alive() {
-                        *st = State::Failed("llama-server exited while loading the model".into());
-                        return Err("llama-server exited while loading the model".into());
-                    }
-                    let up = self
-                        .r
-                        .run(&argv(&[
-                            "curl",
-                            "-sf",
-                            "--max-time",
-                            "1",
-                            &format!("http://127.0.0.1:{port}/health"),
-                        ]))
-                        .map(|o| o.ok())
-                        .unwrap_or(false);
-                    if up {
-                        return Ok(port);
-                    }
-                    if Instant::now() > deadline {
-                        return Err(format!(
-                            "the model did not become ready within {READY_SECS} s"
-                        ));
-                    }
-                    std::thread::sleep(Duration::from_millis(100));
-                }
+    }
+
+    /// Wait for a started server to answer its health check: up to [`READY_SECS`], or until it exits.
+    fn wait_until_ready(&self) -> Result<u16, String> {
+        let mut st = self.state.borrow_mut();
+        let server = match &mut *st {
+            State::Running(s) => s,
+            State::Failed(why) => return Err(why.clone()),
+            State::Idle => return Err("not started".into()),
+        };
+        let port = server.port;
+        let deadline = Instant::now() + Duration::from_secs(READY_SECS);
+        loop {
+            if !server.alive() {
+                *st = State::Failed("llama-server exited while loading the model".into());
+                return Err("llama-server exited while loading the model".into());
             }
-            State::Idle => Err("not started".into()),
+            let health = format!("http://127.0.0.1:{port}/health");
+            let up = self
+                .r
+                .run(&argv(&["curl", "-sf", "--max-time", "1", &health]))
+                .map(|o| o.ok())
+                .unwrap_or(false);
+            if up {
+                return Ok(port);
+            }
+            if Instant::now() > deadline {
+                return Err(format!(
+                    "the model did not become ready within {READY_SECS} s"
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(100));
         }
     }
 
@@ -442,10 +447,7 @@ impl Decider for LlamaDecider<'_> {
         {
             return;
         }
-        *self.state.borrow_mut() = match Server::start(&self.dirs) {
-            Ok(s) => State::Running(s),
-            Err(e) => State::Failed(format!("could not start llama-server: {e}")),
-        };
+        self.ensure_started();
     }
 
     fn choose(&self, task: Task, query: &str, cands: &[Cand]) -> Outcome<Pick> {
