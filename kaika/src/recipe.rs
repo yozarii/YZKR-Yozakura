@@ -89,7 +89,7 @@ fn load_dir(dir: &Path) -> Vec<Recipe> {
 /// Embedded recipes, overridden by recipes in the user's config directory.
 pub fn all(dirs: &Dirs) -> Vec<Recipe> {
     let mut v = embedded();
-    for r in load_dir(&dirs.config.join("recipes")) {
+    for r in load_dir(&dirs.root.join("recipes")) {
         match v.iter_mut().find(|x| x.name.eq_ignore_ascii_case(&r.name)) {
             Some(slot) => *slot = r,
             None => v.push(r),
@@ -105,7 +105,7 @@ pub fn find(dirs: &Dirs, name: &str) -> Option<Recipe> {
 }
 
 pub fn save_learned(dirs: &Dirs, r: &Recipe) -> Result<()> {
-    let dir = dirs.config.join("recipes");
+    let dir = dirs.root.join("recipes");
     std::fs::create_dir_all(&dir)?;
     let stem: String = r
         .name

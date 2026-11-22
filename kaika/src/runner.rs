@@ -1,8 +1,6 @@
 //! Every external tool runs through a `Runner`, so tests can substitute stubs.
 
 use anyhow::{Result, anyhow};
-use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -98,15 +96,18 @@ impl Runner for RealRunner {
 }
 
 /// A scripted runner for unit tests: responses keyed by the space-joined argv.
+#[cfg(test)]
 #[derive(Default)]
 pub struct Fake {
-    pub responses: HashMap<String, Out>,
+    pub responses: std::collections::HashMap<String, Out>,
     /// Successive answers to the same command (a decision asks twice, in two candidate orders).
-    pub sequences: RefCell<HashMap<String, VecDeque<Out>>>,
+    pub sequences:
+        std::cell::RefCell<std::collections::HashMap<String, std::collections::VecDeque<Out>>>,
     pub tools: Vec<String>,
-    pub log: RefCell<Vec<String>>,
+    pub log: std::cell::RefCell<Vec<String>>,
 }
 
+#[cfg(test)]
 impl Fake {
     pub fn with(mut self, cmd: &str, stdout: &str) -> Self {
         self.responses.insert(
@@ -147,6 +148,7 @@ impl Fake {
     }
 }
 
+#[cfg(test)]
 impl Runner for Fake {
     fn run(&self, argv: &[String]) -> Result<Out> {
         let key = argv.join(" ");

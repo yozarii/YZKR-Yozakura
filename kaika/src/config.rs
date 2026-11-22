@@ -18,7 +18,7 @@ pub struct Config {
 
 impl Config {
     pub fn load(dirs: &Dirs) -> Result<Config> {
-        let path = dirs.config.join("kaika.toml");
+        let path = dirs.root.join("kaika.toml");
         match std::fs::read_to_string(&path) {
             Ok(t) => toml::from_str(&t).with_context(|| format!("reading {}", path.display())),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
@@ -27,11 +27,8 @@ impl Config {
     }
 
     pub fn save(&self, dirs: &Dirs) -> Result<()> {
-        std::fs::create_dir_all(&dirs.config)?;
-        std::fs::write(
-            dirs.config.join("kaika.toml"),
-            toml::to_string_pretty(self)?,
-        )?;
+        std::fs::create_dir_all(&dirs.root)?;
+        std::fs::write(dirs.root.join("kaika.toml"), toml::to_string_pretty(self)?)?;
         Ok(())
     }
 

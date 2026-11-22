@@ -43,7 +43,7 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn load(dirs: &Dirs) -> Result<Manifest> {
-        let path = dirs.data.join("manifest.toml");
+        let path = dirs.root.join("manifest.toml");
         let mut m = match std::fs::read_to_string(&path) {
             Ok(text) => toml::from_str::<Manifest>(&text)
                 .with_context(|| format!("reading {}", path.display()))?,
@@ -166,8 +166,8 @@ mod tests {
     fn corrupt_manifest_is_an_error_not_silently_empty() {
         let t = tempfile::tempdir().unwrap();
         let d = dirs(t.path());
-        std::fs::create_dir_all(&d.data).unwrap();
-        std::fs::write(d.data.join("manifest.toml"), "package = [[[").unwrap();
+        std::fs::create_dir_all(&d.root).unwrap();
+        std::fs::write(d.root.join("manifest.toml"), "package = [[[").unwrap();
         assert!(Manifest::load(&d).is_err());
     }
 }

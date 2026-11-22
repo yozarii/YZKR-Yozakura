@@ -317,6 +317,7 @@ impl<'a> LlamaDecider<'a> {
         *self.state.borrow_mut() = State::Idle;
     }
 
+    #[cfg(test)]
     pub fn is_running(&self) -> bool {
         matches!(*self.state.borrow(), State::Running(_))
     }

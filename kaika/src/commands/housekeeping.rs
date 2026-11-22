@@ -192,7 +192,7 @@ pub(super) fn config(ctx: &Ctx, args: &[String]) -> KResult {
             Ok(())
         }
         ["path"] => {
-            println!("{}", ctx.dirs.config.join("kaika.toml").display());
+            println!("{}", ctx.dirs.root.join("kaika.toml").display());
             Ok(())
         }
         ["get", k] => {

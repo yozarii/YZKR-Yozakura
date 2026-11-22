@@ -18,12 +18,8 @@ use std::path::PathBuf;
 pub struct Dirs {
     /// The user's home directory.
     pub home: PathBuf,
-    /// kaika's own home, `~/.kaika`.
+    /// kaika's own home, `~/.kaika`: `kaika.toml`, `recipes/`, `manifest.toml`, `models/` and the folders below live here.
     pub root: PathBuf,
-    /// Where `kaika.toml` and `recipes/` live.
-    pub config: PathBuf,
-    /// Where `manifest.toml` lives.
-    pub data: PathBuf,
     pub cache: PathBuf,
     pub bin: PathBuf,
     pub packages: PathBuf,
@@ -44,8 +40,6 @@ impl Dirs {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("/Applications"));
         Dirs {
-            config: root.clone(),
-            data: root.clone(),
             cache: root.join("cache"),
             bin: root.join("bin"),
             packages: root.join("packages"),
@@ -73,8 +67,6 @@ mod tests {
     fn everything_lives_under_one_dedicated_home() {
         let d = dirs(&[("HOME", "/h")]);
         assert_eq!(d.root, PathBuf::from("/h/.kaika"));
-        assert_eq!(d.config, PathBuf::from("/h/.kaika"));
-        assert_eq!(d.data, PathBuf::from("/h/.kaika"));
         assert_eq!(d.cache, PathBuf::from("/h/.kaika/cache"));
         assert_eq!(d.bin, PathBuf::from("/h/.kaika/bin"));
         assert_eq!(d.packages, PathBuf::from("/h/.kaika/packages"));
