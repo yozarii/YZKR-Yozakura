@@ -5,7 +5,7 @@ class Kaika < Formula
   desc "Universal package manager"
   homepage "https://github.com/yozarii/YZKR-Yozakura"
   url "https://github.com/yozarii/YZKR-Yozakura/releases/download/v0.1.0/kaika-0.1.0.tar.gz"
-  sha256 "960848af14b8bfb614d55c5c625c87e376cb6f02f3e6af6616bcf944193bf282"
+  sha256 "9c987e5832f606b0239a06b72d67eef71def55d8a70d1a2f6e967fbdd829ae1d"
   license "MIT"
 
   depends_on "rust" => :build
