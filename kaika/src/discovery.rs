@@ -480,7 +480,7 @@ mod tests {
         Scripted::unsure()
     }
     fn api(url: &str) -> String {
-        format!("curl -fsSL --max-time 30 -A {} {url}", recipe::USER_AGENT)
+        format!("curl -fsSL --proto-redir =https --max-time 30 -A {} {url}", recipe::USER_AGENT)
     }
     fn search_url(q: &str) -> String {
         api(&format!("https://www.wikidata.org/w/api.php?action=wbsearchentities&search={}&language=en&type=item&limit=7&format=json", html::url_encode(q)))
@@ -903,7 +903,7 @@ mod tests {
     // ---------- links that name no file ----------
 
     fn head(url: &str) -> String {
-        format!("curl -sL -r 0-0 -o /dev/null -w %{{url_effective}} --max-time 20 -A {} {url}", recipe::USER_AGENT)
+        format!("curl -sL --proto-redir =https -r 0-0 -o /dev/null -w %{{url_effective}} --max-time 20 -A {} {url}", recipe::USER_AGENT)
     }
 
     #[test]

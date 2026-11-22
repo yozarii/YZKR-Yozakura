@@ -573,7 +573,7 @@ fn a_formula_and_a_cask_of_one_name_is_ambiguous_by_structure_with_models_on_or_
 // ---------- vendor-site discovery: structured sources, models only between peers ----------
 
 fn api(url: &str) -> String {
-    format!("curl -fsSL --max-time 30 -A {} {url}", kaika::recipe::USER_AGENT)
+    format!("curl -fsSL --proto-redir =https --max-time 30 -A {} {url}", kaika::recipe::USER_AGENT)
 }
 
 fn wd_search(q: &str) -> String {
@@ -1291,7 +1291,7 @@ fn a_script_built_button_that_redirects_to_the_file_is_rendered_then_followed() 
     let s = sandbox();
     s.reply(&api("https://ghost.example/"), "<div id=app></div>");
     s.custom_stub("fakebrowser", "echo '<a href=\"/api/dl?platform=osx&amp;download=1\">Download for macOS</a>'");
-    s.reply("curl -sL -r 0-0 -o /dev/null -w %{url_effective} --max-time 20 -A kaika/0.1 (package manager) https://ghost.example/api/dl?platform=osx&download=1", "https://cdn.ghost.example/Ghost.dmg");
+    s.reply("curl -sL --proto-redir =https -r 0-0 -o /dev/null -w %{url_effective} --max-time 20 -A kaika/0.1 (package manager) https://ghost.example/api/dl?platform=osx&download=1", "https://cdn.ghost.example/Ghost.dmg");
     s.cmd().env("KAIKA_BROWSER", browser_path(&s)).args(["install", "https://ghost.example/", "-n"]).assert().success().stdout(predicate::str::contains("cdn.ghost.example").and(predicate::str::contains("download and install ghost")));
 }
 

@@ -197,7 +197,7 @@ pub fn extensionless_candidates(page: &str, base: &str) -> Vec<(String, String)>
 /// (some servers refuse HEAD requests).
 pub fn final_url(r: &dyn Runner, url: &str) -> Option<String> {
     ensure_https(url).ok()?;
-    let o = r.run(&argv(&["curl", "-sL", "-r", "0-0", "-o", "/dev/null", "-w", "%{url_effective}", "--max-time", "20", "-A", USER_AGENT, url])).ok().filter(|o| o.ok())?;
+    let o = r.run(&argv(&["curl", "-sL", "--proto-redir", "=https", "-r", "0-0", "-o", "/dev/null", "-w", "%{url_effective}", "--max-time", "20", "-A", USER_AGENT, url])).ok().filter(|o| o.ok())?;
     let last = o.stdout.trim().to_string();
     (ensure_https(&last).is_ok() && asset_score(&file_name(&last)).is_some()).then_some(last)
 }
@@ -290,7 +290,7 @@ pub const USER_AGENT: &str = "kaika/0.1 (package manager)";
 /// Read a page or feed over HTTPS: the one place kaika fetches text from the web.
 pub fn fetch(r: &dyn Runner, url: &str) -> Result<String> {
     ensure_https(url)?;
-    let o = r.run(&argv(&["curl", "-fsSL", "--max-time", "30", "-A", USER_AGENT, url]))?;
+    let o = r.run(&argv(&["curl", "-fsSL", "--proto-redir", "=https", "--max-time", "30", "-A", USER_AGENT, url]))?;
     if !o.ok() {
         bail!("could not fetch {url}: {}", o.stderr.trim());
     }
@@ -496,6 +496,17 @@ mod tests {
         assert!(url.starts_with("https://huggingface.co/h2oai/h2o-lightning-4b-gguf/") && url.ends_with(crate::model::MODEL_FILE), "{url}");
         let sum = r.sha256.expect("a model download must carry its checksum");
         assert!(sum.len() == 64 && sum.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn no_fetch_may_be_redirected_off_https() {
+        // `curl -L` follows an https page's redirect to plain http unless told otherwise: a downgrade.
+        let r = crate::runner::Fake::default();
+        let _ = fetch(&r, "https://x.example/");
+        let _ = final_url(&r, "https://x.example/dl");
+        let log = r.log.borrow();
+        assert_eq!(log.len(), 2);
+        assert!(log.iter().all(|c| c.contains("--proto-redir =https")), "{log:?}");
     }
 
     #[test]

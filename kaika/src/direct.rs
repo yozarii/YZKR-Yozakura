@@ -150,7 +150,7 @@ pub fn run(r: &dyn Runner, dirs: &Dirs, job: &Job) -> Result<Installed, DErr> {
     let dl = dirs.cache.join("downloads");
     std::fs::create_dir_all(&dl)?;
     let file = dl.join(recipe::file_name(&job.url));
-    let o = r.run(&argv(&["curl", "-fSL", "--max-time", "900", "-o", &path_str(&file), &job.url]))?;
+    let o = r.run(&argv(&["curl", "-fSL", "--proto-redir", "=https", "--max-time", "900", "-o", &path_str(&file), &job.url]))?;
     if !o.ok() {
         return Err(anyhow!("download failed: {}", o.stderr.trim()).into());
     }
@@ -421,6 +421,18 @@ mod tests {
         assert!(ensure_https("ftp://x.com/a.dmg").is_err());
         // file:// is refused unless KAIKA_TEST_MODE=1, which unit tests do not set.
         assert!(ensure_https("file:///tmp/a.zip").is_err());
+    }
+
+    #[test]
+    fn a_download_may_not_be_redirected_off_https() {
+        let t = tempfile::tempdir().unwrap();
+        let dirs = Dirs::from_lookup(|k| (k == "KAIKA_HOME").then(|| t.path().display().to_string()).or(Some("/h".into())));
+        let rec = Recipe { name: "x".into(), url: Some("https://x.example/a.dmg".into()), ..Default::default() };
+        let a = Asset { name: "a.dmg".into(), url: "https://x.example/a.dmg".into(), version: String::new(), sha256: None };
+        let r = crate::runner::Fake::default();
+        let _ = run(&r, &dirs, &Job::from_asset(&rec, a, false, false, None));
+        let log = r.log.borrow();
+        assert!(log[0].starts_with("curl -fSL") && log[0].contains("--proto-redir =https"), "{log:?}");
     }
 
     #[test]
