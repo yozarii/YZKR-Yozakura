@@ -12,15 +12,18 @@ pub struct Target {
 
 /// `name`, or `source:name` to force a backend.
 pub fn parse_target(s: &str) -> Result<Target, String> {
-    match s.split_once(':') {
-        Some((src, name)) if SOURCES.contains(&src) && !name.is_empty() => {
-            Ok(Target { source: Some(src.into()), name: name.into() })
-        }
+    let target = match s.split_once(':') {
+        Some((src, name)) if SOURCES.contains(&src) && !name.is_empty() => Target { source: Some(src.into()), name: name.into() },
         Some((src, _)) if !src.is_empty() && !src.contains('/') => {
-            Err(format!("unknown source '{src}' in '{s}' (sources: {})", SOURCES.join(", ")))
+            return Err(format!("unknown source '{src}' in '{s}' (sources: {})", SOURCES.join(", ")));
         }
-        _ => Ok(Target { source: None, name: s.into() }),
+        _ => Target { source: None, name: s.into() },
+    };
+    // The name is handed to brew, npm, uv and mas as an argument: a leading dash would make it one of their options.
+    if target.name.starts_with('-') {
+        return Err(format!("'{}' is not a package name: it starts with a dash, which the package tools read as an option", target.name));
     }
+    Ok(target)
 }
 
 #[derive(Debug, PartialEq)]
@@ -92,6 +95,14 @@ mod tests {
         let t = parse_target("cask:zen").unwrap();
         assert_eq!((t.source.as_deref(), t.name.as_str()), (Some("cask"), "zen"));
         assert_eq!(parse_target("npm:@scope/pkg").unwrap().name, "@scope/pkg");
+    }
+
+    #[test]
+    fn a_name_that_starts_with_a_dash_would_be_an_option_to_the_backend_and_is_refused() {
+        for t in ["--cask", "-g", "brew:--HEAD", "npm:--registry=http://evil.example"] {
+            assert!(parse_target(t).is_err(), "{t}");
+        }
+        assert!(parse_target("a-b").is_ok());
     }
 
     #[test]

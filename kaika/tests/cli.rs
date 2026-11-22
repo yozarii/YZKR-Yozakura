@@ -110,6 +110,14 @@ fn a_failing_backend_surfaces_and_is_not_recorded() {
 }
 
 #[test]
+fn a_name_that_looks_like_an_option_is_a_usage_error_and_reaches_no_backend() {
+    let s = sandbox();
+    s.cmd().args(["install", "-n", "--", "--cask"]).assert().code(2).stderr(predicate::str::contains("starts with a dash"));
+    s.cmd().args(["install", "-n", "npm:--registry=http://evil.example"]).assert().code(2);
+    assert!(!s.calls().contains("--registry") && !s.calls().contains("brew search"), "{}", s.calls());
+}
+
+#[test]
 fn a_bad_source_prefix_is_a_usage_error() {
     sandbox().cmd().args(["install", "pip:requests", "-n"]).assert().code(2);
 }
