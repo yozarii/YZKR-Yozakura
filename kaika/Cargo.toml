@@ -11,6 +11,7 @@ publish = false
 lto = "thin"
 codegen-units = 1
 strip = true
+panic = "abort"
 
 [dependencies]
 anyhow = "1.0.104"
