@@ -585,6 +585,17 @@ fn outdated_and_upgrade_follow_the_release_feed_and_keep_the_recorded_team() {
     assert!(s.manifest().contains("version = \"2.0\""));
 }
 
+#[test]
+fn an_update_check_that_cannot_reach_a_release_feed_says_so_instead_of_reporting_up_to_date() {
+    let s = sandbox();
+    let zip = s.fixture_zip("Fixture-arm64.zip");
+    s.recipe("fixture.toml", "name = \"fixture\"\ngithub = \"o/fixture\"\napp = \"Fixture.app\"\n");
+    let api = github_release(&s, "v1.0", &zip);
+    s.cmd().env("KAIKA_GITHUB_API", Sandbox::url(&api)).args(["install", "direct:fixture", "-y"]).assert().success();
+    std::fs::remove_dir_all(&api).unwrap(); // the feed is gone
+    s.cmd().env("KAIKA_GITHUB_API", Sandbox::url(&api)).arg("outdated").assert().success().stderr(predicate::str::contains("fixture: could not check for updates"));
+}
+
 // ---------- backend choice: trust and structure, never a model ----------
 
 fn models_on(s: &Sandbox) -> assert_cmd::Command {

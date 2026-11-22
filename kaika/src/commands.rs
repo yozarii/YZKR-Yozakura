@@ -664,8 +664,9 @@ fn info(ctx: &Ctx, name: &str) -> KResult {
     Ok(())
 }
 
-/// Every package with a newer version: (source:name, current, latest).
-fn outdated_lines(ctx: &Ctx) -> KResult<Vec<(String, String, String)>> {
+/// Every package with a newer version: (source:name, current, latest), and a warning for each vendor-site app whose
+/// release feed could not be read (silence there would read as "up to date").
+fn outdated_lines(ctx: &Ctx) -> KResult<(Vec<(String, String, String)>, Vec<String>)> {
     let current: Vec<Row> = live_rows(ctx)?;
     let mut lines: Vec<(String, String, String)> = vec![];
     for b in backend::available(ctx.r) {
@@ -675,19 +676,25 @@ fn outdated_lines(ctx: &Ctx) -> KResult<Vec<(String, String, String)>> {
         }
     }
     let m = Manifest::load(&ctx.dirs)?;
+    let mut warnings = vec![];
     for e in m.packages.iter().filter(|e| e.source == "direct") {
-        if let Ok(Some(j)) = direct_upgrade_job(ctx, e, false) {
-            lines.push((format!("direct:{}", e.name), e.version.clone(), if j.version.is_empty() { "newer build".into() } else { j.version }));
+        match direct_upgrade_job(ctx, e, false) {
+            Ok(Some(j)) => lines.push((format!("direct:{}", e.name), e.version.clone(), if j.version.is_empty() { "newer build".into() } else { j.version })),
+            Ok(None) => {}
+            Err(err) => warnings.push(format!("{}: could not check for updates ({})", e.name, err.msg)),
         }
     }
-    Ok(lines)
+    Ok((lines, warnings))
 }
 
 fn outdated(ctx: &Ctx, notify: bool) -> KResult {
     if notify {
         return outdated_notify(ctx);
     }
-    let lines = outdated_lines(ctx)?;
+    let (lines, warnings) = outdated_lines(ctx)?;
+    for w in &warnings {
+        eprintln!("warning: {w}");
+    }
     if ctx.json {
         let v: Vec<_> = lines.iter().map(|(n, c, l)| serde_json::json!({ "package": n, "current": c, "latest": l })).collect();
         println!("{}", serde_json::Value::Array(v));
@@ -705,7 +712,10 @@ fn outdated(ctx: &Ctx, notify: bool) -> KResult {
 /// with one macOS notification. It never installs anything; `kaika upgrade --all` is what does.
 fn outdated_notify(ctx: &Ctx) -> KResult {
     update(ctx)?;
-    let lines = outdated_lines(ctx)?;
+    let (lines, warnings) = outdated_lines(ctx)?;
+    for w in &warnings {
+        eprintln!("warning: {w}");
+    }
     let seen = ctx.dirs.root.join("notified");
     let now: Vec<String> = lines.iter().map(|(n, _, l)| format!("{n}={l}")).collect();
     let fingerprint = crate::schedule::fingerprint(&now);
