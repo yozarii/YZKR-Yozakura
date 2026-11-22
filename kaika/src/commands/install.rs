@@ -92,10 +92,10 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
         Choice::One(c) | Choice::Several { chosen: c, .. } => tier_of(c) == 2,
         Choice::None => false,
     };
-    if matches!(choice, Choice::None) || open_only {
-        if let Some(found) = plain_text_guess(ctx, t, act)? {
-            return Ok(found);
-        }
+    if (matches!(choice, Choice::None) || open_only)
+        && let Some(found) = plain_text_guess(ctx, t, act)?
+    {
+        return Ok(found);
     }
     if open_only {
         refuse_open_registry(t, &hits, &choice)?;
@@ -327,14 +327,13 @@ fn discover(ctx: &Ctx, name: &str, act: Act) -> KResult<Resolution> {
 /// A short name for an app given only as a URL: the site's own name, or the GitHub project's.
 fn name_from_url(url: &str) -> String {
     let host = crate::html::host(url);
-    if host == "github.com" {
-        if let Some(repo) = url
+    if host == "github.com"
+        && let Some(repo) = url
             .split_once("://")
             .map(|x| x.1)
             .and_then(|r| r.split('/').nth(2))
-        {
-            return repo.to_string();
-        }
+    {
+        return repo.to_string();
     }
     let labels: Vec<&str> = host.split('.').collect();
     labels

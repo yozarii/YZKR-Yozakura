@@ -233,10 +233,10 @@ fn fresh(p: &Path) -> bool {
 /// stale cache, then to nothing.
 pub fn popular(r: &dyn Runner, dirs: &Dirs) -> Vec<Entry> {
     let file = dirs.cache.join("popularity.tsv");
-    if fresh(&file) {
-        if let Ok(t) = std::fs::read_to_string(&file) {
-            return from_tsv(&t);
-        }
+    if fresh(&file)
+        && let Ok(t) = std::fs::read_to_string(&file)
+    {
+        return from_tsv(&t);
     }
     let mut all = vec![];
     for (url, key, source) in [(CASKS, "cask", "cask"), (FORMULAE, "formula", "brew")] {
