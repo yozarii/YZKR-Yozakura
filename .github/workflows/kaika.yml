@@ -25,7 +25,7 @@ jobs:
         working-directory: kaika
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: dtolnay/rust-toolchain@1.88.0
       - name: Test (hermetic; opt-in real_model tests are not run)
         run: cargo test --locked
       - name: Release build

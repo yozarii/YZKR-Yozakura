@@ -21,7 +21,7 @@ Release notes and the known limits of this version are in [CHANGELOG.md](CHANGEL
 
 ## Install
 
-kaika is a Rust program for Apple-silicon Macs (Rust 1.85 or newer to build it). From a checkout:
+kaika is a Rust program for Apple-silicon Macs (Rust 1.88 or newer to build it). From a checkout:
 
 ```bash
 cd kaika
