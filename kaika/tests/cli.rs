@@ -186,6 +186,14 @@ fn upgrade_needs_names_or_all() {
 }
 
 #[test]
+fn an_app_store_upgrade_says_up_front_that_administrator_rights_are_needed() {
+    let s = sandbox();
+    s.reply("mas list", "497799835  Xcode  (15.0)\n");
+    s.cmd().args(["upgrade", "Xcode", "-n"]).assert().success().stdout(predicate::str::contains("mas upgrade 497799835   (needs administrator rights)"));
+    s.cmd().args(["upgrade", "--all", "-n"]).assert().success().stdout(predicate::str::contains("mas upgrade   (needs administrator rights)"));
+}
+
+#[test]
 fn upgrade_all_asks_every_available_backend() {
     let s = sandbox();
     s.cmd().args(["upgrade", "--all", "-y"]).assert().success();

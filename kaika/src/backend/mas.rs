@@ -61,7 +61,7 @@ impl Backend for Mas {
             .map(|(id, name, v)| Pkg { name, version: v.rsplit("->").next().unwrap_or("").trim().into(), reference: id })
             .collect()
     }
-    fn needs_admin(&self, _uninstall: bool) -> bool {
+    fn needs_admin(&self) -> bool {
         // mas 7 asks for administrator rights itself (it re-runs under sudo) for install, upgrade and uninstall.
         true
     }

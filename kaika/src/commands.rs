@@ -467,7 +467,7 @@ fn install(ctx: &Ctx, names: &[String], act: Act) -> KResult {
         match resolution {
             Resolution::Backend { cand, note } => {
                 let b = backend::by_id(&cand.source).ok_or_else(|| KErr::fail("unknown backend"))?;
-                plan.actions.push(Action::Cmd { argv: b.install_argv(&cand.reference), admin: b.needs_admin(false) });
+                plan.actions.push(Action::Cmd { argv: b.install_argv(&cand.reference), admin: b.needs_admin() });
                 plan.actions.push(Action::Record {
                     source: cand.source.clone(),
                     name: cand.name.clone(),
@@ -518,7 +518,7 @@ fn uninstall(ctx: &Ctx, names: &[String], zap: bool, act: Act) -> KResult {
             }
             src => {
                 let b = backend::by_id(src).ok_or_else(|| KErr::fail("unknown backend"))?;
-                plan.actions.push(Action::Cmd { argv: b.uninstall_argv(&row.reference, zap), admin: b.needs_admin(true) });
+                plan.actions.push(Action::Cmd { argv: b.uninstall_argv(&row.reference, zap), admin: b.needs_admin() });
                 plan.actions.push(Action::Unrecord { source: src.into(), name: row.name.clone() });
                 if zap && src != "cask" {
                     plan.warnings.push(format!("--zap only applies to casks and direct installs; ignored for {src}:{}", row.name));
@@ -550,7 +550,7 @@ fn upgrade(ctx: &Ctx, names: &[String], all: bool, act: Act) -> KResult {
     let mut plan = Plan { title: if all { "upgrade everything".into() } else { format!("upgrade {}", names.join(", ")) }, actions: vec![], warnings: vec![] };
     if all {
         for b in backend::available(ctx.r) {
-            plan.actions.push(Action::Cmd { argv: b.upgrade_argv(None), admin: false });
+            plan.actions.push(Action::Cmd { argv: b.upgrade_argv(None), admin: b.needs_admin() });
         }
         for e in m.packages.iter().filter(|e| e.source == "direct") {
             match direct_upgrade_job(ctx, e, act.force) {
@@ -573,7 +573,7 @@ fn upgrade(ctx: &Ctx, names: &[String], all: bool, act: Act) -> KResult {
                 }
                 src => {
                     let b = backend::by_id(src).ok_or_else(|| KErr::fail("unknown backend"))?;
-                    plan.actions.push(Action::Cmd { argv: b.upgrade_argv(Some(&row.reference)), admin: false });
+                    plan.actions.push(Action::Cmd { argv: b.upgrade_argv(Some(&row.reference)), admin: b.needs_admin() });
                 }
             }
         }

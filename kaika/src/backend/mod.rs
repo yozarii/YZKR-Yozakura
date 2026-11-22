@@ -43,8 +43,9 @@ pub trait Backend {
     fn describe(&self, _r: &dyn Runner, _reference: &str) -> String {
         String::new()
     }
-    /// Whether the uninstall needs administrator rights (the plan says so and kaika never elevates silently).
-    fn needs_admin(&self, _uninstall: bool) -> bool {
+    /// Whether installing, upgrading or uninstalling needs administrator rights (the plan says so and kaika never
+    /// elevates silently).
+    fn needs_admin(&self) -> bool {
         false
     }
 }
