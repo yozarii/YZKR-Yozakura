@@ -244,16 +244,37 @@ fn install_downloaded(r: &dyn Runner, dirs: &Dirs, job: &Job, file: &Path, stage
     gate(&failures, job.force)?;
 
     let dest = dirs.apps.join(app.file_name().unwrap());
-    if dest.exists() {
-        if job.upgrade || job.force {
-            std::fs::remove_dir_all(&dest)?;
-        } else {
-            return Err(anyhow!("{} already exists; use -f to replace it", dest.display()).into());
-        }
+    if dest.exists() && !(job.upgrade || job.force) {
+        return Err(anyhow!("{} already exists; use -f to replace it", dest.display()).into());
     }
     std::fs::create_dir_all(&dirs.apps)?;
-    run_ok(r, &["ditto", &path_str(&app), &path_str(&dest)], "installing the app")?;
+    place_app(r, &app, &dest)?;
     Ok(Installed { path: path_str(&dest), team_id: rep.team_id.unwrap_or_default(), overridden: failures })
+}
+
+/// Put `app` at `dest`, replacing what is there only once the new copy is complete: it is copied next to `dest`
+/// first and swapped in with two renames, and the old one is put back if the swap fails. A full disk or a
+/// permission error therefore never costs the user the app they already had.
+fn place_app(r: &dyn Runner, app: &Path, dest: &Path) -> Result<(), DErr> {
+    let (dir, name) = (dest.parent().unwrap_or(Path::new("/")), dest.file_name().unwrap_or_default().to_string_lossy());
+    let (incoming, backup) = (dir.join(format!(".{name}.kaika-new")), dir.join(format!(".{name}.kaika-old")));
+    let _ = std::fs::remove_dir_all(&incoming);
+    let _ = std::fs::remove_dir_all(&backup);
+    if let Err(e) = run_ok(r, &["ditto", &path_str(app), &path_str(&incoming)], "installing the app") {
+        let _ = std::fs::remove_dir_all(&incoming);
+        return Err(e);
+    }
+    let had_old = dest.exists();
+    let swapped = (!had_old || std::fs::rename(dest, &backup).is_ok()) && std::fs::rename(&incoming, dest).is_ok();
+    if !swapped {
+        if had_old && !dest.exists() {
+            let _ = std::fs::rename(&backup, dest);
+        }
+        let _ = std::fs::remove_dir_all(&incoming);
+        return Err(anyhow!("could not replace {}; the installed copy was left as it was", dest.display()).into());
+    }
+    let _ = std::fs::remove_dir_all(&backup);
+    Ok(())
 }
 
 fn is_executable(p: &Path) -> bool {

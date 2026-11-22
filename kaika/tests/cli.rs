@@ -288,6 +288,39 @@ fn an_existing_app_is_not_overwritten_without_force() {
 }
 
 #[test]
+fn a_forced_replacement_swaps_in_the_new_app_and_leaves_no_scratch_folders() {
+    let s = sandbox();
+    fixture_recipe(&s, "");
+    let old = s.apps.join("Fixture.app");
+    std::fs::create_dir_all(&old).unwrap();
+    std::fs::write(old.join("marker"), "old version").unwrap();
+    s.cmd().args(["install", "direct:fixture", "-y", "-f"]).assert().success();
+    assert!(!old.join("marker").exists() && old.join("Contents/Info.plist").exists());
+    let names: Vec<_> = std::fs::read_dir(&s.apps).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert_eq!(names, ["Fixture.app"], "{names:?}");
+}
+
+#[test]
+fn a_replacement_that_fails_to_copy_leaves_the_installed_app_untouched() {
+    let s = sandbox();
+    fixture_recipe(&s, "");
+    let old = s.apps.join("Fixture.app");
+    std::fs::create_dir_all(&old).unwrap();
+    std::fs::write(old.join("marker"), "old version").unwrap();
+    // Extracting the download works; copying into the applications folder fails (a full disk, say).
+    s.custom_stub(
+        "ditto",
+        r#"for a in "$@"; do last="$a"; done
+case "$last" in "$KAIKA_APPS_DIR"/*) echo "No space left on device" >&2; exit 1;; esac
+exec /usr/bin/ditto "$@""#,
+    );
+    s.cmd().args(["install", "direct:fixture", "-y", "-f"]).assert().code(1).stderr(predicate::str::contains("No space left"));
+    assert_eq!(std::fs::read_to_string(old.join("marker")).unwrap(), "old version", "the installed app must survive a failed replacement");
+    let leftovers: Vec<_> = std::fs::read_dir(&s.apps).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert_eq!(leftovers, ["Fixture.app"], "no half-copied folders left behind: {leftovers:?}");
+}
+
+#[test]
 fn uninstalling_a_direct_app_trashes_it_and_zap_removes_support_files() {
     let s = sandbox();
     fixture_recipe(&s, "");
