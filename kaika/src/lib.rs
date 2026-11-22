@@ -21,6 +21,5 @@ pub mod quarantine;
 pub mod recipe;
 pub mod render;
 pub mod runner;
-pub mod schedule;
 pub mod select;
 pub mod verify;
