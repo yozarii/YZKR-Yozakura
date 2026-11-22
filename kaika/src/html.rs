@@ -7,19 +7,32 @@ pub struct Anchor {
     pub text: String,
 }
 
-/// The value of attribute `name` in an opening tag's text (`href="..."` or `href='...'`).
+/// The value of attribute `name` in an opening tag's text: double-quoted, single-quoted or bare, with any spacing
+/// around the `=`, and the name in any case. A longer name that merely ends in it (`data-href`) is another attribute.
 fn attr(tag: &str, name: &str) -> String {
-    let t = format!(" {tag}");
-    for q in ['"', '\''] {
-        let key = format!(" {name}={q}");
-        if let Some(i) = t.to_ascii_lowercase().find(&key) {
-            let rest = &t[i + key.len()..];
-            if let Some(end) = rest.find(q) {
-                return rest[..end].to_string();
-            }
+    let mut rest = tag;
+    loop {
+        rest = rest.trim_start_matches(|c: char| c.is_ascii_whitespace() || c == '/');
+        let end = rest.find(|c: char| c.is_ascii_whitespace() || c == '=' || c == '/').unwrap_or(rest.len());
+        let (key, after) = rest.split_at(end);
+        if key.is_empty() {
+            return String::new();
         }
+        let after = after.trim_start();
+        let Some(value) = after.strip_prefix('=') else {
+            rest = after; // a bare attribute with no value
+            continue;
+        };
+        let value = value.trim_start();
+        let (text, remainder) = match value.chars().next() {
+            Some(q @ ('"' | '\'')) => value[1..].split_once(q).unwrap_or((&value[1..], "")),
+            _ => value.split_at(value.find(|c: char| c.is_ascii_whitespace()).unwrap_or(value.len())),
+        };
+        if key.eq_ignore_ascii_case(name) {
+            return text.to_string();
+        }
+        rest = remainder;
     }
-    String::new()
 }
 
 fn strip_tags(s: &str) -> String {
@@ -41,8 +54,13 @@ pub fn anchors(html: &str) -> Vec<Anchor> {
     let lower = html.to_ascii_lowercase(); // ASCII lowercasing keeps byte offsets identical
     let mut out = vec![];
     let mut i = 0;
-    while let Some(p) = lower[i..].find("<a ") {
+    while let Some(p) = lower[i..].find("<a") {
         let start = i + p;
+        // `<a` must be followed by whitespace: `<abbr>` and `<article>` are other tags.
+        if !lower.as_bytes().get(start + 2).is_some_and(u8::is_ascii_whitespace) {
+            i = start + 2;
+            continue;
+        }
         let Some(gt) = html[start..].find('>') else { break };
         let tag = &html[start + 3..start + gt];
         let body = &html[start + gt + 1..];
@@ -105,6 +123,13 @@ mod tests {
         assert_eq!(a.len(), 2);
         assert_eq!((a[0].href.as_str(), a[0].class.as_str(), a[0].text.as_str()), ("/a", "result__a big", "Rectangle & co"));
         assert_eq!(a[1].href, "/b");
+    }
+
+    #[test]
+    fn real_markup_is_read_whatever_the_spacing_quoting_or_case() {
+        let page = "<a\nhref=\"/a.dmg\"\n   class=x>One</a><a\thref = '/b.dmg'>Two</a><a href=/c.dmg>Three</a><A\nHREF=\"/d.dmg\">Four</A><abbr href=\"/no\">x</abbr>";
+        let hrefs: Vec<String> = anchors(page).into_iter().map(|a| a.href).collect();
+        assert_eq!(hrefs, ["/a.dmg", "/b.dmg", "/c.dmg", "/d.dmg"]);
     }
 
     #[test]
