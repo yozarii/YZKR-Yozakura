@@ -5,7 +5,7 @@
 //! link scan and quarantine as any other page. Headless means no window and no focus theft; a throwaway profile
 //! means no cookies, sign-ins or extensions are involved; nothing is downloaded or installed for it.
 
-use crate::direct::ensure_https;
+use crate::net::ensure_https;
 use crate::runner::Runner;
 use std::path::{Path, PathBuf};
 

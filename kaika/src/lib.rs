@@ -2,6 +2,7 @@
 //!
 //! Backends do the installing; kaika picks the right one, verifies downloads, and keeps a manifest.
 
+pub mod asset;
 pub mod backend;
 pub mod cli;
 pub mod commands;
@@ -10,6 +11,7 @@ pub mod decision;
 pub mod direct;
 pub mod discovery;
 pub mod html;
+pub mod links;
 pub mod manifest;
 pub mod model;
 pub mod names;

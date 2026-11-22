@@ -4,6 +4,7 @@
 use super::rows::find_installed;
 use super::run::run_plan;
 use super::{Ctx, KErr, KResult, say};
+use crate::asset::norm_version;
 use crate::backend;
 use crate::cli::Act;
 use crate::direct::Job;
@@ -38,7 +39,7 @@ pub(super) fn direct_upgrade_job(ctx: &Ctx, e: &Entry, force: bool) -> KResult<O
     let same = if asset.version.is_empty() {
         asset.url == e.reference
     } else {
-        recipe::norm_version(&asset.version) == recipe::norm_version(&e.version)
+        norm_version(&asset.version) == norm_version(&e.version)
     };
     if same {
         return Ok(None);

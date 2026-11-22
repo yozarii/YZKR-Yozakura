@@ -5,8 +5,8 @@
 //! is overwhelmingly the most-installed one (Homebrew's public install counts). Nothing here is a model: it is a
 //! word, typo or acronym match plus a popularity rule, so the answer is the same every time and the plan says why.
 
+use crate::net::fetch;
 use crate::paths::Dirs;
-use crate::recipe;
 use crate::runner::Runner;
 use serde_json::Value;
 use std::path::Path;
@@ -234,7 +234,7 @@ pub fn popular(r: &dyn Runner, dirs: &Dirs) -> Vec<Entry> {
     }
     let mut all = vec![];
     for (url, key, source) in [(CASKS, "cask", "cask"), (FORMULAE, "formula", "brew")] {
-        if let Ok(body) = recipe::fetch(r, url) {
+        if let Ok(body) = fetch(r, url) {
             all.extend(parse_analytics(&body, key, source));
         }
     }

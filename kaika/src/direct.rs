@@ -1,25 +1,14 @@
 //! The `direct` backend: download from a vendor, verify, install, and remove.
 
+use crate::asset::file_name;
 use crate::manifest::Entry;
+use crate::net::ensure_https;
 use crate::paths::Dirs;
-use crate::recipe::{self, Asset, Recipe};
+use crate::recipe::{Asset, Recipe};
 use crate::runner::{Runner, argv};
 use crate::verify::{self, Expect};
 use anyhow::{Result, anyhow, bail};
 use std::path::{Path, PathBuf};
-
-/// Test hook: lets `file://` fixtures stand in for HTTPS so tests never touch the network.
-pub fn test_mode() -> bool {
-    std::env::var("KAIKA_TEST_MODE").as_deref() == Ok("1")
-}
-
-pub fn ensure_https(url: &str) -> Result<()> {
-    if url.starts_with("https://") || (test_mode() && url.starts_with("file://")) {
-        Ok(())
-    } else {
-        bail!("refusing non-HTTPS URL: {url}")
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Job {
@@ -80,10 +69,7 @@ impl Job {
             Some(t) => format!("expects Team ID {t}"),
             None => "Team ID shown and recorded on first use".into(),
         };
-        let admin = if recipe::file_name(&self.url)
-            .to_lowercase()
-            .ends_with(".pkg")
-        {
+        let admin = if file_name(&self.url).to_lowercase().ends_with(".pkg") {
             "   (needs administrator rights)"
         } else {
             ""
@@ -201,7 +187,7 @@ pub fn run(r: &dyn Runner, dirs: &Dirs, job: &Job) -> Result<Installed, DErr> {
     }
     let dl = dirs.cache.join("downloads");
     std::fs::create_dir_all(&dl)?;
-    let file = dl.join(recipe::file_name(&job.url));
+    let file = dl.join(file_name(&job.url));
     let o = r.run(&argv(&[
         "curl",
         "-fSL",
@@ -650,15 +636,6 @@ mod tests {
     }
 
     use super::*;
-
-    #[test]
-    fn https_only_outside_test_mode() {
-        assert!(ensure_https("https://x.com/a.dmg").is_ok());
-        assert!(ensure_https("http://x.com/a.dmg").is_err());
-        assert!(ensure_https("ftp://x.com/a.dmg").is_err());
-        // file:// is refused unless KAIKA_TEST_MODE=1, which unit tests do not set.
-        assert!(ensure_https("file:///tmp/a.zip").is_err());
-    }
 
     #[test]
     fn a_download_may_not_be_redirected_off_https() {

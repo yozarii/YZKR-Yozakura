@@ -1134,7 +1134,7 @@ fn a_formula_and_a_cask_of_one_name_is_ambiguous_by_structure_with_models_on_or_
 fn api(url: &str) -> String {
     format!(
         "curl -fsSL --proto-redir =https --max-time 30 -A {} {url}",
-        kaika::recipe::USER_AGENT
+        kaika::net::USER_AGENT
     )
 }
 
@@ -2194,8 +2194,15 @@ fn a_schedule_that_launchctl_would_not_load_is_not_left_behind_as_scheduled() {
     let s = sandbox();
     s.custom_stub("launchctl", "exit 5");
     s.cmd().args(["schedule", "on"]).assert().code(1);
-    assert!(!agent(&s).exists(), "the plist must not stay if the job never loaded");
-    s.cmd().args(["schedule", "status"]).assert().success().stdout(predicate::str::contains("not scheduled"));
+    assert!(
+        !agent(&s).exists(),
+        "the plist must not stay if the job never loaded"
+    );
+    s.cmd()
+        .args(["schedule", "status"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("not scheduled"));
 }
 
 #[test]

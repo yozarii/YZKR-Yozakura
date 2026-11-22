@@ -6,6 +6,7 @@
 
 use super::run::run_plan;
 use super::{Ctx, KErr, KResult};
+use crate::asset::file_name;
 use crate::backend::{self, Candidate};
 use crate::cli::Act;
 use crate::decision;
@@ -294,7 +295,7 @@ fn direct_job_for(ctx: &Ctx, name: &str, act: Act) -> KResult<Job> {
 fn discovered_resolution(name: &str, d: discovery::Discovered, act: Act) -> Resolution {
     let learned = d.recipe(name);
     let asset = Asset {
-        name: recipe::file_name(&d.url),
+        name: file_name(&d.url),
         url: d.url.clone(),
         version: d.version.clone(),
         sha256: d.sha256.clone(),
