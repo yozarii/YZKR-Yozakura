@@ -1082,6 +1082,20 @@ fn cleanup_removes_downloads() {
 }
 
 #[test]
+fn cleanup_that_cannot_remove_something_says_so_instead_of_claiming_it_freed_space() {
+    use std::os::unix::fs::PermissionsExt;
+    let s = sandbox();
+    let dl = s.kaika_home().join("cache/downloads");
+    std::fs::create_dir_all(&dl).unwrap();
+    std::fs::write(dl.join("x.dmg"), "data").unwrap();
+    std::fs::set_permissions(&dl, std::fs::Permissions::from_mode(0o555)).unwrap(); // entries cannot be unlinked
+    let out = s.cmd().arg("cleanup").assert().code(1).stderr(predicate::str::contains("could not remove")).get_output().stdout.clone();
+    std::fs::set_permissions(&dl, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(!String::from_utf8_lossy(&out).contains("freed"), "{}", String::from_utf8_lossy(&out));
+    assert!(dl.join("x.dmg").exists());
+}
+
+#[test]
 fn update_refreshes_brew() {
     let s = sandbox();
     s.cmd().arg("update").assert().success();

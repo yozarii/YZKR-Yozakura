@@ -857,6 +857,7 @@ fn dir_size(p: &std::path::Path) -> u64 {
 
 fn cleanup(ctx: &Ctx, dry_run: bool) -> KResult {
     let mut total = 0;
+    let mut failed = vec![];
     for sub in ["downloads", "stage", "mnt"] {
         let p = ctx.dirs.cache.join(sub);
         let size = dir_size(&p);
@@ -864,10 +865,13 @@ fn cleanup(ctx: &Ctx, dry_run: bool) -> KResult {
         if size > 0 || p.exists() {
             if dry_run {
                 say(ctx, &format!("would remove {} ({size} bytes)", p.display()));
-            } else {
-                let _ = std::fs::remove_dir_all(&p);
+            } else if let Err(e) = std::fs::remove_dir_all(&p) {
+                failed.push(format!("{}: {e}", p.display()));
             }
         }
+    }
+    if !failed.is_empty() {
+        return Err(KErr::fail(format!("could not remove {}", failed.join("; "))));
     }
     say(ctx, &format!("{} {total} bytes", if dry_run { "would free" } else { "freed" }));
     Ok(())
