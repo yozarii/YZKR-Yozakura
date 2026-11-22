@@ -1090,7 +1090,7 @@ fn schedule_on_writes_the_agent_and_loads_it_with_launchctl() {
     let s = sandbox();
     s.cmd().args(["schedule", "on", "--at", "04:15"]).assert().success().stdout(predicate::str::contains("daily at 04:15"));
     let plist = std::fs::read_to_string(agent(&s)).unwrap();
-    assert!(plist.contains("<string>--all</string>") && plist.contains("<integer>4</integer>") && plist.contains("<integer>15</integer>"), "{plist}");
+    assert!(plist.contains("<string>--notify</string>") && !plist.contains("--yes") && plist.contains("<integer>4</integer>") && plist.contains("<integer>15</integer>"), "{plist}");
     assert!(s.calls().contains("launchctl bootstrap gui/"), "{}", s.calls());
 }
 
@@ -1099,8 +1099,8 @@ fn schedule_status_reads_back_what_is_scheduled() {
     let s = sandbox();
     s.cmd().arg("schedule").assert().success().stdout(predicate::str::contains("not scheduled"));
     s.cmd().args(["schedule", "on"]).assert().success();
-    s.cmd().args(["schedule", "status"]).assert().success().stdout(predicate::str::contains("every day at 03:00"));
-    s.cmd().arg("doctor").assert().success().stdout(predicate::str::contains("scheduled daily"));
+    s.cmd().args(["schedule", "status"]).assert().success().stdout(predicate::str::contains("every day at 03:00").and(predicate::str::contains("installs nothing")));
+    s.cmd().arg("doctor").assert().success().stdout(predicate::str::contains("daily update check scheduled"));
 }
 
 #[test]
@@ -1293,4 +1293,56 @@ fn a_script_built_button_that_redirects_to_the_file_is_rendered_then_followed() 
     s.custom_stub("fakebrowser", "echo '<a href=\"/api/dl?platform=osx&amp;download=1\">Download for macOS</a>'");
     s.reply("curl -sL -r 0-0 -o /dev/null -w %{url_effective} --max-time 20 -A kaika/0.1 (package manager) https://ghost.example/api/dl?platform=osx&download=1", "https://cdn.ghost.example/Ghost.dmg");
     s.cmd().env("KAIKA_BROWSER", browser_path(&s)).args(["install", "https://ghost.example/", "-n"]).assert().success().stdout(predicate::str::contains("cdn.ghost.example").and(predicate::str::contains("download and install ghost")));
+}
+
+// ---------- the daily check only notifies ----------
+
+fn outdated_jq(s: &Sandbox) {
+    s.reply("brew outdated --formula --verbose", "jq (1.7) < 1.8\n");
+}
+
+#[test]
+fn the_daily_check_notifies_once_per_set_of_updates_and_installs_nothing() {
+    let s = sandbox();
+    outdated_jq(&s);
+    s.cmd().args(["outdated", "--notify"]).assert().success().stdout(predicate::str::contains("notified"));
+    let calls = s.calls();
+    assert!(calls.contains("osascript -e display notification") && calls.contains("kaika upgrade --all"), "{calls}");
+    assert!(!calls.contains("brew upgrade") && !calls.contains("brew install"), "{calls}");
+    s.cmd().args(["outdated", "--notify"]).assert().success().stdout(predicate::str::contains("already notified"));
+    assert_eq!(s.calls().matches("osascript").count(), 1, "the same updates are announced once");
+}
+
+#[test]
+fn a_new_update_is_news_again_and_being_up_to_date_resets_it() {
+    let s = sandbox();
+    outdated_jq(&s);
+    s.cmd().args(["outdated", "--notify"]).assert().success();
+    s.reply("brew outdated --formula --verbose", "jq (1.7) < 1.9\n");
+    s.cmd().args(["outdated", "--notify"]).assert().success();
+    assert_eq!(s.calls().matches("osascript").count(), 2);
+    s.reply("brew outdated --formula --verbose", "");
+    s.cmd().args(["outdated", "--notify"]).assert().success().stdout(predicate::str::contains("up to date"));
+    assert!(!s.home.join(".kaika/notified").exists());
+    assert_eq!(s.calls().matches("osascript").count(), 2, "nothing to say, nothing said");
+}
+
+#[test]
+fn the_daily_check_stays_quiet_and_exits_69_when_offline() {
+    let s = sandbox();
+    outdated_jq(&s);
+    s.reply_code(Sandbox::PROBE, 7);
+    s.cmd().args(["outdated", "--notify"]).assert().code(69);
+    assert!(!s.calls().contains("osascript"), "{}", s.calls());
+}
+
+#[test]
+fn yes_never_confirms_a_guess_at_a_typo_but_a_plan_can_and_a_word_match_may_proceed() {
+    let s = sandbox();
+    popularity(&s);
+    s.cmd().args(["install", "chome", "-y"]).assert().code(1).stderr(predicate::str::contains("looks like a typo").and(predicate::str::contains("cask:google-chrome")));
+    assert!(!s.calls().contains("brew install"), "{}", s.calls());
+    s.cmd().args(["install", "chome", "-n"]).assert().success().stdout(predicate::str::contains("brew install --cask google-chrome"));
+    s.cmd().args(["install", "chrome", "-y"]).assert().success();
+    assert!(s.calls().contains("brew install --cask google-chrome"));
 }

@@ -68,7 +68,11 @@ pub enum Cmd {
     /// Show details for a package
     Info { name: String },
     /// Show packages with newer versions available
-    Outdated,
+    Outdated {
+        /// Post a macOS notification when the set of updates changed since the last one (for the daily check); installs nothing
+        #[arg(long)]
+        notify: bool,
+    },
     /// Check this machine: backends, state, decision layer
     Doctor,
     /// Remove old downloads and caches
@@ -76,7 +80,7 @@ pub enum Cmd {
         #[arg(short = 'n', long)]
         dry_run: bool,
     },
-    /// Upgrade everything once a day in the background: `schedule on [--at HH:MM]`, `schedule off`, `schedule status`
+    /// Check for updates once a day and tell you with a notification (it never installs): `schedule on [--at HH:MM]`, `schedule off`, `schedule status`
     Schedule {
         /// on, off or status (default)
         #[arg(value_parser = ["on", "off", "status"], default_value = "status")]

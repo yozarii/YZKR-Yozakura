@@ -1,8 +1,9 @@
-//! Scheduled upgrades: one launchd user agent that runs `kaika upgrade --all -y` once a day.
+//! The daily update check: one launchd user agent that runs `kaika outdated --notify` once a day.
 //!
-//! It is a plain LaunchAgent in `~/Library/LaunchAgents` (no daemon of kaika's own, nothing resident between runs).
-//! An unattended run is as careful as an attended one: failed verification still stops an install, offline runs exit
-//! 69 before changing anything, and everything it prints goes to `~/.kaika/logs/upgrade.log`.
+//! Like macOS Software Update it only suggests: it refreshes the indexes, and when there are new updates it posts
+//! one notification ("Run: kaika upgrade --all"). It never installs anything; you decide. It is a plain
+//! LaunchAgent in `~/Library/LaunchAgents` (no daemon of kaika's own, nothing resident between runs); offline runs
+//! exit 69 and stay quiet; everything it prints goes to `~/.kaika/logs/upgrade.log`.
 
 pub const LABEL: &str = "io.kaika.upgrade";
 
@@ -35,9 +36,8 @@ pub fn plist(exe: &str, log: &str, path: &str, hour: u8, minute: u8) -> String {
   <key>ProgramArguments</key>
   <array>
     <string>{exe}</string>
-    <string>upgrade</string>
-    <string>--all</string>
-    <string>--yes</string>
+    <string>outdated</string>
+    <string>--notify</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict><key>PATH</key><string>{path}</string></dict>
@@ -54,6 +54,32 @@ pub fn plist(exe: &str, log: &str, path: &str, hour: u8, minute: u8) -> String {
         log = esc(log),
         path = esc(path),
     )
+}
+
+/// A short stable fingerprint of the set of available updates, so the same set is announced only once.
+pub fn fingerprint(items: &[String]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut v: Vec<&String> = items.iter().collect();
+    v.sort();
+    let mut h = Sha256::new();
+    for i in v {
+        h.update(i.as_bytes());
+        h.update([0]);
+    }
+    h.finalize().iter().take(8).map(|b| format!("{b:02x}")).collect()
+}
+
+fn applescript_string(s: &str) -> String {
+    let clean: String = s.chars().filter(|c| !c.is_control()).collect();
+    format!("\"{}\"", clean.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// The AppleScript that posts the banner. Package names come from outside, so they are escaped as data.
+pub fn notification_script(names: &[&str]) -> String {
+    let shown: Vec<&str> = names.iter().take(3).copied().collect();
+    let more = if names.len() > 3 { format!(" and {} more", names.len() - 3) } else { String::new() };
+    let body = format!("{} update{} available: {}{more}. Run: kaika upgrade --all", names.len(), if names.len() == 1 { "" } else { "s" }, shown.join(", "));
+    format!("display notification {} with title \"kaika\"", applescript_string(&body))
 }
 
 /// The time a plist is set for, read back from its text.
@@ -80,12 +106,30 @@ mod tests {
     }
 
     #[test]
-    fn the_job_runs_upgrade_all_yes_at_the_chosen_time() {
+    fn the_job_only_checks_and_notifies_at_the_chosen_time() {
         let p = plist("/Users/me/.cargo/bin/kaika", "/Users/me/.kaika/logs/upgrade.log", "/opt/homebrew/bin:/usr/bin", 3, 30);
-        for want in ["<string>io.kaika.upgrade</string>", "<string>upgrade</string>", "<string>--all</string>", "<string>--yes</string>", "<integer>3</integer>", "<integer>30</integer>", "/opt/homebrew/bin:/usr/bin"] {
+        assert!(!p.contains("<string>upgrade</string>") && !p.contains("--yes"), "the job must never install: {p}");
+        for want in ["<string>io.kaika.upgrade</string>", "<string>outdated</string>", "<string>--notify</string>", "<integer>3</integer>", "<integer>30</integer>", "/opt/homebrew/bin:/usr/bin"] {
             assert!(p.contains(want), "{want} missing from {p}");
         }
         assert_eq!(scheduled_time(&p), Some((3, 30)));
+    }
+
+    #[test]
+    fn the_same_updates_have_the_same_fingerprint_in_any_order_and_new_ones_differ() {
+        let a = fingerprint(&["brew:jq=1.8".into(), "cask:zen=2".into()]);
+        assert_eq!(a, fingerprint(&["cask:zen=2".into(), "brew:jq=1.8".into()]));
+        assert_ne!(a, fingerprint(&["brew:jq=1.9".into(), "cask:zen=2".into()]));
+    }
+
+    #[test]
+    fn the_notification_names_a_few_packages_and_cannot_be_broken_by_a_name() {
+        let s = notification_script(&["brew:jq", "cask:zen", "npm:x", "uv:y"]);
+        assert!(s.starts_with("display notification \"4 updates available: brew:jq, cask:zen, npm:x and 1 more. Run: kaika upgrade --all\" with title"), "{s}");
+        let s = notification_script(&["evil\" & (do shell script \"x\") & \""]);
+        let bare = s.char_indices().filter(|(i, c)| *c == '"' && !s[..*i].ends_with('\\')).count();
+        assert_eq!(bare, 4, "only the body's and the title's own quotes are bare: {s}");
+        assert!(notification_script(&["a"]).contains("1 update available"));
     }
 
     #[test]

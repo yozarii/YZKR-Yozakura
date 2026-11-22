@@ -44,16 +44,21 @@ unless `-y` is given.
 `install`, `upgrade`, `update`, `outdated` and `search` check the network first (a 2 second probe) and exit 69 before
 starting anything. `list`, `info`, `uninstall`, `cleanup`, `doctor` and `config` work offline. `KAIKA_OFFLINE=1` forces it.
 
-## Scheduled upgrades and the App Store
+## Update suggestions and the App Store
+
+Like macOS Software Update, kaika only suggests; it never upgrades by itself.
 
 ```bash
-kaika schedule on --at 03:30   # a launchd job: kaika upgrade --all --yes, daily; log in ~/.kaika/logs/upgrade.log
+kaika schedule on --at 03:30   # a launchd job: refresh indexes, then notify if there are new updates
 kaika schedule status
 kaika schedule off
+kaika outdated --notify        # what the job runs; posts one notification per new set of updates
+kaika upgrade --all            # the only thing that installs; you run it
 ```
 
-App Store apps go through `mas`, which uses the Apple ID signed in to the App Store app and can only fetch apps that
-account has already obtained once; kaika never handles Apple ID credentials and explains this when `mas` fails.
+App Store apps go through `mas`, which uses the Apple ID signed in to the App Store app, can only fetch apps that
+account has already obtained once, and asks for your administrator password itself. kaika never handles Apple ID
+credentials and explains this when `mas` fails.
 
 ## Where things live
 
@@ -74,7 +79,7 @@ Apps go to `/Applications`.
 
 **Plain text works.** `kaika install chrome`, `chome`, `vscode`, `discord`, `obsidian`: an exact package is used as is;
 otherwise the name is matched, as a word, abbreviation or typo, against reviewed Homebrew formulae and casks and taken
-only if it is by far the most installed match. The plan says how it was read (`'chome' is read as cask:google-chrome`).
+only if it is by far the most installed match. `-y` never confirms a guess at a typo: you look at the plan or name the package. The plan says how it was read (`'chome' is read as cask:google-chrome`).
 
 **Which source?** Never a model. Curated sources (brew, cask, App Store, recipes) always come before open registries
 (npm, uv), whose names can be squatted. A name that is both a formula and a cask, or a tie between open registries,

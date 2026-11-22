@@ -167,7 +167,7 @@ esac"#,
 
     /// Standard stubs: package managers answer nothing; verification tools pass.
     pub fn standard(&self) -> &Sandbox {
-        for t in ["brew", "npm", "uv", "mas", "launchctl"] {
+        for t in ["brew", "npm", "uv", "mas", "launchctl", "osascript"] {
             self.stub(t, 0, Match::Exact);
         }
         self.stub("curl", 22, Match::Exact);

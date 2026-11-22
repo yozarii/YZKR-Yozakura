@@ -60,7 +60,7 @@ pub const EX_UNAVAILABLE: i32 = 69;
 
 /// Commands that cannot work without a network fail in about two seconds, before any solver or model starts.
 fn needs_network(cmd: &Cmd) -> bool {
-    matches!(cmd, Cmd::Install { .. } | Cmd::Upgrade { .. } | Cmd::Update | Cmd::Outdated | Cmd::Search { .. })
+    matches!(cmd, Cmd::Install { .. } | Cmd::Upgrade { .. } | Cmd::Update | Cmd::Outdated { .. } | Cmd::Search { .. })
 }
 
 pub fn dispatch(ctx: &Ctx, cmd: Cmd) -> KResult {
@@ -78,7 +78,7 @@ pub fn dispatch(ctx: &Ctx, cmd: Cmd) -> KResult {
         Cmd::List => list(ctx),
         Cmd::Search { query } => search(ctx, &query),
         Cmd::Info { name } => info(ctx, &name),
-        Cmd::Outdated => outdated(ctx),
+        Cmd::Outdated { notify } => outdated(ctx, notify),
         Cmd::Doctor => doctor(ctx),
         Cmd::Cleanup { dry_run } => cleanup(ctx, dry_run),
         Cmd::Schedule { action, at, dry_run } => schedule(ctx, &action, &at, dry_run),
@@ -397,6 +397,13 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
     if matches!(choice, Choice::None) || open_only {
         // Plain text: "chrome", "chome" and "vscode" mean google-chrome and visual-studio-code (names.rs).
         if let Ok(f) = names::best(&t.name, &names::popular(ctx.r, &ctx.dirs)) {
+            // A guess at a typo is confirmed by a person looking at the plan, never by -y alone.
+            if f.how == names::How::Typo && act.yes {
+                return Err(KErr::fail(format!(
+                    "'{}' looks like a typo for {}:{} but -y would install it unseen; nothing was installed. Run without -y to confirm the plan, or name it: kaika install {}:{}",
+                    t.name, f.entry.source, f.entry.name, f.entry.source, f.entry.name
+                )));
+            }
             let cand = Candidate { source: f.entry.source.into(), name: f.entry.name.clone(), reference: f.entry.name.clone(), desc: String::new() };
             return pick(cand, Some(f.why(&t.name)));
         }
@@ -657,7 +664,8 @@ fn info(ctx: &Ctx, name: &str) -> KResult {
     Ok(())
 }
 
-fn outdated(ctx: &Ctx) -> KResult {
+/// Every package with a newer version: (source:name, current, latest).
+fn outdated_lines(ctx: &Ctx) -> KResult<Vec<(String, String, String)>> {
     let current: Vec<Row> = live_rows(ctx)?;
     let mut lines: Vec<(String, String, String)> = vec![];
     for b in backend::available(ctx.r) {
@@ -672,6 +680,14 @@ fn outdated(ctx: &Ctx) -> KResult {
             lines.push((format!("direct:{}", e.name), e.version.clone(), if j.version.is_empty() { "newer build".into() } else { j.version }));
         }
     }
+    Ok(lines)
+}
+
+fn outdated(ctx: &Ctx, notify: bool) -> KResult {
+    if notify {
+        return outdated_notify(ctx);
+    }
+    let lines = outdated_lines(ctx)?;
     if ctx.json {
         let v: Vec<_> = lines.iter().map(|(n, c, l)| serde_json::json!({ "package": n, "current": c, "latest": l })).collect();
         println!("{}", serde_json::Value::Array(v));
@@ -682,6 +698,32 @@ fn outdated(ctx: &Ctx) -> KResult {
             println!("{:<34}{} -> {}", n, if c.is_empty() { "?" } else { &c }, l);
         }
     }
+    Ok(())
+}
+
+/// The daily check: refresh the indexes, and if the set of available updates is new since the last notice, say so
+/// with one macOS notification. It never installs anything; `kaika upgrade --all` is what does.
+fn outdated_notify(ctx: &Ctx) -> KResult {
+    update(ctx)?;
+    let lines = outdated_lines(ctx)?;
+    let seen = ctx.dirs.root.join("notified");
+    let now: Vec<String> = lines.iter().map(|(n, _, l)| format!("{n}={l}")).collect();
+    let fingerprint = crate::schedule::fingerprint(&now);
+    if lines.is_empty() {
+        let _ = std::fs::remove_file(&seen); // up to date: the next batch of updates is news again
+        say(ctx, "everything is up to date");
+        return Ok(());
+    }
+    if std::fs::read_to_string(&seen).is_ok_and(|t| t.trim() == fingerprint) {
+        say(ctx, &format!("{} update(s) available, already notified", lines.len()));
+        return Ok(());
+    }
+    let names: Vec<&str> = lines.iter().map(|(n, _, _)| n.as_str()).collect();
+    let script = crate::schedule::notification_script(&names);
+    let _ = ctx.r.run(&argv(&["osascript", "-e", &script]));
+    std::fs::create_dir_all(&ctx.dirs.root).map_err(anyhow::Error::from)?;
+    std::fs::write(&seen, &fingerprint).map_err(anyhow::Error::from)?;
+    say(ctx, &format!("{} update(s) available; notified. Run: kaika upgrade --all", lines.len()));
     Ok(())
 }
 
@@ -696,7 +738,7 @@ fn schedule(ctx: &Ctx, action: &str, at: &str, dry_run: bool) -> KResult {
             match std::fs::read_to_string(&file) {
                 Ok(p) => {
                     let (h, m) = crate::schedule::scheduled_time(&p).unwrap_or((0, 0));
-                    say(ctx, &format!("scheduled: kaika upgrade --all --yes every day at {h:02}:{m:02} (log: {})", ctx.dirs.root.join("logs/upgrade.log").display()));
+                    say(ctx, &format!("scheduled: kaika checks for updates every day at {h:02}:{m:02} and notifies you; it installs nothing (log: {})", ctx.dirs.root.join("logs/upgrade.log").display()));
                 }
                 Err(_) => say(ctx, "not scheduled (kaika schedule on [--at HH:MM])"),
             }
@@ -708,7 +750,7 @@ fn schedule(ctx: &Ctx, action: &str, at: &str, dry_run: bool) -> KResult {
             let log = ctx.dirs.root.join("logs/upgrade.log");
             let path = format!("{}:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", ctx.dirs.bin.display());
             let body = crate::schedule::plist(&exe, &log.display().to_string(), &path, h, m);
-            say(ctx, &format!("{}schedule: write {} and load it with launchctl; runs `kaika upgrade --all --yes` daily at {h:02}:{m:02}", if dry_run { "would " } else { "" }, file.display()));
+            say(ctx, &format!("{}schedule: write {} and load it with launchctl; checks for updates daily at {h:02}:{m:02} and notifies you (it installs nothing)", if dry_run { "would " } else { "" }, file.display()));
             if dry_run {
                 return Ok(());
             }
@@ -773,7 +815,7 @@ fn doctor(ctx: &Ctx) -> KResult {
         Some(b) => println!("{:<8}{} (only for vendor pages that need JavaScript; headless, no window)", "browser", b.display()),
         None => println!("{:<8}none found: vendor pages that need JavaScript cannot be read (install Chrome, Brave, Edge or Chromium)", "browser"),
     }
-    println!("{:<8}{}", "upgrade", if agent_path(ctx).exists() { "scheduled daily (kaika schedule status)" } else { "not scheduled (kaika schedule on)" });
+    println!("{:<8}{}", "upgrade", if agent_path(ctx).exists() { "daily update check scheduled (kaika schedule status)" } else { "not scheduled (kaika schedule on)" });
     if !ctx.cfg.models_enabled() {
         println!("{:<8}off (no model decisions, no web discovery of vendor downloads)", "models");
     } else {
