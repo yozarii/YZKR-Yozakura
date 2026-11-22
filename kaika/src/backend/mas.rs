@@ -61,15 +61,16 @@ impl Backend for Mas {
             .map(|(id, name, v)| Pkg { name, version: v.rsplit("->").next().unwrap_or("").trim().into(), reference: id })
             .collect()
     }
-    fn needs_admin(&self, uninstall: bool) -> bool {
-        uninstall
+    fn needs_admin(&self, _uninstall: bool) -> bool {
+        // mas 7 asks for administrator rights itself (it re-runs under sudo) for install, upgrade and uninstall.
+        true
     }
 }
 
 /// What to tell the user when a `mas` command fails. `mas` has no sign-in of its own on current macOS: it uses the
 /// Apple ID signed in to the App Store app, and it can only fetch apps that account has already obtained once.
 /// kaika never asks for or handles an Apple ID or its password.
-pub const SIGN_IN_HINT: &str = "the App Store needs to be signed in and the app obtained once: open the App Store app, sign in with your Apple ID, get the app there (kaika never handles Apple ID credentials), then run this again";
+pub const SIGN_IN_HINT: &str = "mas needs a terminal to ask for your administrator password, and the App Store must be signed in with the app obtained once: open the App Store app, sign in with your Apple ID, get the app there (kaika never handles Apple ID credentials), then run this again";
 
 /// True when this command line is a `mas` invocation (optionally under sudo).
 pub fn is_mas(argv: &[String]) -> bool {

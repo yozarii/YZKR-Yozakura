@@ -1204,3 +1204,29 @@ fn doctor_reports_the_browser_without_starting_it() {
     s.cmd().env("KAIKA_BROWSER", browser_path(&s)).arg("doctor").assert().success().stdout(predicate::str::contains("fakebrowser").and(predicate::str::contains("headless")));
     assert!(!s.calls().contains("fakebrowser"), "doctor only reports: {}", s.calls());
 }
+
+#[test]
+fn app_store_installs_say_up_front_that_administrator_rights_are_needed() {
+    let s = sandbox();
+    s.reply("mas search Xcode", "497799835  Xcode  (15.0)\n");
+    s.cmd().args(["install", "mas:Xcode", "-n"]).assert().success().stdout(predicate::str::contains("mas install 497799835   (needs administrator rights)"));
+}
+
+#[test]
+fn an_app_store_install_is_recorded_under_the_installed_name_with_its_version() {
+    let s = sandbox();
+    s.reply("mas search WhatsApp Messenger", "310633997  WhatsApp Messenger  (26.46.72)\n").reply("mas list", "310633997  WhatsApp  (26.46.72)\n");
+    s.cmd().args(["install", "mas:WhatsApp Messenger", "-y"]).assert().success();
+    let m = s.manifest();
+    assert!(m.contains("name = \"WhatsApp\"") && m.contains("version = \"26.46.72\"") && m.contains("reference = \"310633997\""), "{m}");
+    s.cmd().arg("list").assert().success().stdout(predicate::str::is_match(r"mas\s+WhatsApp\s+26\.46\.72\s+yes").unwrap());
+}
+
+#[test]
+fn a_short_name_that_only_a_registry_has_exactly_is_never_guessed_when_a_reviewed_source_is_near() {
+    let s = sandbox();
+    s.reply("brew search --cask chrome", "google-chrome\nchromium\n").reply("npm view chrome name", "chrome\n");
+    s.cmd().args(["install", "chrome", "-y"]).assert().code(1).stderr(predicate::str::contains("npm:chrome").and(predicate::str::contains("cask:google-chrome")).and(predicate::str::contains("nothing was installed")));
+    assert!(!s.calls().contains("npm install"), "{}", s.calls());
+    s.cmd().args(["install", "npm:chrome", "-n"]).assert().success().stdout(predicate::str::contains("npm install -g chrome"));
+}

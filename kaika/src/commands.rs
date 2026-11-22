@@ -246,10 +246,12 @@ fn execute(ctx: &Ctx, plan: &Plan) -> KResult {
                 say(ctx, &format!("installed {} {}{team}", job.name, if inst.path.is_empty() { String::new() } else { format!("at {}", inst.path) }));
             }
             Action::Record { source, name, reference, resolved_by } => {
-                let version = backend::by_id(source)
-                    .and_then(|b| b.installed(ctx.r).into_iter().find(|p| p.name.eq_ignore_ascii_case(name) || p.reference == *reference))
-                    .map(|p| p.version)
-                    .unwrap_or_default();
+                // Record what the backend now reports (an App Store listing's name differs from the installed app's).
+                let found = backend::by_id(source).and_then(|b| {
+                    b.installed(ctx.r).into_iter().find(|p| p.name.eq_ignore_ascii_case(name) || p.reference == *reference)
+                });
+                let version = found.as_ref().map(|p| p.version.clone()).unwrap_or_default();
+                let name = &found.map(|p| p.name).unwrap_or_else(|| name.clone());
                 m.upsert(Entry {
                     name: name.clone(),
                     source: source.clone(),
@@ -341,6 +343,13 @@ fn from_url(ctx: &Ctx, url: &str, act: Act) -> KResult<Resolution> {
     }
 }
 
+fn choice_name(c: &Choice) -> String {
+    match c {
+        Choice::One(c) | Choice::Several { chosen: c, .. } => format!("{}:{}", c.source, c.name),
+        Choice::None => String::new(),
+    }
+}
+
 fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
     let backends = backend::available(ctx.r);
     if let Some(src) = &t.source {
@@ -376,7 +385,28 @@ fn resolve_install(ctx: &Ctx, t: &Target, act: Act) -> KResult<Resolution> {
             Ok(Resolution::Backend { cand: c, note })
         }
     };
-    match select::choose(&t.name, &hits, &order) {
+    let choice = select::choose(&t.name, &hits, &order);
+    // Only an open registry has this exact name, but a reviewed source has something named like it ("chrome" is
+    // npm's unrelated package; the app is the cask google-chrome): never guess, show the options.
+    let open_only = match &choice {
+        Choice::One(c) => decision::tier(&format!("{}:{}", c.source, c.name)) == 2,
+        Choice::Several { chosen, .. } => decision::tier(&format!("{}:{}", chosen.source, chosen.name)) == 2,
+        Choice::None => false,
+    };
+    if open_only {
+        let mut near = select::near(&t.name, &hits);
+        near.sort_by_key(|c| (c.source != "cask", c.name.len())); // apps (casks) first: what a short name usually means
+        if !near.is_empty() {
+            let list = near.iter().map(|c| format!("{}:{}", c.source, c.name)).collect::<Vec<_>>().join(", ");
+            let first = choice_name(&choice);
+            return Err(KErr::fail(format!(
+                "'{}' exactly names only {first}, an unreviewed registry package, while reviewed sources have {list}; nothing was installed. Say which you mean with source:name, for example kaika install {} (or {first} for the registry package)",
+                t.name,
+                near[0].source.clone() + ":" + &near[0].name
+            )));
+        }
+    }
+    match choice {
         Choice::None => discover(ctx, &t.name, act),
         Choice::One(c) => pick(c, None),
         Choice::Several { chosen, others } => {

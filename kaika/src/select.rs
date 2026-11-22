@@ -44,6 +44,21 @@ pub fn exact(name: &str, hits: &[Candidate], order: &[String]) -> Vec<Candidate>
     v
 }
 
+/// Curated-source hits whose name contains the query as a whole word (`chrome` is a word of `google-chrome`),
+/// excluding exact matches. They are what someone typing a short name probably meant.
+pub fn near(name: &str, hits: &[Candidate]) -> Vec<Candidate> {
+    let q = norm(name);
+    let mut v: Vec<Candidate> = hits
+        .iter()
+        .filter(|c| c.source != "npm" && c.source != "uv" && norm(&c.name) != q)
+        .filter(|c| c.name.split(|ch: char| !ch.is_alphanumeric()).any(|w| norm(w) == q))
+        .cloned()
+        .collect();
+    v.dedup_by(|a, b| a.source == b.source && a.name == b.name);
+    v.truncate(5);
+    v
+}
+
 pub fn choose(name: &str, hits: &[Candidate], order: &[String]) -> Choice {
     let mut v = exact(name, hits, order);
     match v.len() {
@@ -113,6 +128,13 @@ mod tests {
     fn spaces_hyphens_and_case_do_not_matter() {
         assert!(matches!(choose("Sublime Merge", &[c("cask", "sublime-merge")], &order()), Choice::One(_)));
         assert_eq!(choose("sublime_merge!", &[c("cask", "sublime-merge-dev")], &order()), Choice::None);
+    }
+
+    #[test]
+    fn near_hits_are_curated_whole_word_matches_only() {
+        let hits = [c("cask", "google-chrome"), c("cask", "chromium"), c("brew", "chrome-cli"), c("npm", "chrome-remote"), c("cask", "chrome"), c("cask", "archrome")];
+        let got: Vec<String> = near("chrome", &hits).into_iter().map(|x| x.name).collect();
+        assert_eq!(got, ["google-chrome", "chrome-cli"], "not chromium, not archrome, not the registry one, not the exact one");
     }
 
     #[test]
