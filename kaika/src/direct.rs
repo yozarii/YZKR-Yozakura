@@ -116,6 +116,11 @@ fn find_app(dir: &Path, wanted: Option<&str>) -> Option<PathBuf> {
         let Ok(rd) = std::fs::read_dir(&d) else { continue };
         for e in rd.filter_map(|e| e.ok()) {
             let p = e.path();
+            // Never follow symlinks: a disk image's "Applications" shortcut leads to the user's own apps.
+            let is_link = e.file_type().map(|t| t.is_symlink()).unwrap_or(true);
+            if is_link {
+                continue;
+            }
             if p.extension().is_some_and(|x| x == "app") {
                 found.push(p);
             } else if p.is_dir() && depth < 1 {
@@ -394,6 +399,19 @@ fn run_ok_anyhow(r: &dyn Runner, a: &[&str]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_symlink_to_the_applications_folder_is_never_searched() {
+        let t = tempfile::tempdir().unwrap();
+        let (disk, apps) = (t.path().join("disk"), t.path().join("Applications"));
+        std::fs::create_dir_all(apps.join("Aardvark.app")).unwrap();
+        std::fs::create_dir_all(disk.join("Obsidian.app")).unwrap();
+        std::os::unix::fs::symlink(&apps, disk.join("Applications")).unwrap();
+        std::os::unix::fs::symlink(apps.join("Aardvark.app"), disk.join("Shortcut.app")).unwrap();
+        let found = find_app(&disk, None).unwrap();
+        assert_eq!(found.file_name().unwrap(), "Obsidian.app", "found {found:?}");
+        assert!(find_app(&disk, Some("Aardvark.app")).is_none());
+    }
+
     use super::*;
 
     #[test]
