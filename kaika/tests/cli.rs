@@ -2032,7 +2032,6 @@ fn the_real_macos_tools_agree_with_the_parsers() {
         path,
         &kaika::verify::Expect {
             team_id: Some("ZZZZZZZZZZ".into()),
-            sha256: None,
         },
     );
     assert!(

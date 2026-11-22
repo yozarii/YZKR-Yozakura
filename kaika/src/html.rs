@@ -3,7 +3,6 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct Anchor {
     pub href: String,
-    pub class: String,
     pub text: String,
 }
 
@@ -85,36 +84,11 @@ pub fn anchors(html: &str) -> Vec<Anchor> {
         let end = lower[start + gt + 1..].find("</a>").unwrap_or(body.len());
         out.push(Anchor {
             href: attr(tag, "href"),
-            class: attr(tag, "class"),
             text: strip_tags(&body[..end]),
         });
         i = start + gt + 1 + end;
     }
     out
-}
-
-pub fn percent_decode(s: &str) -> String {
-    let b = s.as_bytes();
-    let mut out = Vec::with_capacity(b.len());
-    let mut i = 0;
-    while i < b.len() {
-        let hex = |k: usize| b.get(k).and_then(|c| (*c as char).to_digit(16));
-        match b[i] {
-            b'%' if hex(i + 1).is_some() && hex(i + 2).is_some() => {
-                out.push((hex(i + 1).unwrap() * 16 + hex(i + 2).unwrap()) as u8);
-                i += 3;
-            }
-            b'+' => {
-                out.push(b' ');
-                i += 1;
-            }
-            c => {
-                out.push(c);
-                i += 1;
-            }
-        }
-    }
-    String::from_utf8_lossy(&out).into_owned()
 }
 
 pub fn url_encode(s: &str) -> String {
@@ -148,14 +122,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn anchors_carry_href_class_and_clean_text() {
+    fn anchors_carry_href_and_clean_text() {
         let a = anchors(
             r#"<p>x</p><A HREF="/a" class="result__a big">Rect<b>angle</b> &amp; co</A><a href='/b'>B</a>"#,
         );
         assert_eq!(a.len(), 2);
         assert_eq!(
-            (a[0].href.as_str(), a[0].class.as_str(), a[0].text.as_str()),
-            ("/a", "result__a big", "Rectangle & co")
+            (a[0].href.as_str(), a[0].text.as_str()),
+            ("/a", "Rectangle & co")
         );
         assert_eq!(a[1].href, "/b");
     }
@@ -183,14 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn percent_coding_round_trips() {
-        assert_eq!(
-            percent_decode("https%3A%2F%2Fghost.example%2Fa%20b+c"),
-            "https://ghost.example/a b c"
-        );
-        assert_eq!(percent_decode("100%"), "100%");
-        assert_eq!(percent_decode("%zz"), "%zz");
-        assert_eq!(percent_decode("%é%4"), "%é%4");
+    fn url_encoding_escapes_what_a_query_cannot_hold() {
         assert_eq!(url_encode("ghost app"), "ghost+app");
         assert_eq!(url_encode("a/b&c"), "a%2Fb%26c");
     }

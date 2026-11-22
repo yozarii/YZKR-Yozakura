@@ -9,7 +9,6 @@ use std::path::Path;
 #[derive(Debug, Default, Clone)]
 pub struct Expect {
     pub team_id: Option<String>,
-    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -167,7 +166,6 @@ mod tests {
             Path::new("/x.app"),
             &Expect {
                 team_id: Some("ABCDE12345".into()),
-                sha256: None,
             },
         );
         assert!(rep.ok(), "{:?}", rep.failures);
@@ -181,7 +179,6 @@ mod tests {
             Path::new("/x.app"),
             &Expect {
                 team_id: Some("ZZZZZZZZZZ".into()),
-                sha256: None,
             },
         );
         assert!(!rep.ok() && rep.failures[0].contains("does not match"));
