@@ -1029,6 +1029,47 @@ fn outdated_and_upgrade_follow_the_release_feed_and_keep_the_recorded_team() {
 }
 
 #[test]
+fn an_upgrade_with_no_recorded_team_id_needs_force() {
+    let s = sandbox();
+    let zip = s.fixture_zip("Fixture-arm64.zip");
+    s.recipe(
+        "fixture.toml",
+        "name = \"fixture\"\ngithub = \"o/fixture\"\napp = \"Fixture.app\"\n",
+    );
+    let api = github_release(&s, "v1.0", &zip);
+    s.reply_err(
+        "codesign -dv --verbose=4",
+        "Identifier=com.fixture.app\nTeamIdentifier=not set\n",
+    );
+    let run = |args: &[&str]| {
+        s.cmd()
+            .env("KAIKA_GITHUB_API", Sandbox::url(&api))
+            .args(args.to_vec())
+            .assert()
+    };
+    run(&["install", "direct:fixture", "-y"]).success();
+    assert!(!s.manifest().contains("ABCDE"), "no Team ID was recorded");
+
+    github_release(&s, "v2.0", &zip);
+    run(&["outdated"])
+        .success()
+        .stdout(predicate::str::contains("1.0 -> 2.0"));
+    run(&["upgrade", "fixture", "-y"])
+        .code(3)
+        .stderr(predicate::str::contains("-f"));
+    assert!(s.manifest().contains("version = \"1.0\""));
+    run(&["upgrade", "--all", "-y"])
+        .success()
+        .stdout(predicate::str::contains(
+            "warning: fixture: no signing Team ID",
+        ));
+    assert!(s.manifest().contains("version = \"1.0\""));
+
+    run(&["upgrade", "fixture", "-y", "-f"]).success();
+    assert!(s.manifest().contains("version = \"2.0\""));
+}
+
+#[test]
 fn an_update_check_that_cannot_reach_a_release_feed_says_so_instead_of_reporting_up_to_date() {
     let s = sandbox();
     let zip = s.fixture_zip("Fixture-arm64.zip");

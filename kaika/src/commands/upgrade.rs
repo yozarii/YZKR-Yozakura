@@ -48,6 +48,23 @@ pub(super) fn direct_upgrade_job(ctx: &Ctx, e: &Entry, force: bool) -> KResult<O
     Ok(Some(Job::from_asset(&rec, asset, force, true, team)))
 }
 
+/// An upgrade must be signed by the vendor that signed the install. When no Team ID was recorded (the install was
+/// forced, or the app carried none) there is nothing to compare, so accepting would mean trusting any validly signed
+/// developer: that takes `-f`, the user's explicit say-so.
+fn require_known_signer(e: &Entry, job: &Job) -> KResult {
+    if job.is_signed_kind() && job.expect_team.is_none() && !job.force {
+        return Err(KErr {
+            code: 3,
+            msg: format!(
+                "no signing Team ID was recorded for {}, so kaika cannot tell the new download is from the same vendor; \
+             pass -f to accept whoever signed it",
+                e.name
+            ),
+        });
+    }
+    Ok(())
+}
+
 pub(super) fn upgrade(ctx: &Ctx, names: &[String], all: bool, act: Act) -> KResult {
     if names.is_empty() && !all {
         return Err(KErr::usage("name the packages to upgrade, or pass --all"));
@@ -82,7 +99,10 @@ fn plan_everything(ctx: &Ctx, plan: &mut Plan, act: Act) -> KResult {
     }
     for e in m.packages.iter().filter(|e| e.source == "direct") {
         match direct_upgrade_job(ctx, e, act.force) {
-            Ok(Some(j)) => plan.actions.push(Action::Direct(Box::new(j))),
+            Ok(Some(j)) => match require_known_signer(e, &j) {
+                Ok(()) => plan.actions.push(Action::Direct(Box::new(j))),
+                Err(err) => plan.warnings.push(format!("{}: {}", e.name, err.msg)),
+            },
             Ok(None) => {}
             Err(err) => plan.warnings.push(format!("{}: {}", e.name, err.msg)),
         }
@@ -104,7 +124,10 @@ fn plan_one(ctx: &Ctx, plan: &mut Plan, raw: &str, act: Act) -> KResult {
                 .cloned()
                 .ok_or_else(|| KErr::fail("manifest entry missing"))?;
             match direct_upgrade_job(ctx, &e, act.force)? {
-                Some(j) => plan.actions.push(Action::Direct(Box::new(j))),
+                Some(j) => {
+                    require_known_signer(&e, &j)?;
+                    plan.actions.push(Action::Direct(Box::new(j)));
+                }
                 None => say(ctx, &format!("{} is up to date", e.name)),
             }
             Ok(())

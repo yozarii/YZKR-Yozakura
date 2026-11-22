@@ -85,6 +85,13 @@ impl Job {
         }
     }
 
+    /// Whether the download carries a signature kaika checks (apps and installer packages). Command-line tarballs have
+    /// none: for those the published checksum is the only check, so there is no signer to compare.
+    pub fn is_signed_kind(&self) -> bool {
+        let n = file_name(&self.url).to_lowercase();
+        !(n.ends_with(".tar.gz") || n.ends_with(".tgz"))
+    }
+
     /// The plan line for this job: what will be downloaded from where, and how it will be trusted.
     pub fn describe(&self) -> String {
         let host = self
