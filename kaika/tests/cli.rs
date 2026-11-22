@@ -1956,6 +1956,22 @@ fn models_can_be_switched_off_in_the_config_and_then_nothing_is_looked_up() {
 // ---------- housekeeping ----------
 
 #[test]
+fn version_flag_and_doctor_report_the_package_version() {
+    let s = Sandbox::new();
+    let v = env!("CARGO_PKG_VERSION");
+    s.cmd()
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!("kaika {v}")));
+    s.cmd()
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!("kaika   {v}")));
+}
+
+#[test]
 fn doctor_reports_backends_and_the_decision_layer() {
     let s = Sandbox::new();
     s.stub("brew", 0, Match::Exact);
