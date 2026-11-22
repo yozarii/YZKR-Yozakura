@@ -1,0 +1,11 @@
+#!/bin/sh
+# Launcher for kaika, the universal package manager (Rust, built from the kaika/ folder next to bin/).
+# Rebuild with: cargo build --release --manifest-path kaika/Cargo.toml
+# Only the release binary is used (never a debug build); release is the one that is tested and shipped.
+root=$(cd "$(dirname "$0")/.." && pwd)
+bin="$root/kaika/target/release/kaika"
+if [ ! -x "$bin" ]; then
+  echo "kaika: not built yet. Run: cargo build --release --manifest-path $root/kaika/Cargo.toml" >&2
+  exit 127
+fi
+exec "$bin" "$@"

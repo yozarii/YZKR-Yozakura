@@ -1,0 +1,62 @@
+name: kaika
+
+# Every change to kaika/ is built and tested. A version tag (v0.1.0) additionally attaches the source tarball and its
+# checksum to a GitHub release. Nothing else is published. See kaika/packaging/README.md.
+on:
+  push:
+    branches: ["**"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+    paths:
+      - "kaika/**"
+      - ".github/workflows/kaika.yml"
+  pull_request:
+    paths:
+      - "kaika/**"
+      - ".github/workflows/kaika.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: kaika
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - name: Test (hermetic; opt-in real_model tests are not run)
+        run: cargo test --locked
+      - name: Release build
+        run: cargo build --release --locked
+      - name: The binary reports the package version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          test "$(target/release/kaika --version)" = "kaika $version"
+
+  release:
+    # Only for a version tag, and only after the build and tests passed.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-and-test
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: The tag matches kaika/Cargo.toml
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' kaika/Cargo.toml | head -n 1)
+          test "$GITHUB_REF_NAME" = "v$version"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Source tarball and checksum
+        run: |
+          git archive --format=tar --prefix="kaika-$VERSION/" "$GITHUB_REF_NAME:kaika" | gzip -n -9 > "kaika-$VERSION.tar.gz"
+          shasum -a 256 "kaika-$VERSION.tar.gz" > "kaika-$VERSION.tar.gz.sha256"
+          cat "kaika-$VERSION.tar.gz.sha256"
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "kaika-$VERSION.tar.gz" "kaika-$VERSION.tar.gz.sha256" \
+            --title "kaika $VERSION" --notes-file kaika/CHANGELOG.md --verify-tag
