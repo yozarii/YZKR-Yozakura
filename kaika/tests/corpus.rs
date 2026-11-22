@@ -154,7 +154,6 @@ fn the_real_corpus_is_well_formed() {
 /// Real-page cases where the deterministic shortcut answers and is wrong. Recorded, not accepted: the list is
 /// pinned exactly, so a new miss fails this test and a fixed one must be removed from the list.
 const KNOWN_SHORTCUT_MISSES: &[&str] = &[
-    "download: Audacity (universal vs arm64 vs x86_64, same label)",
     "no-answer: Rufus (Windows only)",
     "no-answer: Everything search (Windows only)",
     "no-answer: Sumatra PDF (Windows only)",

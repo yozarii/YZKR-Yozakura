@@ -147,7 +147,9 @@ pub fn asset_score(name: &str) -> Option<i32> {
     if ["arm64", "aarch64", "apple-silicon", "applesilicon"].iter().any(|w| n.contains(w)) {
         s += 8;
     }
-    if ["universal", "macos", "mac", "darwin", "osx"].iter().any(|w| n.contains(w)) {
+    if n.contains("universal") {
+        s += 16; // runs natively on both; preferred over a single-architecture build of the same release
+    } else if ["macos", "mac", "darwin", "osx"].iter().any(|w| n.contains(w)) {
         s += 4;
     }
     if ["x86_64", "x64", "intel", "amd64", "i386"].iter().any(|w| n.contains(w)) && !n.contains("universal") {
@@ -211,6 +213,46 @@ pub fn resolve_redirected_downloads(r: &dyn Runner, page: &str, base: &str) -> V
         }
     }
     out
+}
+
+/// The first version-like number in a file name (`Foo-4.6.10.dmg` is [4, 6, 10]): digits separated by dots, at least
+/// one dot, not glued to letters (`x86.64`, `arm64` and `macos11` are not versions).
+pub fn version_of(name: &str) -> Option<Vec<u32>> {
+    let b = name.as_bytes();
+    let mut i = 0;
+    while i < b.len() {
+        if !b[i].is_ascii_digit() {
+            i += 1;
+            continue;
+        }
+        let mut j = i;
+        while j < b.len() && (b[j].is_ascii_digit() || (b[j] == b'.' && j + 1 < b.len() && b[j + 1].is_ascii_digit())) {
+            j += 1;
+        }
+        let run = &name[i..j];
+        let dots = run.matches('.').count();
+        let glued = i > 0 && b[i - 1].is_ascii_alphabetic();
+        // "Rectangle2.0.5" is a version; "x86.64" and "macos11" are not (glued to letters with fewer than two dots).
+        if dots >= 1 && (!glued || dots >= 2) && (i == 0 || !b[i - 1].is_ascii_digit()) {
+            return run.split('.').map(|p| p.parse().ok()).collect();
+        }
+        i = j;
+    }
+    None
+}
+
+/// What product a file is, with the release and the platform words taken away, so `Foo 4.6.dmg` and
+/// `Foo 4.4 Arm 64.dmg` are the same product while `Foo Pro 3.1.dmg` is another one.
+pub fn product_stem(name: &str) -> String {
+    let lower = name.to_lowercase();
+    let no_ext = [".tar.gz", ".dmg", ".zip", ".pkg", ".tgz"].iter().find_map(|e| lower.strip_suffix(e)).unwrap_or(&lower);
+    let mut text = no_ext.to_string();
+    if let Some(v) = version_of(name) {
+        let run: String = v.iter().map(u32::to_string).collect::<Vec<_>>().join(".");
+        text = text.replacen(&run, " ", 1);
+    }
+    const PLATFORM: [&str; 16] = ["arm64", "arm", "aarch64", "x86", "x64", "64", "amd64", "intel", "silicon", "apple", "universal", "mac", "macos", "osx", "darwin", "x86_64"];
+    text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty() && !PLATFORM.contains(w)).collect::<Vec<_>>().join("-")
 }
 
 /// Index of the best download among `names`, honouring an optional glob. First wins ties.
