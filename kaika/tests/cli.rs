@@ -960,6 +960,30 @@ fn a_verified_pkg_runs_the_system_installer_with_admin_rights_stated_up_front() 
 }
 
 #[test]
+fn a_pkg_changed_after_it_was_checked_never_reaches_the_installer_not_even_with_force() {
+    let s = sandbox();
+    pkg_recipe(&s, "team_id = \"PKGTEAM123\"\n");
+    // Whatever checks the file also swaps it, as another process running as the user could between check and install.
+    s.custom_stub(
+        "pkgutil",
+        r#"for a in "$@"; do f="$a"; done
+echo tampered >> "$f"
+printf 'Status: signed by a certificate trusted by macOS\n   1. Developer ID Installer: Fixture Inc (PKGTEAM123)\n'"#,
+    );
+    for args in [
+        &["install", "direct:fixture", "-y"][..],
+        &["install", "direct:fixture", "-y", "-f"][..],
+    ] {
+        s.cmd()
+            .args(args)
+            .assert()
+            .code(3)
+            .stderr(predicate::str::contains("changed after"));
+    }
+    assert!(!s.calls().contains("installer -pkg"), "{}", s.calls());
+}
+
+#[test]
 fn a_pkg_with_the_wrong_team_never_reaches_the_installer() {
     let s = sandbox();
     pkg_recipe(&s, "team_id = \"OTHER00000\"\n");

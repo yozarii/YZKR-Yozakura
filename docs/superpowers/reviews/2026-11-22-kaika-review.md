@@ -52,6 +52,8 @@ instead of the injected one (a test seam bypassed).
 | L10 | Info | The headless-browser profile folder is `$TMPDIR/kaika-render-<pid>` (predictable). | macOS's `$TMPDIR` is per user; the profile is empty and removed after each render. |
 | L11 | Info | `-q` does not silence warnings, which go to stderr. | Intended: warnings are not progress chatter. |
 
+**Resolved after the review:** L1 (a model that times out is remembered as failed and stopped), L2 (the `.pkg` is fingerprinted before the checks and again before `sudo installer`; a change is refused even with `-f`, which narrows the window but cannot close it for another process of the same user) and L3 (an upgrade of an app with no recorded Team ID needs `-f`; command-line tarballs, which carry no signature, are unaffected).
+
 ## Checked and rejected
 
 - A suspected panic in `link_pattern` for a file name that Unicode-lowercases to an extension (U+212A, the Kelvin

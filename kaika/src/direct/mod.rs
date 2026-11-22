@@ -271,9 +271,17 @@ fn install_pkg(
     expect: &Expect,
     mut failures: Vec<String>,
 ) -> Result<Installed, DErr> {
+    // What is checked must be what is installed: the file is fingerprinted before the checks and again right before
+    // the installer runs as root. A change in between is never a failure `-f` may override.
+    let checked = verify::sha256_file(file)?;
     let rep = verify::check_pkg(r, file, expect);
     failures.extend(rep.failures);
     gate(&failures, job.force)?;
+    if verify::sha256_file(file)? != checked {
+        return Err(DErr::Verify(vec![
+            "the installer package changed after it was checked; nothing was installed".into(),
+        ]));
+    }
     let code = r.run_live(&argv(&[
         "sudo",
         "installer",
