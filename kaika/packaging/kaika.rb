@@ -1,6 +1,6 @@
 # The formula for the tap (Formula/kaika.rb). See README.md in this folder for how a release is cut.
-# The URL exists once the v0.1.0 release has been published; the sha256 is that of the tarball attached to it
-# (README.md, step 3, replaces it with the published value).
+# The URL exists once the v0.1.0 release has been published. The sha256 below is that of a tarball built locally from
+# the release commit; README.md, step 3, replaces it with the checksum published on the release.
 class Kaika < Formula
   desc "Universal package manager"
   homepage "https://github.com/yozarii/YZKR-Yozakura"
