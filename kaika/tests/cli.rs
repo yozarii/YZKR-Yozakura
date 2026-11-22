@@ -476,6 +476,22 @@ fn an_upgrade_replaces_the_old_version_folder_and_repoints_the_link() {
 }
 
 #[test]
+fn a_package_name_or_version_that_is_a_path_cannot_leave_the_packages_folder() {
+    let s = sandbox();
+    let tgz = tarball(&s);
+    let sum = kaika::verify::sha256_file(&tgz).unwrap();
+    // A recipe whose name climbs out of packages/, and a feed whose version does.
+    s.recipe("evil.toml", &format!("name = \"../escape\"\nurl = \"{}\"\nsha256 = \"{sum}\"\n", Sandbox::url(&tgz)));
+    s.cmd().args(["install", "direct:../escape", "-y"]).assert().code(1).stderr(predicate::str::contains("not usable as a folder name"));
+    let feed = s.root.path().join("appcast.xml");
+    std::fs::write(&feed, format!(r#"<enclosure url="{}" sparkle:shortVersionString="../../escape" />"#, Sandbox::url(&tgz))).unwrap();
+    s.recipe("evil.toml", &format!("name = \"tool\"\nappcast = \"{}\"\nsha256 = \"{sum}\"\n", Sandbox::url(&feed)));
+    s.cmd().args(["install", "direct:tool", "-y"]).assert().code(1).stderr(predicate::str::contains("not usable as a folder name"));
+    assert!(!s.kaika_home().join("escape").exists(), "nothing may be created outside packages/");
+    assert!(!s.kaika_home().join("bin/tool").exists());
+}
+
+#[test]
 fn everything_kaika_owns_lives_under_its_one_home() {
     let s = sandbox();
     with_ripgrep(&s);

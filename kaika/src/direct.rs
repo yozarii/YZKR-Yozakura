@@ -144,9 +144,22 @@ fn run_ok(r: &dyn Runner, a: &[&str], what: &str) -> Result<(), DErr> {
     }
 }
 
+/// A package's name and version become folder names under `~/.kaika`, and both can come from a recipe file or a
+/// vendor's release feed. Anything that is not one plain path component could climb out of that folder.
+fn ensure_folder_name(what: &str, s: &str) -> Result<()> {
+    if matches!(s, "" | "." | "..") || s.contains(['/', '\\', '\0']) {
+        bail!("{what} '{s}' is not usable as a folder name");
+    }
+    Ok(())
+}
+
 /// Run the job: download, verify, install. Nothing is installed if a check fails (unless `force`).
 pub fn run(r: &dyn Runner, dirs: &Dirs, job: &Job) -> Result<Installed, DErr> {
     ensure_https(&job.url)?;
+    ensure_folder_name("the package name", &job.name)?;
+    if !job.version.is_empty() {
+        ensure_folder_name("the version", &job.version)?;
+    }
     let dl = dirs.cache.join("downloads");
     std::fs::create_dir_all(&dl)?;
     let file = dl.join(recipe::file_name(&job.url));
