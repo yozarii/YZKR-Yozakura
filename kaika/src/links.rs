@@ -90,6 +90,7 @@ pub fn download_pages(page: &str, base: &str) -> Vec<String> {
     out
 }
 
+/// A link's absolute URL, resolved against the page it was found on.
 pub fn resolve_url(base: &str, href: &str) -> String {
     if href.starts_with("https://") || href.starts_with("http://") || href.starts_with("file://") {
         return href.into();

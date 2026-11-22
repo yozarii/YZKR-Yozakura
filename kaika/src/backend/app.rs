@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+/// A name reduced to lowercase letters and digits, so `Visual Studio Code` and `visual-studio-code` compare equal.
 pub fn norm(s: &str) -> String {
     s.chars()
         .filter(|c| c.is_ascii_alphanumeric())

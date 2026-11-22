@@ -1,6 +1,7 @@
 //! What a download's file name says: whether it is a macOS installable, how good a match for this Mac, which release,
 //! which product. Nothing here reads a page or the network; it is all arithmetic on names.
 
+/// A version without its leading `v`: tags say `v1.2.3`, feeds say `1.2.3`.
 pub fn norm_version(v: &str) -> String {
     v.trim().trim_start_matches(['v', 'V']).to_string()
 }
@@ -211,6 +212,7 @@ pub fn link_pattern(filename: &str) -> String {
     format!("{head}*{ext}")
 }
 
+/// The last path segment of a URL, without query or fragment: the name a download is saved under.
 pub fn file_name(url: &str) -> String {
     let no_query = url.split(['?', '#']).next().unwrap_or(url);
     no_query

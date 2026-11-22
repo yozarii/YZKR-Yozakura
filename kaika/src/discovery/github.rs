@@ -18,6 +18,7 @@ pub const MIN_STARS: u64 = 50;
 
 const MAX_REPOS: usize = 5;
 
+/// A GitHub repository that passed the screening in [`parse_repos`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct Repo {
     pub full_name: String,

@@ -23,6 +23,7 @@ pub struct Recipe {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The vendor's domain, recorded when the app was found online. Informational: nothing enforces it.
     pub domain: Option<String>,
     /// Expected signing Team ID. Absent means trust-on-first-use: shown, then recorded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -49,6 +50,7 @@ pub struct Recipe {
     pub sha256: Option<String>,
 }
 
+/// A download a recipe resolved to: the newest build of the app.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Asset {
     pub name: String,
@@ -62,6 +64,7 @@ const EMBEDDED: &[&str] = &[
     include_str!("../recipes/h2o-lightning.toml"),
 ];
 
+/// The curated recipes compiled into kaika.
 pub fn embedded() -> Vec<Recipe> {
     EMBEDDED
         .iter()
@@ -98,12 +101,14 @@ pub fn all(dirs: &Dirs) -> Vec<Recipe> {
     v
 }
 
+/// The recipe for a name (case-insensitive): the user's, else the embedded one.
 pub fn find(dirs: &Dirs, name: &str) -> Option<Recipe> {
     all(dirs)
         .into_iter()
         .find(|r| r.name.eq_ignore_ascii_case(name))
 }
 
+/// Save a recipe kaika learned, as `~/.kaika/recipes/<name>.toml`.
 pub fn save_learned(dirs: &Dirs, r: &Recipe) -> Result<()> {
     let dir = dirs.root.join("recipes");
     std::fs::create_dir_all(&dir)?;
@@ -128,6 +133,7 @@ fn attr(tag: &str, name: &str) -> Option<String> {
     Some(tag[i..i + tag[i..].find('"')?].to_string())
 }
 
+/// The (url, version) pairs of a Sparkle appcast's enclosures.
 pub fn parse_appcast(xml: &str) -> Vec<(String, String)> {
     let mut v = vec![];
     for chunk in xml.split("<enclosure").skip(1) {

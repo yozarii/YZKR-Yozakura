@@ -9,6 +9,7 @@ pub mod uv;
 use crate::runner::{Runner, argv};
 use serde::Serialize;
 
+/// A package as a backend reports it: installed, or outdated with its newer version.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Pkg {
     pub name: String,
@@ -17,6 +18,7 @@ pub struct Pkg {
     pub reference: String,
 }
 
+/// A package a backend offers for a query, before anyone has chosen it.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Candidate {
     pub source: String,
@@ -25,6 +27,8 @@ pub struct Candidate {
     pub desc: String,
 }
 
+/// One package source. An adapter shells out to the real tool through a `Runner` and parses its output; it never
+/// decides anything about trust (that is `select` and `decision`).
 pub trait Backend {
     /// Source id as used in `source:name` and in the manifest.
     fn id(&self) -> &'static str;
@@ -50,6 +54,7 @@ pub trait Backend {
     }
 }
 
+/// Every backend kaika knows, in no particular order (the user's preference order is applied by `select`).
 pub fn all() -> Vec<Box<dyn Backend>> {
     vec![
         Box::new(brew::Brew { cask: false }),
@@ -60,10 +65,12 @@ pub fn all() -> Vec<Box<dyn Backend>> {
     ]
 }
 
+/// The backend with this source id (`brew`, `cask`, `uv`, `npm`, `mas`).
 pub fn by_id(id: &str) -> Option<Box<dyn Backend>> {
     all().into_iter().find(|b| b.id() == id)
 }
 
+/// The backends whose tool is on PATH.
 pub fn available(r: &dyn Runner) -> Vec<Box<dyn Backend>> {
     all().into_iter().filter(|b| r.exists(b.tool())).collect()
 }

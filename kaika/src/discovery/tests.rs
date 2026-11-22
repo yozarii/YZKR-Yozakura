@@ -1,3 +1,5 @@
+//! Discovery end to end against recorded Wikidata, GitHub and vendor-page fixtures; no network, no model.
+
 use super::github::parse_repos;
 use super::wikidata::{official_website, parse_entities, sites};
 use super::*;

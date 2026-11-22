@@ -3,10 +3,11 @@
 use super::{Backend, Candidate, Pkg, out};
 use crate::runner::{Runner, argv};
 
+/// The App Store through `mas`.
 pub struct Mas;
 
 /// `12345  Name  (1.2.3)`: id, name, version. Anything after the version group (a price) is ignored.
-pub fn parse_line(line: &str) -> Option<(String, String, String)> {
+fn parse_line(line: &str) -> Option<(String, String, String)> {
     let line = line.trim();
     let (id, rest) = line.split_once(char::is_whitespace)?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {

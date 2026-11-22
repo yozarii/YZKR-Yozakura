@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
+/// What a finished program printed and how it exited.
 #[derive(Debug, Clone, Default)]
 pub struct Out {
     pub code: i32,
@@ -12,15 +13,18 @@ pub struct Out {
 }
 
 impl Out {
+    /// Did it exit with status 0?
     pub fn ok(&self) -> bool {
         self.code == 0
     }
 }
 
+/// A command line from string slices.
 pub fn argv(a: &[&str]) -> Vec<String> {
     a.iter().map(|s| s.to_string()).collect()
 }
 
+/// Runs external tools. Every tool kaika uses goes through one, so tests can substitute stubs.
 pub trait Runner {
     /// Run to completion, capturing output. Err only when the program could not start.
     fn run(&self, argv: &[String]) -> Result<Out>;
@@ -32,6 +36,7 @@ pub trait Runner {
     fn exists(&self, prog: &str) -> bool;
 }
 
+/// Runs programs for real.
 pub struct RealRunner;
 
 fn split(argv: &[String]) -> Result<(&String, &[String])> {

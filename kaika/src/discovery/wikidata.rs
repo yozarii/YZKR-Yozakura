@@ -13,6 +13,7 @@ use serde_json::Value;
 
 const MAX_SITES: usize = 6;
 
+/// A Wikidata search hit.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
     pub id: String,
@@ -51,6 +52,7 @@ pub(super) fn official_website(v: &Value, id: &str) -> Option<String> {
         })
 }
 
+/// An official website that Wikidata records for an entity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Site {
     pub host: String,

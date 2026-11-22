@@ -99,6 +99,7 @@ fn normalise(text: &str) -> String {
     )
 }
 
+/// Does this text talk to the chooser instead of describing the thing?
 pub fn is_hostile(text: &str) -> bool {
     let n = normalise(text);
     PHRASES.iter().any(|p| {
@@ -152,6 +153,7 @@ const FARM_WORDS: &[&str] = &[
     "apk",
 ];
 
+/// Does this address look like a download farm or crack site rather than a vendor?
 pub fn is_farm_host(host: &str) -> bool {
     let h = host.to_lowercase();
     FARM_WORDS.iter().any(|w| h.contains(w))

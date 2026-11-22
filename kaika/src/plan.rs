@@ -4,6 +4,7 @@ use crate::direct::Job;
 use crate::manifest::Entry;
 use serde_json::json;
 
+/// One step of a plan.
 pub enum Action {
     Cmd {
         argv: Vec<String>,
@@ -28,6 +29,7 @@ pub enum Action {
 }
 
 impl Action {
+    /// The line the plan shows for this step.
     pub fn describe(&self) -> String {
         match self {
             Action::Cmd { argv, admin } => {
@@ -65,6 +67,7 @@ impl Action {
     }
 }
 
+/// What kaika is about to do; always shown before anything changes.
 pub struct Plan {
     pub title: String,
     pub actions: Vec<Action>,
@@ -72,6 +75,7 @@ pub struct Plan {
 }
 
 impl Plan {
+    /// The plan as text.
     pub fn render(&self) -> String {
         let mut s = format!("plan: {}\n", self.title);
         for a in &self.actions {
@@ -83,6 +87,7 @@ impl Plan {
         s
     }
 
+    /// The plan as JSON (for `--json`).
     pub fn to_json(&self) -> serde_json::Value {
         json!({ "title": self.title, "actions": self.actions.iter().map(Action::describe).collect::<Vec<_>>(), "warnings": self.warnings })
     }
@@ -93,6 +98,7 @@ impl Plan {
     }
 }
 
+/// What to do with a plan, given the flags and whether there is a terminal.
 #[derive(Debug, PartialEq)]
 pub enum Decision {
     DryRun,

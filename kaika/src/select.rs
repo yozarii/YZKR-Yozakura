@@ -2,8 +2,10 @@
 
 use crate::backend::Candidate;
 
+/// The source ids that can prefix a name: `cask:zen`.
 pub const SOURCES: [&str; 6] = ["brew", "cask", "uv", "npm", "mas", "direct"];
 
+/// A name from the command line, with the backend the user forced, if any.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Target {
     pub source: Option<String>,
@@ -38,6 +40,7 @@ pub fn parse_target(s: &str) -> Result<Target, String> {
     Ok(target)
 }
 
+/// What a bare name resolved to among the backends' exact-name hits.
 #[derive(Debug, PartialEq)]
 pub enum Choice {
     None,
@@ -93,6 +96,7 @@ pub fn near(name: &str, hits: &[Candidate]) -> Vec<Candidate> {
     v
 }
 
+/// The exact-name hits in preference order: none, one, or several (the first is the default).
 pub fn choose(name: &str, hits: &[Candidate], order: &[String]) -> Choice {
     let mut v = exact(name, hits, order);
     match v.len() {

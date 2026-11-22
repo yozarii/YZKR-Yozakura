@@ -3,9 +3,10 @@
 use super::{Backend, Candidate, Pkg, out};
 use crate::runner::{Runner, argv};
 
+/// npm global packages.
 pub struct Npm;
 
-pub fn parse_ls(json: &str) -> Vec<Pkg> {
+fn parse_ls(json: &str) -> Vec<Pkg> {
     let v: serde_json::Value = serde_json::from_str(json).unwrap_or_default();
     let Some(deps) = v.get("dependencies").and_then(|d| d.as_object()) else {
         return vec![];
@@ -24,7 +25,7 @@ pub fn parse_ls(json: &str) -> Vec<Pkg> {
         .collect()
 }
 
-pub fn parse_outdated(json: &str) -> Vec<Pkg> {
+fn parse_outdated(json: &str) -> Vec<Pkg> {
     let v: serde_json::Value = serde_json::from_str(json).unwrap_or_default();
     let Some(m) = v.as_object() else {
         return vec![];

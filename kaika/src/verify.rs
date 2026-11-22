@@ -6,11 +6,13 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::Path;
 
+/// What a download must be: signed by this Team ID, when one is expected.
 #[derive(Debug, Default, Clone)]
 pub struct Expect {
     pub team_id: Option<String>,
 }
 
+/// What the checks found.
 #[derive(Debug, Default, Clone)]
 pub struct Report {
     pub signature: bool,
@@ -20,11 +22,13 @@ pub struct Report {
 }
 
 impl Report {
+    /// Did every check pass?
     pub fn ok(&self) -> bool {
         self.failures.is_empty()
     }
 }
 
+/// The signing Team ID from `codesign -dv` output.
 pub fn parse_team_id(text: &str) -> Option<String> {
     text.lines()
         .find_map(|l| l.trim().strip_prefix("TeamIdentifier="))
@@ -43,6 +47,7 @@ pub fn parse_pkg_team(text: &str) -> Option<String> {
         })
 }
 
+/// The SHA-256 of a file, as lowercase hex.
 pub fn sha256_file(p: &Path) -> Result<String> {
     let mut f = std::fs::File::open(p)?;
     let mut h = Sha256::new();
@@ -83,6 +88,7 @@ fn team_check(report: &mut Report, expect: &Expect) {
     }
 }
 
+/// Verify an app: valid signature, notarized, and the expected Team ID.
 pub fn check_app(r: &dyn Runner, app: &Path, expect: &Expect) -> Report {
     let p = app.to_string_lossy().to_string();
     let mut rep = Report {
@@ -109,6 +115,7 @@ pub fn check_app(r: &dyn Runner, app: &Path, expect: &Expect) -> Report {
     rep
 }
 
+/// Verify an installer package: valid signature, notarized, and the expected Team ID.
 pub fn check_pkg(r: &dyn Runner, pkg: &Path, expect: &Expect) -> Report {
     let p = pkg.to_string_lossy().to_string();
     let mut rep = Report::default();

@@ -28,6 +28,7 @@ use crate::recipe::Recipe;
 use crate::runner::Runner;
 use serde_json::Value;
 
+/// A download found online, with how it was found and what to remember about it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Discovered {
     pub name: String,
@@ -46,6 +47,7 @@ pub struct Discovered {
 }
 
 impl Discovered {
+    /// The recipe that finds this app again next time without any lookup.
     pub fn recipe(&self, name: &str) -> Recipe {
         let base = Recipe {
             name: name.into(),

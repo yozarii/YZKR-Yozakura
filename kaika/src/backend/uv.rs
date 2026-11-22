@@ -3,10 +3,11 @@
 use super::{Backend, Candidate, Pkg, out};
 use crate::runner::{Runner, argv};
 
+/// uv tools (Python command-line tools).
 pub struct Uv;
 
 /// `uv tool list`: `name v1.2.3` lines followed by `- executable` lines.
-pub fn parse_list(text: &str) -> Vec<Pkg> {
+fn parse_list(text: &str) -> Vec<Pkg> {
     text.lines()
         .filter(|l| !l.trim_start().starts_with('-') && !l.trim().is_empty())
         .filter_map(|l| {

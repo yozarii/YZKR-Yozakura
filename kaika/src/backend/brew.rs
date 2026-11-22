@@ -4,12 +4,14 @@ use super::{Backend, Candidate, Pkg, out};
 use crate::runner::{Runner, argv};
 use std::collections::HashMap;
 
+/// Homebrew: formulae (command-line tools) or casks (apps). One adapter serves both sources; `cask` picks which.
 pub struct Brew {
+    /// Casks rather than formulae.
     pub cask: bool,
 }
 
 /// `name v1 v2` lines to (name, last version).
-pub fn parse_versions(text: &str) -> Vec<(String, String)> {
+fn parse_versions(text: &str) -> Vec<(String, String)> {
     text.lines()
         .filter_map(|l| {
             let p: Vec<&str> = l.split_whitespace().collect();
@@ -24,7 +26,7 @@ pub fn parse_versions(text: &str) -> Vec<(String, String)> {
 }
 
 /// `brew search` output: names, skipping `==>` section headers.
-pub fn parse_search(text: &str) -> Vec<String> {
+fn parse_search(text: &str) -> Vec<String> {
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with("==>"))
@@ -33,7 +35,7 @@ pub fn parse_search(text: &str) -> Vec<String> {
 }
 
 /// `brew desc` prints `name: description`; casks add the display name in parentheses.
-pub fn parse_desc(text: &str) -> String {
+fn parse_desc(text: &str) -> String {
     let line = text.lines().next().unwrap_or("");
     line.split_once(": ")
         .map(|(_, d)| d)
@@ -43,7 +45,7 @@ pub fn parse_desc(text: &str) -> String {
 }
 
 /// `brew outdated --verbose` lines: `name (1.0) < 2.0`.
-pub fn parse_outdated(text: &str) -> Vec<Pkg> {
+fn parse_outdated(text: &str) -> Vec<Pkg> {
     text.lines()
         .filter_map(|l| {
             let p: Vec<&str> = l.split_whitespace().collect();

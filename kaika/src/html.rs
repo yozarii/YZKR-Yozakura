@@ -1,5 +1,6 @@
 //! Just enough HTML and URL handling to read a search results page: anchors, percent-encoding.
 
+/// A link on a page: where it points and the text it shows.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Anchor {
     pub href: String,
@@ -61,6 +62,7 @@ fn strip_tags(s: &str) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Every `<a>` on a page, in order. Tolerant of broken markup; never panics.
 pub fn anchors(html: &str) -> Vec<Anchor> {
     let lower = html.to_ascii_lowercase(); // ASCII lowercasing keeps byte offsets identical
     let mut out = vec![];
@@ -91,6 +93,7 @@ pub fn anchors(html: &str) -> Vec<Anchor> {
     out
 }
 
+/// Percent-encode a query value (a space becomes `+`).
 pub fn url_encode(s: &str) -> String {
     s.bytes()
         .map(|b| match b {

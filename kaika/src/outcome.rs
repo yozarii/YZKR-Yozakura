@@ -1,5 +1,6 @@
 //! The result every decision shares.
 
+/// The result every decision shares.
 #[derive(Debug, PartialEq)]
 pub enum Outcome<T> {
     Picked(T),

@@ -14,6 +14,7 @@
 
 use std::path::PathBuf;
 
+/// Where kaika keeps things; the one place paths are decided.
 #[derive(Debug, Clone)]
 pub struct Dirs {
     /// The user's home directory.
@@ -27,10 +28,12 @@ pub struct Dirs {
 }
 
 impl Dirs {
+    /// The directories for this process's environment.
     pub fn from_env() -> Dirs {
         Dirs::from_lookup(|k| std::env::var(k).ok())
     }
 
+    /// The directories for an environment given as a lookup (tests pass their own).
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Dirs {
         let home = PathBuf::from(get("HOME").unwrap_or_else(|| ".".into()));
         let root = get("KAIKA_HOME")

@@ -1,3 +1,5 @@
+//! The `kaika` binary: parse the command line, build the context, run one command, exit with its code.
+
 use clap::Parser;
 use kaika::cli::Cli;
 use kaika::commands::{self, Ctx};

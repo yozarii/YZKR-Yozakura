@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// What kaika installed: one package, where it came from, and how to update it.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct Entry {
     pub name: String,
@@ -26,6 +27,7 @@ pub struct Entry {
     pub installed_at: u64,
 }
 
+/// Seconds since the epoch.
 pub fn now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -33,6 +35,7 @@ pub fn now() -> u64 {
         .unwrap_or(0)
 }
 
+/// Everything kaika installed, in `~/.kaika/manifest.toml`.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Manifest {
     #[serde(default, rename = "package")]
@@ -42,6 +45,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    /// Read the manifest; a missing file is empty, a corrupt one is an error (never silently empty).
     pub fn load(dirs: &Dirs) -> Result<Manifest> {
         let path = dirs.root.join("manifest.toml");
         let mut m = match std::fs::read_to_string(&path) {
@@ -54,6 +58,7 @@ impl Manifest {
         Ok(m)
     }
 
+    /// Write the manifest atomically (a temporary file, then a rename).
     pub fn save(&self) -> Result<()> {
         if let Some(dir) = self.path.parent() {
             std::fs::create_dir_all(dir)?;
@@ -64,12 +69,14 @@ impl Manifest {
         Ok(())
     }
 
+    /// The entry for this source and name.
     pub fn get(&self, source: &str, name: &str) -> Option<&Entry> {
         self.packages
             .iter()
             .find(|e| e.source == source && e.name == name)
     }
 
+    /// Every entry with this name, whatever the source.
     pub fn find_name(&self, name: &str) -> Vec<&Entry> {
         self.packages
             .iter()
@@ -77,6 +84,7 @@ impl Manifest {
             .collect()
     }
 
+    /// Add the entry, or replace the one with the same source and name.
     pub fn upsert(&mut self, e: Entry) {
         match self
             .packages
@@ -88,6 +96,7 @@ impl Manifest {
         }
     }
 
+    /// Forget an entry; says whether there was one.
     pub fn remove(&mut self, source: &str, name: &str) -> bool {
         let before = self.packages.len();
         self.packages

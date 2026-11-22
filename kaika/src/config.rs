@@ -4,9 +4,12 @@ use crate::paths::Dirs;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
+/// The preference order among backends when a name is carried by several (the user can change it with `config set order`).
 pub const DEFAULT_ORDER: [&str; 6] = ["brew", "cask", "uv", "npm", "mas", "direct"];
+/// The settings `kaika config` knows.
 pub const KEYS: [&str; 2] = ["order", "models"];
 
+/// The contents of `~/.kaika/kaika.toml`.
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Config {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -17,6 +20,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Read the config; a missing file is the default, an unreadable or malformed one is an error (never silently ignored).
     pub fn load(dirs: &Dirs) -> Result<Config> {
         let path = dirs.root.join("kaika.toml");
         match std::fs::read_to_string(&path) {
@@ -26,12 +30,14 @@ impl Config {
         }
     }
 
+    /// Write the config.
     pub fn save(&self, dirs: &Dirs) -> Result<()> {
         std::fs::create_dir_all(&dirs.root)?;
         std::fs::write(dirs.root.join("kaika.toml"), toml::to_string_pretty(self)?)?;
         Ok(())
     }
 
+    /// The backend preference order: the configured one, else [`DEFAULT_ORDER`].
     pub fn order(&self) -> Vec<String> {
         if self.order.is_empty() {
             DEFAULT_ORDER.iter().map(|s| s.to_string()).collect()
@@ -40,6 +46,7 @@ impl Config {
         }
     }
 
+    /// The value of a setting, as text.
     pub fn get(&self, key: &str) -> Result<String> {
         Ok(match key {
             "order" => self.order().join(","),
@@ -54,6 +61,7 @@ impl Config {
         })
     }
 
+    /// Change a setting; unknown keys and bad values are errors.
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
             "order" => {

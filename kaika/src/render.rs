@@ -23,6 +23,7 @@ pub fn browser() -> Option<PathBuf> {
     browser_from(std::env::var("KAIKA_BROWSER").ok().as_deref(), &KNOWN)
 }
 
+/// The browser to use: the override if there is one (`off` means none), else the first installed.
 pub fn browser_from(over: Option<&str>, known: &[&str]) -> Option<PathBuf> {
     if let Some(p) = over {
         return (p != "off" && Path::new(p).is_file()).then(|| PathBuf::from(p));
@@ -39,6 +40,7 @@ pub fn profile_dir() -> PathBuf {
     std::env::temp_dir().join(format!("kaika-render-{}", std::process::id()))
 }
 
+/// The command line that prints a page after its scripts ran.
 pub fn argv(browser: &Path, profile: &Path, url: &str) -> Vec<String> {
     vec![
         browser.display().to_string(),

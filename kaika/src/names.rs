@@ -19,6 +19,7 @@ const FRESH: Duration = Duration::from_secs(7 * 24 * 3600);
 /// A package installed fewer times than this in a year is too obscure to be guessed.
 pub const MIN_INSTALLS: u64 = 1000;
 
+/// A reviewed package and how many times it was installed in a year.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     /// `cask` or `brew`: the kaika source.
@@ -27,6 +28,7 @@ pub struct Entry {
     pub installs: u64,
 }
 
+/// How a typed name could be a way of writing a package's name.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum How {
     /// The query is a whole word of the name: `chrome` in `google-chrome`.
@@ -38,6 +40,7 @@ pub enum How {
 }
 
 impl How {
+    /// For the plan: how the name was read.
     pub fn describe(self) -> &'static str {
         match self {
             How::Word => "a word of its name",
@@ -54,6 +57,7 @@ impl How {
     }
 }
 
+/// The one package a plain-text name was read as.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Found {
     pub entry: Entry,
@@ -62,6 +66,7 @@ pub struct Found {
 }
 
 impl Found {
+    /// For the plan: "'chrome' is read as cask:google-chrome (...)".
     pub fn why(&self, query: &str) -> String {
         let ratio = self
             .runner_up
@@ -168,6 +173,7 @@ pub fn best(query: &str, entries: &[Entry]) -> Result<Found, Vec<Entry>> {
     }
 }
 
+/// Homebrew's public install counts, from its analytics JSON.
 pub fn parse_analytics(json: &str, key: &str, source: &'static str) -> Vec<Entry> {
     let Ok(v) = serde_json::from_str::<Value>(json) else {
         return vec![];

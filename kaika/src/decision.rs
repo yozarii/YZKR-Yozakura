@@ -9,8 +9,10 @@
 use crate::outcome::Outcome;
 use crate::quarantine;
 
+/// At most this many candidates are put to a decider.
 pub const MAX_CANDIDATES: usize = 8;
 
+/// A decided candidate and how it was decided, for the plan.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pick {
     pub id: String,
@@ -18,6 +20,7 @@ pub struct Pick {
     pub how: String,
 }
 
+/// A candidate for a decision: an id the code can act on, and the text a person or model would judge it by.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Cand {
     pub id: String,
@@ -25,6 +28,7 @@ pub struct Cand {
 }
 
 impl Cand {
+    /// A candidate from an id and its text.
     pub fn new(id: impl Into<String>, text: impl Into<String>) -> Cand {
         Cand {
             id: id.into(),
@@ -33,6 +37,7 @@ impl Cand {
     }
 }
 
+/// What is being decided.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Task {
     Site,
@@ -40,6 +45,7 @@ pub enum Task {
 }
 
 impl Task {
+    /// The question put to the decider for this task.
     pub fn instruction(self) -> &'static str {
         match self {
             Task::Site => "pick the official vendor site for this app",
@@ -48,6 +54,7 @@ impl Task {
     }
 }
 
+/// Chooses among peers for third-party apps. Implemented by the local model, and by test doubles.
 pub trait Decider {
     /// Start loading whatever the model needs, without waiting. Called as soon as discovery begins so loading
     /// overlaps the network fetches.
@@ -65,12 +72,14 @@ impl Decider for NoDecider {
     }
 }
 
+/// The result of [`decide`]: the outcome, and which candidates were dropped on the way.
 pub struct Judged {
     pub outcome: Outcome<Pick>,
     /// Ids of candidates dropped because their text contained instructions.
     pub dropped: Vec<String>,
 }
 
+/// Quarantine the candidates, take a lone one as it is, and put the rest to the decider.
 pub fn decide(decider: &dyn Decider, task: Task, query: &str, cands: Vec<Cand>) -> Judged {
     // Dropped before anything is scored or asked: text that talks to the chooser, and (for sites) download-farm addresses.
     let (mut kept, dropped): (Vec<Cand>, Vec<Cand>) = cands.into_iter().partition(|c| {

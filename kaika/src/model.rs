@@ -21,16 +21,20 @@ use std::time::{Duration, Instant};
 pub const ALIAS: &str = "h2oai/h2o-lightning-4b";
 /// The recipe and the folder name under `~/.kaika/models/`.
 pub const MODEL_NAME: &str = "h2o-lightning";
+/// The model's file name under `~/.kaika/models/h2o-lightning/`.
 pub const MODEL_FILE: &str = "h2o-lightning-4b-Q4_K_M.gguf";
 /// llama.cpp from this build on answers typed decisions itself on /v1/systemone.
 pub const MIN_BUILD: u32 = 11773;
 /// A single pass this sure is accepted. Between FLOOR and ACCEPT the options are reversed and asked again.
 pub const ACCEPT: f64 = 0.8;
+/// Below this a single pass is refused; between this and [`ACCEPT`] the options are reversed and asked again.
 pub const FLOOR: f64 = 0.6;
+/// The option that means none of the candidates is right.
 pub const NONE_KEY: &str = "none";
 const MAX_TEXT: usize = 220;
 const READY_SECS: u64 = 90;
 
+/// Where the model file lives.
 pub fn model_path(dirs: &Dirs) -> PathBuf {
     dirs.root.join("models").join(MODEL_NAME).join(MODEL_FILE)
 }
@@ -53,6 +57,7 @@ pub fn parse_build(text: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
+/// What is installed of the decision layer.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Status {
     /// The llama-server build number, or None when it is missing.
@@ -60,6 +65,7 @@ pub struct Status {
     pub model_bytes: Option<u64>,
 }
 
+/// Look at the decision layer without starting anything.
 pub fn status(r: &dyn Runner, dirs: &Dirs) -> Status {
     let llama_build = r
         .run(&argv(&[&server_bin(), "--version"]))
@@ -148,6 +154,7 @@ pub fn request(task: Task, query: &str, keys: &[String], texts: &[String]) -> Va
     })
 }
 
+/// Probabilities for each option key, then for "none".
 pub type Probs = Vec<(String, f64)>;
 
 /// Probabilities for `keys` and then "none", from a /v1/systemone answer. None for anything unusable.
@@ -174,6 +181,7 @@ fn argmax(p: &[(String, f64)]) -> usize {
         .fold(0, |best, (i, x)| if x.1 > p[best].1 { i } else { best })
 }
 
+/// What the model's probabilities amount to.
 #[derive(Debug, PartialEq)]
 pub enum Verdict {
     /// Index into the candidates, and the probability it was accepted at.
@@ -219,12 +227,14 @@ while kill -0 "$parent" 2>/dev/null && kill -0 "$child" 2>/dev/null; do sleep 1;
 kill "$child" 2>/dev/null
 "#;
 
+/// The running `llama-server`, stopped when this is dropped.
 pub struct Server {
     child: Child,
     pub port: u16,
 }
 
 impl Server {
+    /// Start the server on a free port, supervised so it dies with kaika.
     pub fn start(dirs: &Dirs) -> std::io::Result<Server> {
         let port = std::net::TcpListener::bind(("127.0.0.1", 0))?
             .local_addr()?
@@ -295,6 +305,7 @@ enum State {
     Failed(String),
 }
 
+/// The decision model as a [`Decider`]: started lazily, stopped when the command ends.
 pub struct LlamaDecider<'a> {
     r: &'a dyn Runner,
     dirs: Dirs,
@@ -303,6 +314,7 @@ pub struct LlamaDecider<'a> {
 }
 
 impl<'a> LlamaDecider<'a> {
+    /// A decider for these directories; `enabled` is false when models are switched off.
     pub fn new(r: &'a dyn Runner, dirs: Dirs, enabled: bool) -> LlamaDecider<'a> {
         LlamaDecider {
             r,
@@ -317,6 +329,7 @@ impl<'a> LlamaDecider<'a> {
         *self.state.borrow_mut() = State::Idle;
     }
 
+    /// Is the server up?
     #[cfg(test)]
     pub fn is_running(&self) -> bool {
         matches!(*self.state.borrow(), State::Running(_))
